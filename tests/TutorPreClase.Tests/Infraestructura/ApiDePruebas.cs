@@ -57,6 +57,10 @@ public sealed class ApiDePruebas : WebApplicationFactory<Program>
             // prueba el condensador).
             var condensacion = servicios.Where(d => d.ImplementationType == typeof(ServicioCondensacionEnSegundoPlano)).ToList();
             foreach (var d in condensacion) servicios.Remove(d);
+
+            // Igual con la pregunta preparada en segundo plano: se genera cuando se pide.
+            servicios.RemoveAll<TutorPreClase.Application.Evaluacion.IPreparadorPreguntas>();
+            servicios.AddSingleton<TutorPreClase.Application.Evaluacion.IPreparadorPreguntas, PreparadorAnotado>();
         });
     }
 

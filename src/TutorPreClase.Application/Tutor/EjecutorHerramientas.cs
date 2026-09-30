@@ -23,7 +23,9 @@ public sealed class EjecutorHerramientas(
     IAppDbContext db,
     IServicioExamen examen,
     INivelService nivel,
-    IRelojSistema reloj) : IEjecutorHerramientas
+    IRelojSistema reloj,
+    IPreguntasDelIntento preguntas,
+    IPreparadorPreguntas preparador) : IEjecutorHerramientas
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -58,6 +60,19 @@ public sealed class EjecutorHerramientas(
     {
         var intentoId = ExigirIntento(c);
         var pregunta = await examen.SiguientePreguntaAsync(intentoId, ct);
+
+        // Pregunta a pregunta (RF-04): si la siguiente no llegó a prepararse, se genera ahora.
+        if (pregunta is null)
+        {
+            var generacion = await preguntas.GenerarSiguienteAsync(intentoId, ct);
+            if (!generacion.Ok)
+                return Error(Herramientas.ObtenerSiguientePregunta, "pregunta_no_generada", generacion.Mensaje!);
+
+            pregunta = await examen.SiguientePreguntaAsync(intentoId, ct);
+        }
+
+        // Mientras responde esta, se prepara la siguiente.
+        if (pregunta is not null) preparador.Preparar(intentoId);
 
         return pregunta is null
             ? Ok(Herramientas.ObtenerSiguientePregunta, new { quedan_preguntas = false })

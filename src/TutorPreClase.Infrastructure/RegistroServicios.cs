@@ -46,6 +46,11 @@ public static class RegistroServicios
         servicios.AddSingleton<IGeneradorExamen>(new GeneradorExamen());
         servicios.AddScoped<IAgenteTutorService, AgenteTutorService>();
 
+        // El examen se genera pregunta a pregunta (RF-04).
+        servicios.AddSingleton<CandadosIntento>();
+        servicios.AddScoped<IPreguntasDelIntento, PreguntasDelIntento>();
+        servicios.AddSingleton<IPreparadorPreguntas, TutorPreClase.Infrastructure.Evaluacion.PreparadorPreguntasEnSegundoPlano>();
+
         servicios.AddSingleton<IAlmacenArchivos>(_ =>
             new AlmacenArchivosLocal(config["Almacen:Raiz"] ?? "almacen"));
         servicios.AddScoped<IServicioContenido, ServicioContenido>();

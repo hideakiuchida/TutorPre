@@ -28,6 +28,13 @@ public class Intento
     public decimal? Puntaje { get; set; }
     public int? Porcentaje { get; set; }
 
+    /// <summary>
+    /// Cuántas preguntas tendrá el intento. La IA las genera de a una mientras el alumno
+    /// responde (RF-04), así que al empezar existe solo la primera; 0 en intentos antiguos,
+    /// que tenían todas desde el inicio.
+    /// </summary>
+    public int PreguntasPlaneadas { get; set; }
+
     public List<RespuestaIntento> Respuestas { get; set; } = [];
 }
 

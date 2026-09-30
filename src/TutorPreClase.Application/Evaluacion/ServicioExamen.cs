@@ -54,7 +54,9 @@ public sealed class ServicioExamen(IAppDbContext db, IRelojSistema reloj, INivel
             AgenteId = agenteId,
             Modelo = modelo,
             Estado = EstadoIntento.EnCurso,
-            Inicio = reloj.Ahora
+            Inicio = reloj.Ahora,
+            // El resto de preguntas se genera de a una mientras responde (PreguntasDelIntento).
+            PreguntasPlaneadas = Math.Max(examen.PreguntasPorIntento, preguntas.Count)
         };
 
         db.Intentos.Add(intento);
@@ -84,7 +86,7 @@ public sealed class ServicioExamen(IAppDbContext db, IRelojSistema reloj, INivel
             siguiente.Id,
             siguiente.Enunciado,
             aprobadas.IndexOf(siguiente) + 1,
-            aprobadas.Count,
+            Total(examen, intento),
             siguiente.Alternativas
                 .OrderBy(a => a.Letra, StringComparer.Ordinal)
                 .Select(a => new AlternativaDto(a.Id, a.Letra, a.Texto))
@@ -121,7 +123,8 @@ public sealed class ServicioExamen(IAppDbContext db, IRelojSistema reloj, INivel
         db.Respuestas.Add(respuesta);
         await db.SaveChangesAsync(ct);
 
-        var quedan = PreguntasVigentes(examen, intento).Count > intento.Respuestas.Count;
+        // Quedan aunque aún no estén generadas: se preparan mientras tanto.
+        var quedan = Total(examen, intento) > intento.Respuestas.Count;
 
         // En modo AlFinal el agente no recibe la corrección: solo "registrada" (RF-15).
         return examen.ModoFeedback == ModoFeedback.Inmediato
@@ -135,7 +138,7 @@ public sealed class ServicioExamen(IAppDbContext db, IRelojSistema reloj, INivel
 
         return new ProgresoDto(
             intento.Respuestas.Count,
-            PreguntasVigentes(examen, intento).Count,
+            Total(examen, intento),
             ReglasExamen.SegundosRestantes(examen, intento, reloj.Ahora));
     }
 
@@ -145,7 +148,8 @@ public sealed class ServicioExamen(IAppDbContext db, IRelojSistema reloj, INivel
 
         if (intento.Estado == EstadoIntento.EnCurso)
         {
-            var total = PreguntasVigentes(examen, intento).Count;
+            // Sobre las planeadas: lo que no llegó a responder cuenta como no acertado.
+            var total = Total(examen, intento);
             var correctas = intento.Respuestas.Count(r => r.EsCorrecta);
 
             intento.Puntaje = Calificacion.Nota(correctas, total);
@@ -174,9 +178,13 @@ public sealed class ServicioExamen(IAppDbContext db, IRelojSistema reloj, INivel
     private static List<Pregunta> PreguntasVigentes(Examen examen, Intento intento) =>
         examen.Preguntas.Where(p => p.IntentoId == intento.Id).OrderBy(p => p.Orden).ToList();
 
+    /// <summary>Preguntas del intento, generadas o por generar.</summary>
+    private static int Total(Examen examen, Intento intento) =>
+        Math.Max(intento.PreguntasPlaneadas, PreguntasVigentes(examen, intento).Count);
+
     private static ResultadoDto Armar(Examen examen, Intento intento)
     {
-        var total = PreguntasVigentes(examen, intento).Count;
+        var total = Total(examen, intento);
         var correctas = intento.Respuestas.Count(r => r.EsCorrecta);
 
         var fallos = intento.Respuestas

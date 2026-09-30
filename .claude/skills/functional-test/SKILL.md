@@ -1,6 +1,6 @@
 ---
 name: functional-test
-description: Prueba funcional del Tutor Pre-Clase trazada al SDD — recorre los requisitos RF-01 a RF-35 (incluidos el inicio de sesión y las pantallas por rol) y los RNF verificables a mano, en la web y por API, y reporta cuáles pasan, cuáles fallan y cuáles no están implementados. Úsalo cuando pidan probar la app entera, validarla antes de una demo, o comprobar que un cambio no rompió el flujo completo.
+description: Prueba funcional del Tutor Pre-Clase trazada al SDD — recorre los requisitos RF-01 a RF-37 (inicio de sesión y pantallas por rol, cuentas de IA con Gemini y OpenRouter, material condensado, examen pregunta a pregunta) y los RNF verificables a mano, en la web y por API, en local o en producción (Vercel + Railway), y reporta cuáles pasan, cuáles fallan y cuáles no están implementados. Úsalo cuando pidan probar la app entera, validarla antes de una demo, probar en producción, o comprobar que un cambio no rompió el flujo completo.
 ---
 
 # Prueba funcional según el SDD
@@ -9,7 +9,40 @@ Cada bloque verifica requisitos concretos de
 [`specs/SDD-Plataforma-Evaluacion-PreClase.md`](../../../specs/SDD-Plataforma-Evaluacion-PreClase.md).
 Si el spec cambió, **léelo antes**: manda el spec, no esta lista.
 
-El arranque no está aquí: **invoca primero el skill `start-local`**.
+El arranque no está aquí: en local, **invoca primero el skill `start-local`**. En producción no
+se arranca nada: se prueba lo desplegado.
+
+## Entorno: local o producción
+
+Pregunta o deduce contra cuál se prueba, y dilo en el reporte.
+
+| | Local | Producción |
+| --- | --- | --- |
+| Web | http://localhost:4200 | https://tutor-preclase.vercel.app |
+| API | http://localhost:5080 | https://api-production-9a65.up.railway.app |
+| Qué hay desplegado | Lo del árbol de trabajo | El último commit de `main` con CI y CD en verde: compruébalo en https://github.com/hideakiuchida/TutorPre/actions antes de empezar |
+| Cómo se actúa por API | `curl` con `X-Usuario-Id` / `X-Usuario-Rol`, y `/demo` para los ids | **No hay cabeceras de desarrollo ni `/demo`** (401). Solo la sesión real: la persona entra con Google en Chrome y las llamadas se hacen desde la página con `fetch` y el token de `sessionStorage['tutor.sesion']`. **Nunca muestres ni copies el token** |
+| Datos | De prueba (volumen `tutor-datos`) | **Reales**: no crees cursos ni alumnos de prueba, no borres nada y no cambies ajustes de clases sin decirlo; lo que cambies (ampliación, nivel), déjalo como estaba |
+| Material | Copiar a `course-content/` | Viene en la imagen: cambiarlo es commit y CD. No lo pruebes en producción |
+| Logs | `docker logs tutor-api` | Railway → proyecto `tutor-preclase` → servicio `api` → *Deployments* → *View logs* (en Chrome) |
+| Cuentas de IA | Las conecta la persona | Igual: Gemini u OpenRouter las conecta **la persona** en la web de producción |
+
+En producción, las comprobaciones mínimas antes de los bloques:
+
+```bash
+curl -s https://api-production-9a65.up.railway.app/salud                     # {"estado":"ok"}
+curl -s https://api-production-9a65.up.railway.app/api/v1/acceso/proveedores # google: configurado true
+curl -s -o /dev/null -w "%{http_code}\n" https://api-production-9a65.up.railway.app/api/v1/alumno/clases  # 401
+curl -s -o /dev/null -w "%{http_code}\n" https://tutor-preclase.vercel.app/entrar  # 200 (ruta de la SPA)
+```
+
+Llamada a la API con la sesión de la página (en Chrome, con `javascript_tool`, en la pestaña de
+la web de producción ya con sesión). Devuelve datos, nunca el token:
+
+```js
+const { token } = JSON.parse(sessionStorage.getItem('tutor.sesion'));
+await fetch('https://api-production-9a65.up.railway.app/api/v1/agentes', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json())
+```
 
 ## 0. Preparación
 
@@ -143,14 +176,16 @@ curl -s -H "X-Usuario-Id: $(python -c 'import uuid;print(uuid.uuid4())')" \
 
 | Requisito | Cómo verificarlo |
 | --- | --- |
-| RF-04 | **Comenzar examen**: sale *"Preparando tu examen con el material de la clase…"* y en unos segundos arranca con 6 preguntas **sobre el material de M1** (no inventadas ni de otro tema) |
+| RF-04 | **Comenzar examen**: sale *"Preparando tu examen con el material de la clase…"* y en pocos segundos arranca con la **primera** pregunta **sobre el material de M1** (no inventada ni de otro tema). La cabecera dice *Pregunta 1 de 6* aunque las demás aún no existan: se generan **pregunta a pregunta** mientras responde, sin repetir tema (SDD §5.2) |
+| RF-04 | Tras cada respuesta, la siguiente llega casi al instante (se preparó en segundo plano). Si el modelo está saturado, el tutor lo dice en una línea y vuelve a pedirla cuando el alumno lo indica; las respuestas ya registradas se conservan |
 | RF-05 | Cada pregunta trae 4 alternativas; la correcta no cae siempre en la misma letra. Tras el examen, `GET /intentos/$INT/resultado` muestra justificaciones que citan `[archivo, p. N]` |
 | RF-04 | Un segundo intento trae preguntas distintas a las del primero |
 | RF-06 | La cabecera pasa a *Examen en curso* y el intento guarda el modelo (`openrouter` en `usoPorAgente` del reporte) |
 | RF-15 | Pide una pista o la respuesta: se niega y no filtra la correcta |
 | RF-07 | Responde en lenguaje natural (`creo que es la A`): el progreso avanza y presenta la siguiente |
 | RF-18 | Con `minutosLimite`, la cabecera muestra el tiempo restante |
-| RF-09 | Al responder la última, comunica la **nota sobre 20**; `GET /api/v1/intentos/$INT/resultado` da la misma nota |
+| RF-09 | Al responder la última, comunica la **nota sobre 20**, calculada por el servidor sobre las 6 planeadas; `GET /api/v1/intentos/$INT/resultado` da la misma nota |
+| §5.4 | Al terminar, el tutor abre con una **evaluación final** breve: la nota, lo que dominó, los temas a reforzar y una recomendación; luego ofrece repasar los fallos. En el reporte del docente, esos temas aparecen en `temasDebiles` del alumno |
 | RNF-01 | El progreso se actualiza al instante, sin esperar al modelo |
 | RF-08 | Tras agotar los 3 intentos, iniciar otro responde `SinIntentosDisponibles` |
 
@@ -218,8 +253,9 @@ docker volume rm tutor-datos tutor-claves
 
 ## Al terminar
 
-Reporta por bloques: qué requisito pasó, cuál falló y con qué evidencia, y cuáles se
-saltaron (por falta de credencial o porque no están implementados). Quita el archivo de
+Reporta por bloques, **diciendo si fue en local o en producción** y qué commit estaba
+desplegado: qué requisito pasó, cuál falló y con qué evidencia, y cuáles se saltaron (por
+falta de credencial, porque no se prueban en producción o porque no están implementados). Quita el archivo de
 prueba de `course-content/`. No des por bueno lo que
 no comprobaste.
 

@@ -90,6 +90,10 @@ public sealed class BancoDePruebas : IDisposable
     public INivelService Nivel { get; }
     public IContextoClaseService Contexto { get; }
     public IBovedaCredenciales Boveda { get; }
+    public IPreguntasDelIntento Preguntas { get; }
+
+    /// <summary>En pruebas no hay segundo plano: la pregunta se genera cuando se pide.</summary>
+    public PreparadorAnotado Preparador { get; } = new();
 
     public Guid AlumnoId { get; private set; }
     public Guid ClaseId { get; private set; }
@@ -114,14 +118,17 @@ public sealed class BancoDePruebas : IDisposable
         Nivel = new NivelService(Db, Reloj);
         Examen = new ServicioExamen(Db, Reloj, Nivel);
 
-        var ejecutor = new EjecutorHerramientas(Db, Examen, Nivel, Reloj);
-
         Boveda = new BovedaCredenciales(
             Db, DataProtectionProvider.Create("TutorPreClase.Tests"), new ValidadorSiempreOk(), Reloj,
             NullLogger<BovedaCredenciales>.Instance);
 
+        Preguntas = new PreguntasDelIntento(
+            Db, Boveda, Proveedor, Contexto, Generador, new CandadosIntento(), NullLogger<PreguntasDelIntento>.Instance);
+
+        var ejecutor = new EjecutorHerramientas(Db, Examen, Nivel, Reloj, Preguntas, Preparador);
+
         Tutor = new AgenteTutorService(
-            Db, Contexto, ejecutor, Examen, Proveedor, Boveda, Generador, Reloj,
+            Db, Contexto, ejecutor, Examen, Proveedor, Boveda, Generador, Preparador, Reloj,
             NullLogger<AgenteTutorService>.Instance);
     }
 
@@ -181,7 +188,8 @@ public sealed class BancoDePruebas : IDisposable
             CierraEn = Reloj.Ahora.AddHours(5),
             MaxIntentos = 3,
             ModoFeedback = feedback,
-            Publicado = true
+            Publicado = true,
+            PreguntasPorIntento = 2
         };
 
         Db.Usuarios.Add(alumno);
@@ -263,19 +271,41 @@ public sealed class GeneradorFijo : IGeneradorExamen
     /// <summary>Si se fija, la generacion falla con este error del proveedor.</summary>
     public ErrorProveedor? Falla { get; set; }
 
+    /// <summary>Lo que ya tenía el intento en la última llamada (generación pregunta a pregunta).</summary>
+    public IReadOnlyCollection<string>? UltimasYaPreguntadas { get; private set; }
+
     public Task<IReadOnlyList<Pregunta>> GenerarAsync(
-        ILlmProvider proveedor, string modelo, ContextoClase contexto, int cantidad, CancellationToken ct = default)
+        ILlmProvider proveedor, string modelo, ContextoClase contexto, int cantidad,
+        IReadOnlyCollection<string>? yaPreguntadas = null, CancellationToken ct = default)
     {
         Llamadas++;
         UltimoMaterial = contexto;
+        UltimasYaPreguntadas = yaPreguntadas;
         if (Falla is not null) throw new GeneracionExamenException("Fallo el proveedor.", Falla);
 
-        IReadOnlyList<Pregunta> preguntas =
-        [
-            BancoDePruebas.Pregunta("Que funcion evita el desvanecimiento del gradiente?", 1, "ReLU"),
-            BancoDePruebas.Pregunta("Que problema tiene la sigmoide en capas profundas?", 2, "Satura")
-        ];
+        // Pregunta a pregunta: devuelve las siguientes de la lista, según lo ya preguntado.
+        var desde = yaPreguntadas?.Count ?? 0;
+        IReadOnlyList<Pregunta> preguntas = Lista
+            .Skip(desde)
+            .Take(cantidad)
+            .Select((p, i) => BancoDePruebas.Pregunta(p.Enunciado, desde + i + 1, p.Correcta))
+            .ToList();
 
         return Task.FromResult(preguntas);
     }
+
+    private static readonly (string Enunciado, string Correcta)[] Lista =
+    [
+        ("Que funcion evita el desvanecimiento del gradiente?", "ReLU"),
+        ("Que problema tiene la sigmoide en capas profundas?", "Satura"),
+        ("Que capa reduce la dimension espacial?", "Pooling")
+    ];
+}
+
+/// <summary>Anota los intentos cuya siguiente pregunta se pidió preparar en segundo plano.</summary>
+public sealed class PreparadorAnotado : IPreparadorPreguntas
+{
+    public List<Guid> Pedidos { get; } = [];
+
+    public void Preparar(Guid intentoId) => Pedidos.Add(intentoId);
 }

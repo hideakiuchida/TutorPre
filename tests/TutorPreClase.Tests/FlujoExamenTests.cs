@@ -1,4 +1,5 @@
 using System.Text.Json;
+using TutorPreClase.Application.Llm;
 using TutorPreClase.Application.Tutor;
 using TutorPreClase.Domain.Entidades;
 using TutorPreClase.Tests.Infraestructura;
@@ -14,11 +15,11 @@ public class FlujoExamenTests
         var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
-        var preguntas = banco.Db.Preguntas.OrderBy(p => p.Orden).ToList();
-
+        // Pregunta a pregunta: la segunda se genera cuando el tutor la pide.
         // El alumno responde bien la primera y mal la segunda.
-        await Responder(banco, conversacion.Id, preguntas[0].Id, "A", "creo que es la A");
-        await Responder(banco, conversacion.Id, preguntas[1].Id, "B", "la B");
+        await Responder(banco, conversacion.Id, Pregunta(banco, 1), "A", "creo que es la A");
+        await PedirSiguiente(banco, conversacion.Id);
+        await Responder(banco, conversacion.Id, Pregunta(banco, 2), "B", "la B");
 
         banco.Proveedor.LlamaHerramienta(Herramientas.FinalizarExamen, new { });
         banco.Proveedor.RespondeTexto("Obtuviste 10.0. Revisemos el fallo [Clase03.pdf, p. 11].");
@@ -138,9 +139,9 @@ public class FlujoExamenTests
         var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
-        var preguntas = banco.Db.Preguntas.OrderBy(p => p.Orden).ToList();
-        await Responder(banco, conversacion.Id, preguntas[0].Id, "A", "A");
-        await Responder(banco, conversacion.Id, preguntas[1].Id, "A", "A");
+        await Responder(banco, conversacion.Id, Pregunta(banco, 1), "A", "A");
+        await PedirSiguiente(banco, conversacion.Id);
+        await Responder(banco, conversacion.Id, Pregunta(banco, 2), "A", "A");
 
         banco.Proveedor.LlamaHerramienta(Herramientas.FinalizarExamen, new { });
         banco.Proveedor.RespondeTexto("Excelente.");
@@ -174,6 +175,85 @@ public class FlujoExamenTests
 
         Assert.Equal(NivelAlumnoValor.Avanzado, nivel.Nivel);
         Assert.Equal(OrigenNivel.Docente, nivel.Origen);
+    }
+
+    [Fact]
+    public async Task La_siguiente_pregunta_se_genera_al_pedirla_sin_repetir_la_anterior()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        await banco.Tutor.IniciarExamenAsync(conversacion.Id);
+
+        await Responder(banco, conversacion.Id, Pregunta(banco, 1), "A", "la A");
+        var progreso = await banco.Examen.ProgresoAsync(banco.Db.Intentos.Single().Id);
+        Assert.Equal((1, 2), (progreso.Respondidas, progreso.Total)); // la segunda aún no existe
+
+        await PedirSiguiente(banco, conversacion.Id);
+
+        var resultado = JsonDocument.Parse(UltimoResultadoHerramienta(banco, Herramientas.ObtenerSiguientePregunta)).RootElement;
+        Assert.Equal(2, resultado.GetProperty("numero").GetInt32());
+        Assert.Contains(banco.Generador.UltimasYaPreguntadas!, p => p.Contains("desvanecimiento del gradiente"));
+        Assert.Contains(banco.Db.Intentos.Single().Id, banco.Preparador.Pedidos);
+    }
+
+    [Fact]
+    public async Task Si_la_siguiente_no_se_puede_generar_el_avance_se_conserva_y_se_puede_reintentar()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        await banco.Tutor.IniciarExamenAsync(conversacion.Id);
+        await Responder(banco, conversacion.Id, Pregunta(banco, 1), "A", "la A");
+
+        banco.Generador.Falla = new ErrorProveedor("429", true, LimiteDeUso: true, Saturado: true);
+        await PedirSiguiente(banco, conversacion.Id);
+
+        var error = JsonDocument.Parse(UltimoResultadoHerramienta(banco, Herramientas.ObtenerSiguientePregunta)).RootElement;
+        Assert.Equal("pregunta_no_generada", error.GetProperty("error").GetString());
+        Assert.Contains("saturado", error.GetProperty("mensaje").GetString());
+        Assert.Single(banco.Db.Respuestas);
+
+        banco.Generador.Falla = null;
+        await PedirSiguiente(banco, conversacion.Id);
+        Assert.Equal(2, banco.Db.Preguntas.Count());
+    }
+
+    [Fact]
+    public async Task La_nota_se_calcula_sobre_las_preguntas_planeadas()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        await banco.Tutor.IniciarExamenAsync(conversacion.Id);
+
+        // Responde bien la única generada y termina antes: la que faltaba cuenta como no acertada.
+        await Responder(banco, conversacion.Id, Pregunta(banco, 1), "A", "la A");
+        var resultado = await banco.Examen.FinalizarAsync(banco.Db.Intentos.Single().Id);
+
+        Assert.Equal((1, 2, 10.0m), (resultado.Correctas, resultado.Total, resultado.Nota));
+    }
+
+    [Fact]
+    public async Task No_se_genera_mas_de_una_adelantada_ni_mas_de_las_planeadas()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        await banco.Tutor.IniciarExamenAsync(conversacion.Id);
+        var intentoId = banco.Db.Intentos.Single().Id;
+
+        await banco.Preguntas.GenerarSiguienteAsync(intentoId); // 2 de 2: la adelantada
+        await banco.Preguntas.GenerarSiguienteAsync(intentoId); // ya están todas
+
+        Assert.Equal(2, banco.Db.Preguntas.Count());
+        Assert.Equal(2, banco.Generador.Llamadas);
+    }
+
+    private static Guid Pregunta(BancoDePruebas banco, int orden) =>
+        banco.Db.Preguntas.Single(p => p.Orden == orden).Id;
+
+    private static async Task PedirSiguiente(BancoDePruebas banco, Guid conversacionId)
+    {
+        banco.Proveedor.LlamaHerramienta(Herramientas.ObtenerSiguientePregunta, new { });
+        banco.Proveedor.RespondeTexto("Siguiente pregunta.");
+        await banco.EnviarAsync(conversacionId, "siguiente");
     }
 
     private static async Task Responder(

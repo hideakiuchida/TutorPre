@@ -32,6 +32,7 @@ public sealed class AgenteTutorService(
     IProveedorLlmFactory proveedores,
     IBovedaCredenciales credenciales,
     IGeneradorExamen generador,
+    IPreparadorPreguntas preparador,
     IRelojSistema reloj,
     ILogger<AgenteTutorService> log) : IAgenteTutorService
 {
@@ -93,12 +94,16 @@ public sealed class AgenteTutorService(
 
         var intento = await examen.IniciarIntentoAsync(
             conversacion.ClaseId, conversacion.AlumnoId, agente.Id, agente.Modelo,
-            (config, c) => GenerarAsync(proveedor, agente, conversacion.AlumnoId, material, config.PreguntasPorIntento, c),
+            // Pregunta a pregunta: solo la primera antes de empezar; el resto se prepara
+            // mientras responde, así el alumno no espera a que la IA arme todo el examen.
+            (_, c) => GenerarAsync(proveedor, agente, conversacion.AlumnoId, material, 1, c),
             ct);
 
         conversacion.IntentoId = intento.Id;
         conversacion.Modo = ModoConversacion.Evaluacion;
         await db.SaveChangesAsync(ct);
+
+        preparador.Preparar(intento.Id);
 
         return conversacion;
     }
@@ -399,7 +404,7 @@ public sealed class AgenteTutorService(
     {
         try
         {
-            return await generador.GenerarAsync(proveedor, agente.Modelo, material, cantidad, ct);
+            return await generador.GenerarAsync(proveedor, agente.Modelo, material, cantidad, ct: ct);
         }
         catch (GeneracionExamenException ex) when (ex.Error?.CredencialRechazada == true)
         {

@@ -110,7 +110,7 @@ public class GeneradorExamenTests
 public class ExamenPorAlumnoTests
 {
     [Fact]
-    public async Task Cada_intento_recibe_sus_propias_preguntas_generadas()
+    public async Task Al_empezar_solo_se_genera_la_primera_y_se_prepara_la_siguiente()
     {
         using var banco = new BancoDePruebas().Sembrar();
         var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
@@ -119,7 +119,9 @@ public class ExamenPorAlumnoTests
 
         var intento = banco.Db.Intentos.Single();
         Assert.Equal(1, banco.Generador.Llamadas);
-        Assert.Equal(2, banco.Db.Preguntas.Count(p => p.IntentoId == intento.Id));
+        Assert.Equal(1, banco.Db.Preguntas.Count(p => p.IntentoId == intento.Id));
+        Assert.Equal(2, intento.PreguntasPlaneadas);
+        Assert.Contains(intento.Id, banco.Preparador.Pedidos);
     }
 
     [Fact]

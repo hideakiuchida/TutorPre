@@ -53,7 +53,7 @@ Medir los conocimientos previos del alumno, cerrar sus vacíos con un tutor que 
 | RF-01 | El docente crea una clase con fecha/hora de inicio y ventana de disponibilidad del examen | Alta |
 | RF-02 | El docente sube el contenido copiándolo a la carpeta de contenido, una subcarpeta por clase (PDF, PPTX, DOCX, XLSX, MD, TXT); lo que quita de la carpeta se retira de la clase | Alta |
 | RF-03 | El sistema extrae el texto del contenido automáticamente al subirlo, conservando archivo y página | Alta |
-| RF-04 | La IA genera un examen propio para cada alumno en cada intento, a partir del material de la clase y con su propio criterio; el docente no escribe ni aprueba preguntas | Alta |
+| RF-04 | La IA genera un examen propio para cada alumno en cada intento, a partir del material de la clase y con su propio criterio, **pregunta a pregunta**: al empezar solo la primera, y cada siguiente mientras el alumno responde la anterior, sin repetir lo ya preguntado. El docente no escribe ni aprueba preguntas | Alta |
 | RF-05 | Cada pregunta generada tiene 4 alternativas con una sola correcta, un tema y una justificación que cita el material; el servidor descarta las que no cumplen | Alta |
 | RF-06 | El tutor usa el modelo que habilita el administrador; al iniciar el examen el modelo queda fijado en el intento | Alta |
 | RF-07 | El agente conduce el examen por chat: presenta cada pregunta, interpreta la respuesta en lenguaje natural y la registra mediante una herramienta del servidor | Alta |
@@ -221,7 +221,7 @@ El modelo gira en torno a la **Clase**: de ella cuelgan el contenido y un único
 | Examen | id, clase_id, abre_en, cierra_en, max_intentos, minutos_limite, modo_feedback (Inmediato, AlFinal), publicado | 1:N Pregunta |
 | Pregunta | id, examen_id, enunciado, justificacion, tema, nivel (Inicial, Básico, Intermedio, Avanzado), orden, origen (IA, Docente), aprobada | 1:N Alternativa, N:M PaginaContenido (referencias) |
 | Alternativa | id, pregunta_id, letra, texto, es_correcta | — |
-| Intento | id, examen_id, alumno_id, agente_id, modelo, estado (EnCurso, Enviado, EnRevision), inicio, envio, puntaje, porcentaje | 1:1 Conversacion, 1:N RespuestaIntento |
+| Intento | id, examen_id, alumno_id, agente_id, modelo, estado (EnCurso, Enviado, EnRevision), inicio, envio, puntaje, porcentaje, preguntas_planeadas | 1:1 Conversacion, 1:N RespuestaIntento. `preguntas_planeadas` es el total del intento aunque aún no estén generadas (0 en intentos anteriores al examen pregunta a pregunta) |
 | RespuestaIntento | id, intento_id, pregunta_id, alternativa_id, es_correcta, texto_original_alumno | — |
 | Conversacion | id, clase_id, alumno_id, agente_id, modo (Evaluacion, Revision, Consulta), intento_id (opcional), creada_en | 1:N MensajeChat; único hilo del alumno por clase |
 | MensajeChat | id, conversacion_id, pregunta_id (opcional), agente_id, rol (alumno, agente, herramienta), texto, herramienta, fuentes (jsonb), usa_ampliacion, tokens_entrada, tokens_salida, creado_en | historial del examen, la revisión y las consultas |
@@ -395,10 +395,12 @@ Ya conectado:
 **Cada alumno rinde un examen propio, generado por la IA** (RF-04). Toda clase de la carpeta tiene su examen publicado (6 preguntas, 20 minutos, 3 intentos, abierto hasta que empieza la clase); lo que no existe de antemano son las preguntas:
 
 1. Al pulsar *Comenzar examen*, el servidor comprueba ventana e intentos (RF-08) y que la clase tenga material.
-2. Con la cuenta de OpenRouter del alumno, pide a la IA *N* preguntas de opción múltiple basadas únicamente en el contexto de clase: repartidas entre los temas, de comprensión y aplicación, con alternativas incorrectas plausibles y una justificación que cite `[archivo, p. N]`. Es una llamada aparte del chat: la clave de respuestas nunca entra en la conversación del tutor (§6.4).
-3. El servidor descarta las preguntas mal formadas (no 4 alternativas, más o menos de una correcta, repetidas), baraja las alternativas para que la correcta no caiga siempre en la misma letra y las guarda ligadas a ese intento (`pregunta.intento_id`). Nadie las aprueba.
-4. Si la IA falla o no devuelve al menos 3 preguntas válidas, el intento **no se crea ni se consume** y el alumno puede reintentar. Una credencial rechazada o un límite de uso se tratan como en el chat (RF-28, RF-30).
-5. Cada intento genera preguntas nuevas: repetir el examen no es memorizarlo. El mismo alumno no puede responder preguntas de otro intento, ni de otro alumno.
+2. **Pregunta a pregunta.** Con la cuenta de IA del alumno (Gemini u OpenRouter), pide a la IA **solo la primera pregunta**, de opción múltiple y basada únicamente en el material original de la clase: de comprensión y aplicación, con alternativas incorrectas plausibles y una justificación que cite `[archivo, p. N]`. Así el alumno empieza en segundos, en lugar de esperar a que la IA arme las seis. Es una llamada aparte del chat: la clave de respuestas nunca entra en la conversación del tutor (§6.4).
+3. El intento se crea con `preguntas_planeadas` = las del examen (6 por defecto) y la primera pregunta ligada a él (`pregunta.intento_id`).
+4. **La siguiente se prepara mientras responde.** Cada vez que el tutor entrega una pregunta, `PreparadorPreguntas` pide la siguiente en segundo plano, con la lista de lo ya preguntado para no repetir tema ni concepto. Cuando el tutor llama a `obtener_siguiente_pregunta`, casi siempre ya está lista; si no, `PreguntasDelIntento` la genera en ese momento. Un candado por intento evita que ambos caminos generen la misma pregunta, y nunca hay más de una preparada por delante (no se gasta cupo de más).
+5. El servidor descarta las preguntas mal formadas (no 4 alternativas, más o menos de una correcta, repetidas) y baraja las alternativas para que la correcta no caiga siempre en la misma letra. Nadie las aprueba.
+6. Si la IA falla con la primera, el intento **no se crea ni se consume** y el alumno puede reintentar. Si falla con una siguiente, el tutor lo dice y la vuelve a pedir cuando el alumno lo indique: las respuestas ya registradas no se pierden. Una credencial rechazada o un límite de uso se tratan como en el chat (RF-28, RF-30).
+7. Cada intento genera preguntas nuevas: repetir el examen no es memorizarlo. El mismo alumno no puede responder preguntas de otro intento, ni de otro alumno.
 
 Con el examen listo, la conversación sigue igual:
 
@@ -411,13 +413,21 @@ Con el examen listo, la conversación sigue igual:
 
 ### 5.3 Calificación
 
-Al llamar a `finalizar_examen` (o al vencer el tiempo) el servidor calcula la nota; el agente solo la comunica, nunca la calcula.
+Al llamar a `finalizar_examen` (o al vencer el tiempo) el servidor calcula la nota; el agente solo la comunica, nunca la calcula. El total son las **preguntas planeadas** del intento, no solo las generadas: si el alumno termina antes, las que faltaban cuentan como no acertadas. La IA no califica: comparar la alternativa elegida con la correcta es exacto, no se puede negociar con el modelo y no gasta cupo.
 
 ```latex
 \text{nota} = \operatorname{round}\left(20 \times \frac{\text{correctas}}{\text{total}},\ 1\right)
 ```
 
 ### 5.4 Revisión como tutor
+
+**Evaluación final de la IA.** Al terminar el examen, el tutor abre la revisión con una evaluación breve (máximo 120 palabras):
+1. la nota del servidor;
+2. lo que el alumno dominó, según las preguntas acertadas;
+3. los temas a reforzar, según los fallos;
+4. una recomendación concreta para llegar mejor a la clase.
+
+Luego llama a `proponer_diagnostico` con esos temas, que alimentan el nivel y el reporte del docente (RF-21, RF-22), y ofrece repasar los fallos uno por uno. La nota no la toca: esa evaluación es cualitativa.
 
 1. `finalizar_examen` devuelve al agente la nota y, por cada pregunta fallada, la alternativa elegida, la correcta y su justificación con la cita al material.
 2. El agente recorre los fallos uno por uno: por qué la elección es incorrecta, qué concepto faltó (citando el material de la clase como [archivo, p. N]) y una pregunta corta de comprobación.
@@ -786,28 +796,44 @@ sequenceDiagram
     participant O as OpenRouter
     participant D as PostgreSQL
 
+    participant P as PreparadorPreguntas
+
     U->>W: Comenzar examen
     W->>T: POST /conversaciones/{id}/examen
     T->>E: ventana abierta, intentos disponibles, material
-    E->>G: generar N preguntas con el material original completo (no los apuntes)
+    E->>G: generar SOLO la pregunta 1 con el material original (no los apuntes)
     G->>O: llamada aparte del chat, sin herramientas, reasoning low, temperatura 0.7
-    O-->>G: JSON con preguntas, alternativas, correcta y justificación con cita
-    G->>G: descarta mal formadas, baraja alternativas
-    alt al menos 3 válidas
-        G-->>E: preguntas
-        E->>D: intento + preguntas ligadas a él
-        T->>D: conversación en modo Evaluación
-        T-->>W: examen listo
-    else la IA falla o devuelve menos de 3
+    O-->>G: JSON con la pregunta, alternativas, correcta y justificación con cita
+    alt pregunta válida
+        E->>D: intento (preguntas_planeadas = 6) + pregunta 1
+        T->>P: preparar la pregunta 2 en segundo plano
+        T-->>W: examen listo en segundos
+    else la IA falla
         E-->>W: aviso, el intento no se crea ni se consume
     end
+    loop cada pregunta
+        T->>E: obtener_siguiente_pregunta
+        alt ya estaba preparada
+            E-->>T: la pregunta (sin la clave)
+        else no llegó a tiempo
+            T->>G: generarla ahora, sin repetir lo ya preguntado
+            G->>O: pedir 1 pregunta
+            O-->>G: pregunta
+            G->>D: guardarla ligada al intento
+        end
+        T->>P: preparar la siguiente mientras el alumno responde
+        U->>T: responde en lenguaje natural
+        T->>E: registrar_respuesta (el servidor sabe si acertó)
+    end
+    T->>E: finalizar_examen: nota = correctas / planeadas (servidor, sin IA)
+    T-->>W: evaluación final de la IA: nota, lo que dominó, temas a reforzar, recomendación
 ```
 
 Rendir el examen es el mismo Flujo 3 en modo Evaluación, con dos diferencias:
 - el agente solo tiene `obtener_siguiente_pregunta`, `registrar_respuesta`, `obtener_progreso` y `finalizar_examen`;
 - la clave de respuestas nunca entra en su contexto.
 
-La calificación la hace el servidor, sin IA (§5.3).
+La calificación la hace el servidor, sin IA (§5.3); la evaluación cualitativa del final la hace la IA (§5.4).
 
 #### Flujo 5: el usuario conecta Gemini con su cuenta de Google (RF-37)
 
@@ -1125,6 +1151,7 @@ La web nunca ve ni guarda la clave: la ruta `/conectar/openrouter` toma el `code
 | Calidad del tutor | 50 fallos de referencia por curso: citas correctas, fidelidad al contenido de la clase, ampliación marcada cuando el material no alcanza | Conjunto de evaluación + LLM como juez con revisión humana |
 | Límites del tutor | Preguntas ajenas al curso, ampliación con la clase en `ampliacion_permitida = false`, ampliación durante el examen, citas inventadas | Suite de casos negativos con verificación del corte en servidor |
 | Nivel | Cálculo del nivel por rangos de nota, corrección manual del docente, persistencia de temas débiles | xUnit |
+| Examen pregunta a pregunta | Al empezar solo se genera la primera y se prepara la siguiente, la siguiente se genera al pedirla sin repetir la anterior, fallo al generar una siguiente conserva el avance y se puede reintentar, nunca más de una adelantada ni más de las planeadas, nota sobre las planeadas | xUnit con el proveedor y el generador simulados |
 | Material condensado | Sin cuenta del profesor no se llama a la IA, apuntes por página con sus citas, apunte más largo descartado, página omitida conserva el original, elegir el original, saturación deja pendiente para reintentar, cupo agotado deja error, lotes para gastar pocas llamadas, JSON entre bloques de código, examen con el original, endpoints solo del profesor del curso | xUnit + pruebas de API con el proveedor simulado |
 | Credenciales | Cifrado en reposo, la API nunca devuelve la clave ni acepta una pegada, un alumno no alcanza la de otro, credencial inválida marcada y reconectable, 429 no la invalida | xUnit + pruebas de API |
 | Acceso | Validación del `id_token` (emisor, audiencia, vencido, `nonce`, correo sin verificar), `state` repetido, primer acceso sin crear a nadie hasta elegir rol, alumno solo en los cursos de su profesor, profesor inválido, registro de un solo uso, nadie se elige administrador, registro cerrado (`no_registrado`), administrador por configuración, cada profesor solo sus cursos (403 al ajeno), cambio de profesor, sesión con rol correcto | xUnit + pruebas de API con el proveedor simulado |
@@ -1178,7 +1205,7 @@ La web nunca ve ni guarda la clave: la ruta `/conectar/openrouter` toma el `code
 
 ### 9.6 Pendientes
 
-Estado a 2026-09-30, tras preparar el despliegue en Railway y Vercel. Por prioridad:
+Estado a 2026-09-30, con el examen pregunta a pregunta, Gemini con Google y el material condensado. Por prioridad:
 
 | # | Pendiente | Requisito | Detalle |
 | --- | --- | --- | --- |
@@ -1199,4 +1226,5 @@ Estado a 2026-09-30, tras preparar el despliegue en Railway y Vercel. Por priori
 | 15 | Medir la condensación con el modelo real | RF-36 | Primera prueba local: la infografía "Costo vs Gasto" pasó de 409 a 267 tokens (−35 %). Falta completar M1 (el pool gratuito estaba saturado, se reintenta solo) y revisar la fidelidad de los apuntes con el profesor |
 | 16 | Profesor sin cuenta de IA en producción | RF-36 | En producción el profesor tiene que entrar a su panel y conectar Gemini u OpenRouter; hasta entonces el tutor lee el original |
 | 17 | Cuentas de IA propias, fase 2 | RF-37 | Elegir modelo por usuario en OpenRouter con sus claves de OpenAI, Anthropic o Google enlazadas en su cuenta de OpenRouter (BYOK); proyecto de Google propio (`x-goog-user-project`) para cargar el uso de Gemini a la cuenta del alumno |
+| 19 | Medir el examen pregunta a pregunta con el modelo real | RF-04 | Tiempo hasta la primera pregunta y cuántas veces el alumno espera porque la siguiente no llegó a prepararse; calidad y variedad de las preguntas generadas de a una |
 | 18 | Cuota de Gemini compartida | RF-37 | El plan gratuito del proyecto `tutor-pre-clase` lo comparten todos los alumnos conectados con Gemini; vigilar el 429 y, si crece, activar facturación o la fase 2. Para abrirlo más allá de 100 usuarios de prueba hay que verificar la app en Google |

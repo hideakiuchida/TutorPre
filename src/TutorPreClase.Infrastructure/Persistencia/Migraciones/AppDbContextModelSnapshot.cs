@@ -410,6 +410,9 @@ namespace TutorPreClase.Infrastructure.Persistencia.Migraciones
                     b.Property<int?>("Porcentaje")
                         .HasColumnType("integer");
 
+                    b.Property<int>("PreguntasPlaneadas")
+                        .HasColumnType("integer");
+
                     b.Property<decimal?>("Puntaje")
                         .HasPrecision(4, 1)
                         .HasColumnType("numeric(4,1)");

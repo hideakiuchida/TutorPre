@@ -18,11 +18,14 @@ public sealed class GeneracionExamenException(string mensaje, ErrorProveedor? er
 public interface IGeneradorExamen
 {
     /// <summary>
-    /// Genera las preguntas de un intento a partir del material de la clase (RF-04). Sin
+    /// Genera preguntas de un intento a partir del material de la clase (RF-04). Sin
     /// aprobacion del docente: la IA decide que preguntar y el servidor solo valida la forma.
+    /// <paramref name="yaPreguntadas"/> son los enunciados y temas que ya tiene el intento:
+    /// las preguntas se generan de a una y no deben repetirse.
     /// </summary>
     Task<IReadOnlyList<Pregunta>> GenerarAsync(
-        ILlmProvider proveedor, string modelo, ContextoClase contexto, int cantidad, CancellationToken ct = default);
+        ILlmProvider proveedor, string modelo, ContextoClase contexto, int cantidad,
+        IReadOnlyCollection<string>? yaPreguntadas = null, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -38,12 +41,22 @@ public sealed class GeneradorExamen(bool barajar = true) : IGeneradorExamen
     private const int MinimoUtil = 3;
 
     public async Task<IReadOnlyList<Pregunta>> GenerarAsync(
-        ILlmProvider proveedor, string modelo, ContextoClase contexto, int cantidad, CancellationToken ct = default)
+        ILlmProvider proveedor, string modelo, ContextoClase contexto, int cantidad,
+        IReadOnlyCollection<string>? yaPreguntadas = null, CancellationToken ct = default)
     {
+        var pedido = cantidad == 1 ? "Genera 1 pregunta." : $"Genera el examen de {cantidad} preguntas.";
+
+        if (yaPreguntadas is { Count: > 0 })
+        {
+            // Pregunta a pregunta: cada una sobre algo distinto de lo ya preguntado.
+            pedido += "\n\nEste examen ya tiene estas preguntas; la nueva debe evaluar otro concepto u otro tema:\n- " +
+                      string.Join("\n- ", yaPreguntadas);
+        }
+
         var solicitud = new LlmSolicitud(
             modelo,
             Prompt(contexto, cantidad),
-            [new LlmMensaje(RolLlm.Usuario, $"Genera el examen de {cantidad} preguntas.")],
+            [new LlmMensaje(RolLlm.Usuario, pedido)],
             [],
             // Algo de variedad: cada alumno y cada intento reciben un examen distinto.
             Temperatura: 0.7,
