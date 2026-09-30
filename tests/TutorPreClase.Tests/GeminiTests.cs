@@ -148,6 +148,32 @@ public class GeminiTests
     }
 
     [Fact]
+    public async Task Con_Gemini_3_el_razonamiento_va_como_thinkingLevel()
+    {
+        var google = new GoogleSimulado();
+
+        await Conversar(Proveedor(google), Hola with { Modelo = "gemini-3.8-flash" });
+
+        var pensamiento = JsonDocument.Parse(google.Recibidas.Last().Cuerpo).RootElement
+            .GetProperty("generationConfig").GetProperty("thinkingConfig");
+        Assert.Equal("minimal", pensamiento.GetProperty("thinkingLevel").GetString());
+        Assert.False(pensamiento.TryGetProperty("thinkingBudget", out _));
+    }
+
+    [Fact]
+    public async Task Un_modelo_retirado_se_reemplaza_al_arrancar_y_uno_elegido_no_se_toca()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        banco.Db.Agentes.Add(new AgenteIA { Id = "gemini", NombreVisible = "Gemini", Proveedor = "Google", Modelo = "gemini-2.5-flash", Habilitado = true });
+        banco.Db.SaveChanges();
+
+        await TutorPreClase.Infrastructure.Persistencia.DatosIniciales.SembrarAsync(banco.Db);
+
+        Assert.Equal("gemini-3.8-flash", banco.Db.Agentes.Single(a => a.Id == "gemini").Modelo);
+        Assert.Equal("qwen/qwen3.8-27b:free", banco.Db.Agentes.Single(a => a.Id == "openrouter").Modelo);
+    }
+
+    [Fact]
     public async Task Una_llamada_a_herramienta_y_el_tope_de_salida_se_traducen()
     {
         var google = new GoogleSimulado

@@ -10,14 +10,26 @@ namespace TutorPreClase.Infrastructure.Persistencia;
 /// </summary>
 public static class DatosIniciales
 {
+    /// <summary>
+    /// Modelos que el proveedor retiró, con el que los reemplaza. Solo se cambia un agente
+    /// que todavía tiene el retirado: un modelo que eligió el administrador no se toca.
+    /// </summary>
+    private static readonly Dictionary<string, string> Retirados = new()
+    {
+        // Google: "gemini-2.5-flash is no longer available to new users" (2026-09-30).
+        ["gemini-2.5-flash"] = "gemini-3.8-flash"
+    };
+
     public static async Task SembrarAsync(AppDbContext db, CancellationToken ct = default)
     {
-        var existentes = await db.Agentes.Select(a => a.Id).ToListAsync(ct);
-        var faltantes = Fabrica().Where(a => !existentes.Contains(a.Id)).ToList();
+        var agentes = await db.Agentes.ToListAsync(ct);
 
-        if (faltantes.Count == 0) return;
+        foreach (var agente in agentes)
+            if (Retirados.TryGetValue(agente.Modelo, out var nuevo)) agente.Modelo = nuevo;
 
-        db.Agentes.AddRange(faltantes);
+        var existentes = agentes.Select(a => a.Id).ToHashSet();
+        db.Agentes.AddRange(Fabrica().Where(a => !existentes.Contains(a.Id)));
+
         await db.SaveChangesAsync(ct);
     }
 
@@ -40,7 +52,7 @@ public static class DatosIniciales
             Id = "gemini",
             NombreVisible = "Gemini (tu cuenta de Google)",
             Proveedor = "Google",
-            Modelo = "gemini-2.5-flash",
+            Modelo = "gemini-3.8-flash",
             BaseUrl = "https://generativelanguage.googleapis.com",
             Descripcion = "Entra con tu cuenta de Google. Sin claves ni tarjeta.",
             Habilitado = true

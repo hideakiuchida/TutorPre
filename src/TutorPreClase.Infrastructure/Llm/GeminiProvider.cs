@@ -24,13 +24,18 @@ public sealed class GeminiProvider(
 {
     public string Id { get; } = id;
 
-    /// <summary>Presupuesto de razonamiento según el nivel; null deja decidir al modelo.</summary>
-    private static int? Presupuesto(string? nivel) => nivel switch
+    /// <summary>
+    /// Razonamiento según el nivel; null deja decidir al modelo. Gemini 3 usa
+    /// `thinkingLevel` (su mínimo es "minimal"); los modelos anteriores, `thinkingBudget`.
+    /// </summary>
+    private static JsonObject? Razonamiento(string modelo, string? nivel)
     {
-        NivelRazonamiento.Desactivado => 0,
-        NivelRazonamiento.Bajo => 512,
-        _ => null
-    };
+        if (nivel is not (NivelRazonamiento.Desactivado or NivelRazonamiento.Bajo)) return null;
+
+        return modelo.StartsWith("gemini-3", StringComparison.OrdinalIgnoreCase)
+            ? new JsonObject { ["thinkingLevel"] = nivel == NivelRazonamiento.Desactivado ? "minimal" : "low" }
+            : new JsonObject { ["thinkingBudget"] = nivel == NivelRazonamiento.Desactivado ? 0 : 512 };
+    }
 
     public async IAsyncEnumerable<LlmEvento> StreamAsync(
         LlmSolicitud solicitud, [EnumeratorCancellation] CancellationToken ct)
@@ -195,8 +200,8 @@ public sealed class GeminiProvider(
         // Sin tope pedido, Gemini usa el máximo del modelo.
         if (s.MaxTokens is int tope) generacion["maxOutputTokens"] = tope;
 
-        if (Presupuesto(s.Razonamiento ?? opciones.Razonamiento) is int presupuesto)
-            generacion["thinkingConfig"] = new JsonObject { ["thinkingBudget"] = presupuesto };
+        if (Razonamiento(s.Modelo, s.Razonamiento ?? opciones.Razonamiento) is JsonObject razonamiento)
+            generacion["thinkingConfig"] = razonamiento;
 
         var cuerpo = new JsonObject
         {
