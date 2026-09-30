@@ -273,4 +273,57 @@ input:focus {
   .clase.activa {
     border-bottom-color: #fff;
   }
+
+  /* En la franja de clases, el profesor va en una línea al inicio, sin partirse. */
+  .clases {
+    align-items: center;
+    scrollbar-width: none; /* en móvil se desliza con el dedo */
+  }
+  .profesor-actual {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+    min-width: 6.5rem;
+    max-width: 8rem;
+    margin: 0 0.5rem 0 0;
+    line-height: 1.3;
+  }
+  .profesor-actual .enlace {
+    margin-left: 0;
+  }
+  .clase {
+    min-width: 9.5rem;
+    padding: 0.45rem 0.6rem;
+  }
+
+  /* Cabecera compacta: título arriba y controles en una sola fila debajo. */
+  .cabecera {
+    gap: 0.5rem;
+    padding: 0.7rem 1rem;
+  }
+  .cabecera > div:first-child {
+    min-width: 0;
+  }
+  .cabecera h1 {
+    font-size: var(--t-lectura);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .controles {
+    width: 100%;
+    flex-wrap: nowrap;
+    gap: 0.75rem;
+    font-size: var(--t-pequeno);
+  }
+  .controles label {
+    min-width: 0;
+  }
+  .controles .principal {
+    margin-left: auto;
+    padding: 0.4rem 0.75rem;
+    white-space: nowrap;
+  }
 }

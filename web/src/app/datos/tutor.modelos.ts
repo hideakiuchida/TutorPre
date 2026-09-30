@@ -11,6 +11,8 @@ export interface Agente {
   /** 'OAuth': se conecta iniciando sesión en el proveedor, sin pegar clave (RF-29). */
   conexion: 'Clave' | 'OAuth';
   conectado: boolean;
+  /** Modelo que responde con esta cuenta (p. ej. gemini-2.5-flash). */
+  modelo?: string;
 }
 
 /** Lo único que la web sabe de una credencial: nunca la clave (SDD §7). */

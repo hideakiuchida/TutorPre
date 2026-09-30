@@ -38,7 +38,7 @@ public static class EndpointsAlumno
             var agentes = await db.Agentes
                 .AsNoTracking()
                 .Where(a => a.Habilitado)
-                .Select(a => new { id = a.Id, nombre = a.NombreVisible, descripcion = a.Descripcion, consola = a.UrlConsola })
+                .Select(a => new { id = a.Id, nombre = a.NombreVisible, descripcion = a.Descripcion, consola = a.UrlConsola, modelo = a.Modelo })
                 .ToListAsync(ct);
 
             // Se listan los habilitados que tienen proveedor: el alumno necesita ver cual puede
@@ -49,6 +49,8 @@ public static class EndpointsAlumno
                 a.nombre,
                 a.descripcion,
                 a.consola,
+                // El alumno ve qué modelo responde con su cuenta.
+                a.modelo,
                 // "OAuth": la web ofrece iniciar sesion en lugar del campo para pegar la clave,
                 // sea con OpenRouter o con Google (RF-29, RF-37).
                 conexion = opciones.Value.TryGetValue(a.id, out var o) && ConexionAgente.EsOAuth(o.Conexion)

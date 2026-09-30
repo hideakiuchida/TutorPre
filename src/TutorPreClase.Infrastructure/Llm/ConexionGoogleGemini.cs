@@ -75,8 +75,15 @@ public sealed class ConexionGoogleGemini(
 
         cache.Remove(claveCache);
 
-        var renovacion = await tokens.CanjearAsync(agenteId, codigo.Trim(), verificador, ct)
-            ?? throw new CredencialException("oauth_rechazado",
+        var (renovacion, permisoIncompleto) = await tokens.CanjearAsync(agenteId, codigo.Trim(), verificador, ct);
+
+        if (permisoIncompleto)
+            throw new CredencialException("oauth_permiso_incompleto",
+                "Google no concedió el permiso que necesita Gemini. Vuelve a pulsar «Entrar con Gemini» y, " +
+                "en la pantalla de Google, marca la casilla del permiso de Google Cloud antes de continuar.");
+
+        if (renovacion is null)
+            throw new CredencialException("oauth_rechazado",
                 "Google no aceptó la autorización. Vuelve a pulsar «Entrar con Gemini» y acepta el permiso.");
 
         // Desde aquí es una credencial más: se valida, se cifra y se guarda (RF-25, RF-26).

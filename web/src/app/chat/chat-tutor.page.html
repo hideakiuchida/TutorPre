@@ -96,6 +96,9 @@
 
         @for (agente of agentesOAuth(); track agente.id) {
           <div class="proveedor">
+            @if (agente.modelo) {
+              <p class="modelo-agente">{{ agente.nombre }} · modelo <code>{{ agente.modelo }}</code></p>
+            }
             @if (credencialDe(agente.id); as credencial) {
               <p class="estado" [class.invalida]="credencial.estado === 'Invalida'">
                 @if (credencial.estado === 'Invalida') {

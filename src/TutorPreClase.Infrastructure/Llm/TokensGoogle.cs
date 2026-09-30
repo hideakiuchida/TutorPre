@@ -30,8 +30,13 @@ public sealed class TokensGoogle(
     public const string Cliente = "google-oauth";
     private const string UrlTokenPorDefecto = "https://oauth2.googleapis.com/token";
 
-    /// <summary>Canjea el código del retorno; devuelve el refresh token o null si Google lo rechaza.</summary>
-    public async Task<string?> CanjearAsync(string agenteId, string codigo, string verificador, CancellationToken ct)
+    /// <summary>
+    /// Canjea el código del retorno. Devuelve el refresh token, o null si Google lo rechaza;
+    /// `PermisoIncompleto` si el usuario no marcó el permiso que exige Gemini (en la
+    /// pantalla de Google cada permiso sensible es una casilla).
+    /// </summary>
+    public async Task<(string? Renovacion, bool PermisoIncompleto)> CanjearAsync(
+        string agenteId, string codigo, string verificador, CancellationToken ct)
     {
         var opciones = Opciones(agenteId);
 
@@ -45,13 +50,19 @@ public sealed class TokensGoogle(
             ["client_secret"] = opciones.ClientSecret!
         }, ct);
 
-        if (respuesta?.AccessToken is { Length: > 0 } acceso && respuesta.RefreshToken is { Length: > 0 } renovacion)
+        if (respuesta?.AccessToken is not { Length: > 0 } acceso || respuesta.RefreshToken is not { Length: > 0 } renovacion)
+            return (null, false);
+
+        // Google devuelve los permisos concedidos separados por espacios.
+        var concedidos = (respuesta.Scope ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (!string.IsNullOrEmpty(opciones.Scope) && !concedidos.Contains(opciones.Scope))
         {
-            Guardar(renovacion, acceso, respuesta.ExpiresIn);
-            return renovacion;
+            log.LogWarning("Google no concedio el permiso {Permiso}; concedidos: {Concedidos}", opciones.Scope, respuesta.Scope);
+            return (null, true);
         }
 
-        return null;
+        Guardar(renovacion, acceso, respuesta.ExpiresIn);
+        return (renovacion, false);
     }
 
     /// <summary>Token de acceso vigente para ese refresh token, renovándolo si hace falta.</summary>
@@ -128,5 +139,6 @@ public sealed class TokensGoogle(
         [JsonPropertyName("refresh_token")] public string? RefreshToken { get; set; }
         [JsonPropertyName("expires_in")] public int ExpiresIn { get; set; }
         [JsonPropertyName("error")] public string? Error { get; set; }
+        [JsonPropertyName("scope")] public string? Scope { get; set; }
     }
 }

@@ -37,7 +37,13 @@ public sealed class ValidadorCredencial(
 
             // Un 401/403 es credencial mala; un 429 o un 5xx es del proveedor, no de la clave.
             if (respuesta.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            {
+                // El cuerpo de error de Google o de OpenRouter explica el motivo y no trae secretos.
+                var detalle = await respuesta.Content.ReadAsStringAsync(ct);
+                log.LogWarning("Validacion de {Agente} rechazada con {Codigo}: {Detalle}",
+                    agente.Id, (int)respuesta.StatusCode, detalle.Length > 600 ? detalle[..600] : detalle);
                 return false;
+            }
 
             if (respuesta.IsSuccessStatusCode) return true;
 

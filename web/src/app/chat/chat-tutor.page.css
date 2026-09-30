@@ -116,6 +116,13 @@
   margin-bottom: 0.75rem;
 }
 
+/* Qué modelo responde con esa cuenta. */
+.modelo-agente {
+  margin: 0 0 0.35rem;
+  font-size: var(--t-pequeno);
+  color: var(--grafito);
+}
+
 .estado {
   margin: 0 0 0.75rem;
   font-weight: 600;

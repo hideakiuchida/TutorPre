@@ -20,7 +20,13 @@ public sealed class GoogleSimulado : HttpMessageHandler, IHttpClientFactory
     public List<(HttpRequestMessage Peticion, string Cuerpo)> Recibidas { get; } = [];
 
     public Func<HttpRequestMessage, string, HttpResponseMessage> Token { get; set; } = (_, _) =>
-        Json(new { access_token = "ya29.acceso", refresh_token = "1//renovacion-del-usuario", expires_in = 3599 });
+        Json(new
+        {
+            access_token = "ya29.acceso",
+            refresh_token = "1//renovacion-del-usuario",
+            expires_in = 3599,
+            scope = "openid https://www.googleapis.com/auth/cloud-platform"
+        });
 
     public Func<HttpRequestMessage, HttpResponseMessage> Gemini { get; set; } = _ => Sse(
         """{"candidates":[{"content":{"role":"model","parts":[{"text":"Hola"}]}}]}""",
@@ -306,6 +312,27 @@ public class ConexionGoogleGeminiTests
         var repetido = await Assert.ThrowsAsync<CredencialException>(
             () => conexion.CanjearAsync(banco.AlumnoId, "gemini", "4/codigo-de-google"));
         Assert.Equal("oauth_vencido", repetido.Codigo);
+    }
+
+    [Fact]
+    public async Task Si_el_usuario_no_marca_el_permiso_de_Google_Cloud_se_le_explica_y_no_se_guarda_nada()
+    {
+        var (banco, conexion, google) = Montar();
+        using var _b = banco;
+
+        // En la pantalla de Google el permiso sensible es una casilla: sin marcarla, no viene.
+        google.Token = (_, _) => GoogleSimulado.Json(new
+        {
+            access_token = "ya29.acceso", refresh_token = "1//renovacion", expires_in = 3599, scope = "openid"
+        });
+
+        await conexion.IniciarAsync(banco.AlumnoId, "gemini");
+        var error = await Assert.ThrowsAsync<CredencialException>(
+            () => conexion.CanjearAsync(banco.AlumnoId, "gemini", "4/codigo"));
+
+        Assert.Equal("oauth_permiso_incompleto", error.Codigo);
+        Assert.Contains("marca la casilla", error.Message);
+        Assert.Null(await banco.Boveda.ClaveParaAsync(banco.AlumnoId, "gemini"));
     }
 
     [Fact]
