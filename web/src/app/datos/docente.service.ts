@@ -5,10 +5,35 @@ import { firstValueFrom } from 'rxjs';
 
 const API = `${environment.apiUrl}/v1`;
 
+/** Estado de los apuntes que hace la IA de cada archivo (SDD §6.2). */
+export type EstadoCondensado = 'Pendiente' | 'Procesando' | 'Listo' | 'SinCuenta' | 'Error';
+
+export interface ArchivoClase {
+  archivoId: string;
+  nombre: string;
+  estado: string;
+  error: string | null;
+  paginas: number;
+  condensado: EstadoCondensado;
+  errorCondensado: string | null;
+  usarOriginal: boolean;
+  tokensOriginal: number;
+  tokensCondensado: number;
+}
+
 export interface ContenidoClase {
-  archivos: { archivoId: string; nombre: string; estado: string; error: string | null; paginas: number }[];
-  contextoClase: { tokens: number; truncado: boolean };
+  archivos: ArchivoClase[];
+  /** `tokens`: lo que lee el tutor; `tokensOriginal`: el texto sin condensar. */
+  contextoClase: { tokens: number; tokensOriginal: number; truncado: boolean };
   ampliacionPermitida: boolean;
+}
+
+export interface PaginaComparada {
+  pagina: number;
+  texto: string;
+  tokens: number;
+  condensado: string | null;
+  tokensCondensado: number;
 }
 
 export interface ReporteClase {
@@ -33,6 +58,21 @@ export class DocenteService {
 
   reporte(claseId: string): Promise<ReporteClase> {
     return firstValueFrom(this.http.get<ReporteClase>(`${API}/clases/${claseId}/reporte`));
+  }
+
+  /** Pide a la IA los apuntes que faltan, o todos de nuevo con `forzar`. */
+  condensar(claseId: string, forzar = false) {
+    return firstValueFrom(this.http.post<{ encolados: number }>(`${API}/clases/${claseId}/condensar`, { forzar }));
+  }
+
+  usarOriginal(archivoId: string, usarOriginal: boolean) {
+    return firstValueFrom(
+      this.http.put<{ usarOriginal: boolean }>(`${API}/contenido/${archivoId}/condensado`, { usarOriginal }),
+    );
+  }
+
+  paginas(archivoId: string): Promise<PaginaComparada[]> {
+    return firstValueFrom(this.http.get<PaginaComparada[]>(`${API}/contenido/${archivoId}/paginas`));
   }
 
   ampliacion(claseId: string, permitida: boolean) {

@@ -81,7 +81,8 @@ public sealed class AgenteTutorService(
             ?? throw new ExamenException("sin_credencial",
                 $"Conecta tu credencial de {agente.NombreVisible} antes de empezar el examen.");
 
-        var material = await contexto.ObtenerAsync(conversacion.ClaseId, ct);
+        // El examen sale del texto original, no de los apuntes condensados: el detalle manda.
+        var material = await contexto.ObtenerOriginalAsync(conversacion.ClaseId, ct);
         if (material.Tokens == 0)
             throw new ExamenException("sin_material",
                 "Esta clase todavía no tiene material: el examen se arma a partir de él.");

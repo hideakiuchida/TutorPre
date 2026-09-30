@@ -82,6 +82,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> opciones)
             e.Property(a => a.Tipo).HasMaxLength(10).IsRequired();
             e.Property(a => a.HashSha256).HasMaxLength(64).IsRequired();
             e.Property(a => a.Estado).HasConversion<string>().HasMaxLength(20);
+            e.Property(a => a.Condensado).HasConversion<string>().HasMaxLength(20);
             e.HasIndex(a => new { a.ClaseId, a.HashSha256 }).IsUnique();
             e.HasOne(a => a.Clase).WithMany(c => c.Archivos)
                 .HasForeignKey(a => a.ClaseId).OnDelete(DeleteBehavior.Cascade);

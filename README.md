@@ -15,8 +15,12 @@ El diseño completo está en [`specs/SDD-Plataforma-Evaluacion-PreClase.md`](spe
 - **Un solo chat por clase** para el alumno: consulta libre, examen y revisión de errores.
 - **Evaluación pre-clase**: el agente conduce el examen por chat; el servidor registra y
   califica (0–20), nunca el modelo.
-- **Respuestas ancladas al material**: el contenido de la clase viaja completo en el
-  contexto con marcas `[archivo, p. N]`; las citas se validan contra la base.
+- **Respuestas ancladas al material**: el contenido de la clase viaja en el contexto con
+  marcas `[archivo, p. N]`; las citas se validan contra la base.
+- **Material condensado por IA**: al subir un archivo, la IA reescribe cada página como
+  apuntes compactos con la cuenta de OpenRouter del profesor, una sola vez. El tutor lee
+  menos y responde antes. El examen sale del original, y el profesor compara y elige en
+  su panel.
 - **Ampliación marcada**: si el material no cubre la duda, el tutor puede profundizar con
   su propio conocimiento en un bloque `Ampliación fuera del material:`. El docente puede
   apagarla por clase, y durante el examen está siempre bloqueada **en el servidor**.

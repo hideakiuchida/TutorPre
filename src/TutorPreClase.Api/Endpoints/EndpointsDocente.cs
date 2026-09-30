@@ -15,6 +15,8 @@ public sealed record ConfigurarExamenPeticion(
     int? PreguntasPorIntento = null);
 public sealed record AmpliacionPeticion(bool Permitida);
 public sealed record CorregirNivelPeticion(string Nivel);
+public sealed record CondensarPeticion(bool Forzar = false);
+public sealed record UsarOriginalPeticion(bool UsarOriginal);
 
 public static class EndpointsDocente
 {
@@ -84,19 +86,84 @@ public static class EndpointsDocente
                     nombre = a.Nombre,
                     estado = a.Estado.ToString(),
                     error = a.Error,
-                    paginas = a.Paginas.Count
+                    paginas = a.Paginas.Count,
+                    condensado = a.Condensado.ToString(),
+                    errorCondensado = a.ErrorCondensado,
+                    usarOriginal = a.UsarOriginal,
+                    tokensOriginal = a.Paginas.Sum(p => p.Tokens),
+                    tokensCondensado = a.Paginas.Sum(p => p.TextoCondensado != null ? p.TokensCondensado : p.Tokens)
                 })
                 .ToListAsync(ct);
 
+            // Lo que lee el tutor (condensado donde lo hay) frente al texto original.
             var ctx = await contexto.ObtenerAsync(claseId, ct);
+            var original = await contexto.ObtenerOriginalAsync(claseId, ct);
             var ampliacion = await db.Clases.Where(c => c.Id == claseId).Select(c => c.AmpliacionPermitida).FirstOrDefaultAsync(ct);
 
             return Results.Ok(new
             {
                 archivos,
-                contextoClase = new { tokens = ctx.Tokens, truncado = ctx.Truncado },
+                contextoClase = new { tokens = ctx.TokensTotales, tokensOriginal = original.TokensTotales, truncado = ctx.Truncado },
                 ampliacionPermitida = ampliacion
             });
+        });
+
+        // Vuelve a pedir a la IA los apuntes (SDD §6.2): los pendientes, o todos con Forzar.
+        grupo.MapPost("/clases/{claseId:guid}/condensar", async (
+            Guid claseId, CondensarPeticion? peticion, IAppDbContext db, IColaCondensacion cola, CancellationToken ct) =>
+        {
+            var forzar = peticion?.Forzar ?? false;
+
+            var archivos = await db.Archivos
+                .Where(a => a.ClaseId == claseId && a.Estado == EstadoArchivo.Listo &&
+                            (forzar || a.Condensado != EstadoCondensado.Listo))
+                .ToListAsync(ct);
+
+            foreach (var archivo in archivos)
+            {
+                archivo.Condensado = EstadoCondensado.Pendiente;
+                archivo.ErrorCondensado = null;
+            }
+
+            await db.SaveChangesAsync(ct);
+            foreach (var archivo in archivos) await cola.EncolarAsync(archivo.Id, ct);
+
+            return Results.Accepted(value: new { encolados = archivos.Count });
+        });
+
+        // El profesor decide que el tutor lea el original de un archivo, o de nuevo los apuntes.
+        grupo.MapPut("/contenido/{archivoId:guid}/condensado", async (
+            Guid archivoId, UsarOriginalPeticion peticion, IAppDbContext db, IContextoClaseService contexto, CancellationToken ct) =>
+        {
+            var archivo = await db.Archivos.FirstOrDefaultAsync(a => a.Id == archivoId, ct);
+            if (archivo is null) return Results.NotFound();
+
+            archivo.UsarOriginal = peticion.UsarOriginal;
+            await db.SaveChangesAsync(ct);
+            contexto.Invalidar(archivo.ClaseId);
+
+            return Results.Ok(new { usarOriginal = archivo.UsarOriginal });
+        });
+
+        // Original y apuntes lado a lado, para que el profesor revise lo que hizo la IA.
+        grupo.MapGet("/contenido/{archivoId:guid}/paginas", async (
+            Guid archivoId, IAppDbContext db, CancellationToken ct) =>
+        {
+            var paginas = await db.Paginas
+                .AsNoTracking()
+                .Where(p => p.ArchivoId == archivoId)
+                .OrderBy(p => p.Pagina)
+                .Select(p => new
+                {
+                    pagina = p.Pagina,
+                    texto = p.Texto,
+                    tokens = p.Tokens,
+                    condensado = p.TextoCondensado,
+                    tokensCondensado = p.TokensCondensado
+                })
+                .ToListAsync(ct);
+
+            return Results.Ok(paginas);
         });
 
         grupo.MapDelete("/contenido/{archivoId:guid}", async (

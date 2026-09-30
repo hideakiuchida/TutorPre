@@ -163,3 +163,59 @@ th {
     padding: 1.25rem 1rem 2rem;
   }
 }
+
+/* Apuntes de la IA: el profesor ve el original y lo condensado lado a lado. */
+.acciones {
+  display: block;
+  margin-top: 0.2rem;
+}
+
+.acciones .enlace {
+  margin-right: 0.75rem;
+}
+
+.condensar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.condensar .ayuda {
+  margin: 0;
+}
+
+.par {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--pauta);
+}
+
+.par .marca {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--t-pequeno);
+  font-weight: 600;
+  color: var(--grafito);
+}
+
+.par pre {
+  margin: 0;
+  max-height: 14rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: var(--sans);
+  font-size: var(--t-pequeno);
+}
+
+.par .original {
+  color: var(--grafito);
+}
+
+@media (max-width: 760px) {
+  .par {
+    grid-template-columns: 1fr;
+  }
+}

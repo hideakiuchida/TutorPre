@@ -105,10 +105,18 @@ namespace TutorPreClase.Infrastructure.Persistencia.Migraciones
                     b.Property<Guid>("ClaseId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Condensado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<DateTimeOffset>("CreadoEn")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Error")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ErrorCondensado")
                         .HasColumnType("text");
 
                     b.Property<string>("Estado")
@@ -130,6 +138,9 @@ namespace TutorPreClase.Infrastructure.Persistencia.Migraciones
                         .IsRequired()
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
+
+                    b.Property<bool>("UsarOriginal")
+                        .HasColumnType("boolean");
 
                     b.HasKey("Id");
 
@@ -538,7 +549,13 @@ namespace TutorPreClase.Infrastructure.Persistencia.Migraciones
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("TextoCondensado")
+                        .HasColumnType("text");
+
                     b.Property<int>("Tokens")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TokensCondensado")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");

@@ -17,6 +17,9 @@ builder.Services.AddScoped<IServicioReporte, ServicioReporte>();
 builder.Services.AddSingleton<IColaExtraccion, ColaExtraccionEnMemoria>();
 builder.Services.AddHostedService<ServicioExtraccionEnSegundoPlano>();
 
+// La IA condensa el material una vez, con la cuenta del profesor (SDD §6.2).
+builder.Services.AddHostedService<ServicioCondensacionEnSegundoPlano>();
+
 // La carpeta de contenido es el canal del docente: se revisa periodicamente (SDD §6.1).
 builder.Services.AddHostedService<ServicioSincronizacionCarpeta>();
 

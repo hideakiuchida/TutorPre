@@ -138,7 +138,7 @@ public sealed class SincronizadorCarpetaTests : IDisposable
         var extractores = new ExtractorTextoFactory([new ExtractorTextoPlano(), new ExtractorPdf(), new ExtractorXlsx()]);
         var contenido = new ServicioContenido(
             _banco.Db, new AlmacenArchivosLocal(_raiz + "-almacen"), extractores,
-            _banco.Contexto, _banco.Reloj, NullLogger<ServicioContenido>.Instance);
+            _banco.Contexto, new ColaCondensacionEnMemoria(), _banco.Reloj, NullLogger<ServicioContenido>.Instance);
 
         _sincronizador = new SincronizadorCarpeta(
             _banco.Db, contenido, _cola, extractores, _banco.Reloj, _avisos,

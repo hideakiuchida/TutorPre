@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using TutorPreClase.Application.Llm;
 using TutorPreClase.Domain.Entidades;
+using TutorPreClase.Infrastructure.Contenido;
 using TutorPreClase.Infrastructure.Llm;
 using TutorPreClase.Infrastructure.Persistencia;
 
@@ -42,6 +43,12 @@ public sealed class ApiDePruebas : WebApplicationFactory<Program>
             // Validar una credencial no debe salir a la red en pruebas.
             servicios.RemoveAll<IValidadorCredencial>();
             servicios.AddSingleton<IValidadorCredencial, ValidadorSiempreOk>();
+
+            // La condensación en segundo plano compartiría la única conexión SQLite en memoria
+            // con la petición en curso; aquí solo se prueba que se encola (CondensacionTests
+            // prueba el condensador).
+            var condensacion = servicios.Where(d => d.ImplementationType == typeof(ServicioCondensacionEnSegundoPlano)).ToList();
+            foreach (var d in condensacion) servicios.Remove(d);
         });
     }
 

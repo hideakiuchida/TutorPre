@@ -49,6 +49,8 @@ public static class RegistroServicios
         servicios.AddSingleton<IAlmacenArchivos>(_ =>
             new AlmacenArchivosLocal(config["Almacen:Raiz"] ?? "almacen"));
         servicios.AddScoped<IServicioContenido, ServicioContenido>();
+        servicios.AddScoped<ICondensadorMaterial, CondensadorMaterial>();
+        servicios.AddSingleton<IColaCondensacion, ColaCondensacionEnMemoria>();
         servicios.Configure<OpcionesCarpetaContenido>(config.GetSection(OpcionesCarpetaContenido.Seccion));
         servicios.AddScoped<ISincronizadorCarpeta, SincronizadorCarpeta>();
         servicios.AddSingleton<IAvisosContenido, AvisosContenidoEnMemoria>();

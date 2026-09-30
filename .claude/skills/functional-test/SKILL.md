@@ -40,6 +40,7 @@ los bloques C, D y E y dilo al reportar.
 | RF-04 | Cada clase de la carpeta tiene su examen publicado sin preguntas (las genera la IA); `POST /examenes/$EX/preguntas` ya no existe |
 | RF-14 | `PUT .../examen` con `"modoFeedback":"Inmediato"` y con `"AlFinal"`: ambos aceptados |
 | RF-18 | `PUT .../examen` con `"minutosLimite":10`; luego el chat emite `segundosRestantes` en `progreso` |
+| RF-36 | Con OpenRouter conectado por el profesor, cada archivo pasa a `"condensado":"Listo"` y `tokensCondensado` < `tokensOriginal`; `contextoClase.tokens` (lo que lee el tutor) < `contextoClase.tokensOriginal`. En el panel, *Comparar* muestra original y apuntes por página, y *Usar original* devuelve el original al tutor. Sin cuenta, el archivo queda `SinCuenta` y el chat funciona igual con el original. Si el modelo gratuito está saturado queda `Pendiente` con "se reintentará solo" (log: `se condensará en N min`); el examen se sigue generando con el original |
 
 ```bash
 M2="course-content/alonso.uchida@gmail.com/MFEP - Finanzas empresariales/M2 - Indicadores de gestión"
@@ -51,6 +52,15 @@ curl -s -H "X-Usuario-Id: $DOC" -H "X-Usuario-Rol: Docente" \
 
 El material es el del curso real: **no** borres ni edites los archivos del docente; usa
 solo un archivo de prueba propio y quítalo al terminar.
+
+La condensación (RF-36) gasta llamadas del cupo gratuito **de la cuenta del profesor**:
+unas 4 para M1 y 1 por cada infografía. `POST /clases/$CLA/condensar {"forzar":true}` la
+repite; no lo hagas en bucle.
+
+```bash
+curl -s -H "X-Usuario-Id: $DOC" -H "X-Usuario-Rol: Docente" -H "Content-Type: application/json"   -X POST -d '{"forzar":true}' "http://localhost:5080/api/v1/clases/$CLA/condensar"
+docker logs --since 10m tutor-api 2>&1 | grep -E "Material condensado|se condensará"
+```
 
 ## Bloque B — Entrada, roles y conexión de la cuenta (OpenRouter)
 

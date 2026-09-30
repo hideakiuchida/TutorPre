@@ -51,19 +51,23 @@ public sealed class OpcionesContextoClase
 /// <summary>
 /// Arma el bloque &lt;contenido&gt; concatenando las páginas de la clase en orden de
 /// archivo y página, cada una con su marca [archivo, p. N] — la misma cita que debe
-/// usar el agente. Antes limpia el texto extraído (LimpiadorTexto).
+/// usar el agente. Antes limpia el texto extraído (LimpiadorTexto). Con `condensado`,
+/// cada página va con sus apuntes de la IA si los tiene y el profesor no pidió el original.
 /// </summary>
 public static class ArmadorContextoClase
 {
     public static ContextoClase Armar(
         string tituloClase,
         IEnumerable<ArchivoContenido> archivos,
-        OpcionesContextoClase opciones)
+        OpcionesContextoClase opciones,
+        bool condensado = false)
     {
         var paginas = archivos
             .Where(a => a.Estado == EstadoArchivo.Listo)
             .OrderBy(a => a.Nombre, StringComparer.OrdinalIgnoreCase)
-            .SelectMany(a => LimpiadorTexto.Limpiar(a.Nombre, a.Paginas.OrderBy(p => p.Pagina).Select(p => (p.Pagina, p.Texto))))
+            .SelectMany(a => LimpiadorTexto.Limpiar(a.Nombre, a.Paginas
+                .OrderBy(p => p.Pagina)
+                .Select(p => (p.Pagina, condensado && !a.UsarOriginal && p.TextoCondensado is not null ? p.TextoCondensado : p.Texto))))
             .ToList();
 
         if (paginas.Count == 0) return ContextoClase.Vacio;

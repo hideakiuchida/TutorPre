@@ -13,6 +13,16 @@ public class ArchivoContenido
     public string? Error { get; set; }
     public DateTimeOffset CreadoEn { get; set; } = DateTimeOffset.UtcNow;
 
+    /// <summary>
+    /// La IA reescribe cada página como apuntes compactos para que el tutor lea menos
+    /// (SDD §6.2). Se hace una vez, con la cuenta de OpenRouter del profesor.
+    /// </summary>
+    public EstadoCondensado Condensado { get; set; } = EstadoCondensado.Pendiente;
+    public string? ErrorCondensado { get; set; }
+
+    /// <summary>El profesor puede preferir que el tutor lea el texto original.</summary>
+    public bool UsarOriginal { get; set; }
+
     public List<PaginaContenido> Paginas { get; set; } = [];
 }
 
@@ -29,4 +39,8 @@ public class PaginaContenido
     public int Pagina { get; set; }
     public string Texto { get; set; } = "";
     public int Tokens { get; set; }
+
+    /// <summary>Apuntes de esta página hechos por la IA; null si se usa el original.</summary>
+    public string? TextoCondensado { get; set; }
+    public int TokensCondensado { get; set; }
 }

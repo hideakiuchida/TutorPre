@@ -42,7 +42,9 @@
 
           @if (contenido(); as c) {
             <table>
-              <thead><tr><th>Archivo</th><th>Estado</th><th class="num">Páginas</th></tr></thead>
+              <thead>
+                <tr><th>Archivo</th><th>Estado</th><th class="num">Páginas</th><th>Para el tutor</th><th class="num">Tokens</th></tr>
+              </thead>
               <tbody>
                 @for (a of c.archivos; track a.archivoId) {
                   <tr>
@@ -51,13 +53,70 @@
                       {{ a.estado === 'Listo' ? 'Listo' : a.estado === 'Error' ? 'Sin texto' : 'Procesando' }}
                     </td>
                     <td class="num">{{ a.paginas }}</td>
+                    <td [class.falla]="a.condensado === 'Error'" [attr.title]="a.errorCondensado">
+                      {{ estadoTutor(a) }}
+                      @if (a.estado === 'Listo' && a.condensado === 'Listo') {
+                        <span class="acciones">
+                          <button type="button" class="enlace" (click)="comparar(a)">
+                            {{ comparando()?.archivoId === a.archivoId ? 'Ocultar' : 'Comparar' }}
+                          </button>
+                          <button type="button" class="enlace" (click)="alternarOriginal(a)">
+                            {{ a.usarOriginal ? 'Usar apuntes' : 'Usar original' }}
+                          </button>
+                        </span>
+                      }
+                    </td>
+                    <td class="num">
+                      @if (a.condensado === 'Listo' && !a.usarOriginal && a.tokensCondensado < a.tokensOriginal) {
+                        {{ a.tokensOriginal | number }} → {{ a.tokensCondensado | number }}
+                      } @else {
+                        {{ a.tokensOriginal | number }}
+                      }
+                    </td>
                   </tr>
                 } @empty {
-                  <tr><td colspan="3" class="vacio">Esta clase todavía no tiene material.</td></tr>
+                  <tr><td colspan="5" class="vacio">Esta clase todavía no tiene material.</td></tr>
                 }
               </tbody>
             </table>
-            <p class="ayuda">El tutor lee {{ c.contextoClase.tokens | number }} tokens de material en esta clase.</p>
+
+            <p class="ayuda">
+              El tutor lee {{ c.contextoClase.tokens | number }} tokens de material en esta clase.
+              @if (c.contextoClase.tokens < c.contextoClase.tokensOriginal) {
+                El original tiene {{ c.contextoClase.tokensOriginal | number }}: la IA lo condensó en apuntes
+                página por página y el tutor responde más rápido. El examen se sigue generando con el original.
+              }
+            </p>
+
+            <div class="condensar">
+              @if (!cuenta()) {
+                <p class="ayuda">
+                  Conecta tu cuenta de OpenRouter (gratis) para que la IA condense tu material una sola vez.
+                  Sin ella, el tutor lee el texto original.
+                </p>
+                <button type="button" class="principal" [disabled]="conectando()" (click)="conectar()">
+                  Conectar OpenRouter
+                </button>
+              } @else {
+                <span class="ayuda">Condensando con tu cuenta de OpenRouter (termina en {{ cuenta()!.ultimos4 }}).</span>
+                <button type="button" class="enlace" [disabled]="condensando()" (click)="condensar(true)">
+                  {{ condensando() ? 'Condensando…' : 'Condensar de nuevo' }}
+                </button>
+              }
+            </div>
+
+            @if (comparando(); as archivo) {
+              <section class="comparacion" aria-label="Original y apuntes de {{ archivo.nombre }}">
+                <h3>{{ archivo.nombre }}: original y apuntes de la IA</h3>
+                @for (p of paginas(); track p.pagina) {
+                  <div class="par">
+                    <p class="marca">p. {{ p.pagina }}</p>
+                    <pre class="original">{{ p.texto }}</pre>
+                    <pre class="apuntes">{{ p.condensado ?? 'Se usa el original.' }}</pre>
+                  </div>
+                }
+              </section>
+            }
           }
         </section>
 

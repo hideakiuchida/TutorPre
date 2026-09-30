@@ -85,6 +85,7 @@ Medir los conocimientos previos del alumno, cerrar sus vacíos con un tutor que 
 | RF-33 | Autorregistro: en la página de entrada la persona elige primero su perfil, **alumno** o **profesor**, y luego entra con Google o Microsoft/Outlook, sin aprobación de nadie. Un profesor puede entrar también como alumno. El alumno elige además a su profesor y solo ve los cursos de ese profesor; puede cambiarlo después. El administrador puede corregir roles y matrículas. Con el registro cerrado, solo entran los registrados | Alta |
 | RF-34 | El profesor administra el contenido de **sus** cursos (su carpeta `course-content/<su correo>/`) y tiene su pantalla: estado del material, ajustes del examen y de la ampliación de cada clase y el reporte (RF-13, RF-16, RF-22). No ve ni toca los cursos de otro profesor | Alta |
 | RF-35 | El administrador elige el modelo de IA que usa el tutor y puede cambiarlo sin desplegar (RF-06, RF-17) | Media |
+| RF-36 | Al subir el material, la IA lo **condensa una sola vez**: reescribe cada página como apuntes compactos (definiciones, cifras, fórmulas y pasos, sin relleno), conservando su cita `[archivo, p. N]`, para que el tutor lea menos y responda más rápido. Se hace con la cuenta de OpenRouter del profesor; el profesor ve el original y los apuntes lado a lado y puede elegir el original por archivo. El examen se sigue generando con el original | Media |
 
 ### 2.2 Requisitos por rol, dependencias y orden de implementación
 
@@ -94,7 +95,7 @@ Medir los conocimientos previos del alumno, cerrar sus vacíos con un tutor que 
 | --- | --- |
 | Todos | RF-31 inicio de sesión y rol |
 | Administrador | RF-33 corregir roles y matrículas · RF-35 modelo del tutor |
-| Docente (profesor) | RF-33 registrarse como profesor · RF-02 subir material a su carpeta · RF-01 clases y ventana del examen · RF-14 modo de feedback · RF-18 temporizador · RF-20 ampliación · RF-34 su pantalla · RF-13, RF-16, RF-22 reporte |
+| Docente (profesor) | RF-33 registrarse como profesor · RF-02 subir material a su carpeta · RF-36 conectar OpenRouter y revisar los apuntes · RF-01 clases y ventana del examen · RF-14 modo de feedback · RF-18 temporizador · RF-20 ampliación · RF-34 su pantalla · RF-13, RF-16, RF-22 reporte |
 | Alumno | RF-33 registrarse y elegir profesor · RF-32 y RF-24–RF-27, RF-29 conectar OpenRouter · RF-19 consulta · RF-11 repreguntar · RF-06, RF-07 rendir el examen · RF-10 revisar errores |
 | Sistema | RF-03 extraer texto · RF-04, RF-05 generar el examen · RF-08, RF-09 ventana, intentos y nota · RF-12, RF-15 límites del tutor · RF-21 nivel · RF-23 dificultad adaptativa · RF-17, RF-28, RF-30 resiliencia |
 
@@ -116,6 +117,8 @@ flowchart LR
     RF21 --> RF23
     RF32 --> RF28["RF-28/30/17<br/>Resiliencia"]
     RF33 --> RF35["RF-35<br/>Modelo del tutor"]
+    RF02 --> RF36["RF-36<br/>Material condensado"]
+    RF36 --> RF19
 ```
 
 Lo que casi todo necesita es saber **quién es el usuario y qué rol tiene** (RF-31) y **qué cursos le tocan** (RF-33): sin eso no hay a quién mostrar clases, a quién cobrarle la IA ni quién ve el reporte. Por eso el acceso va primero. En desarrollo existe además una entrada "como usuario de prueba" que emite la misma sesión sin pasar por Microsoft ni Google; en producción no está.
@@ -133,6 +136,7 @@ Lo que casi todo necesita es saber **quién es el usuario y qué rol tiene** (RF
 | 7 | Seguimiento del docente | RF-21, RF-22, RF-16, RF-34 | Hecho; RF-34 aún sin ajustar ventana, intentos ni tiempo desde la pantalla (solo por API) |
 | 8 | Resiliencia y administración | RF-28, RF-30, RF-17, RF-35 | RF-28 y RF-30 hechos; RF-17 parcial (sin botón de reintento); RF-35 solo por API |
 | 9 | Mejora | RF-23 | Pendiente |
+| 10 | Material condensado | RF-36 | Hecho: condensación por página con la cuenta del profesor, reintento automático si el modelo gratuito está saturado, comparación y elección del original en el panel. Falta medir la reducción real con el modelo (el 2026-09-30 el pool gratuito estaba saturado) |
 
 ### 2.3 No funcionales
 
@@ -209,8 +213,8 @@ El modelo gira en torno a la **Clase**: de ella cuelgan el contenido y un único
 | Curso | id, codigo, nombre, periodo | 1:N Clase |
 | Matricula | usuario_id, curso_id, rol_en_curso | puente Usuario–Curso |
 | Clase | id, curso_id, titulo, inicio, orden, ampliacion_permitida | 1:N ArchivoContenido, 1:1 Examen, 1:N Conversacion |
-| ArchivoContenido | id, clase_id, nombre, tipo, blob_url, estado (Pendiente, Procesando, Listo, Error), hash | 1:N PaginaContenido |
-| PaginaContenido | id, archivo_id, clase_id, pagina, texto, tokens | texto extraído que forma el contexto de clase |
+| ArchivoContenido | id, clase_id, nombre, tipo, blob_url, estado (Pendiente, Procesando, Listo, Error), hash, condensado (Pendiente, Procesando, Listo, SinCuenta, Error), error_condensado, usar_original | 1:N PaginaContenido |
+| PaginaContenido | id, archivo_id, clase_id, pagina, texto, tokens, texto_condensado, tokens_condensado | texto extraído que forma el contexto de clase; los apuntes de la IA van al lado, nunca en su lugar |
 | AgenteIA | id (openrouter), nombre_visible, proveedor, modelo, base_url, habilitado | 1:N Intento, 1:N CredencialAgente |
 | Examen | id, clase_id, abre_en, cierra_en, max_intentos, minutos_limite, modo_feedback (Inmediato, AlFinal), publicado | 1:N Pregunta |
 | Pregunta | id, examen_id, enunciado, justificacion, tema, nivel (Inicial, Básico, Intermedio, Avanzado), orden, origen (IA, Docente), aprobada | 1:N Alternativa, N:M PaginaContenido (referencias) |
@@ -235,6 +239,9 @@ CREATE TABLE archivo_contenido (
   estado      text NOT NULL DEFAULT 'Pendiente',
   error       text,
   creado_en   timestamptz NOT NULL DEFAULT now(),
+  condensado        text NOT NULL DEFAULT 'Pendiente',  -- apuntes de la IA (RF-36)
+  error_condensado  text,
+  usar_original     boolean NOT NULL DEFAULT false,     -- el profesor prefiere el original
   UNIQUE (clase_id, hash_sha256)
 );
 
@@ -245,6 +252,8 @@ CREATE TABLE pagina_contenido (
   pagina     int NOT NULL,            -- página o número de diapositiva
   texto      text NOT NULL,
   tokens     int NOT NULL,
+  texto_condensado  text,              -- null: el tutor lee el original de esta página
+  tokens_condensado int NOT NULL DEFAULT 0,
   UNIQUE (archivo_id, pagina)
 );
 
@@ -355,7 +364,7 @@ sequenceDiagram
     W->>A: POST /alumno/credenciales/openrouter/oauth/inicio
     A->>A: genera code_verifier, lo guarda 10 min ligado al alumno
     A-->>W: URL de autorización con code_challenge (S256)
-    W->>O: redirige; el alumno inicia sesión y autoriza
+    W->>O: redirige, el alumno inicia sesión y autoriza
     O-->>W: vuelve a /conectar/openrouter?code=…
     W->>A: POST /alumno/credenciales/openrouter/oauth/canje { code }
     A->>O: POST /api/v1/auth/keys { code, code_verifier }
@@ -546,17 +555,17 @@ Antes de habilitar cualquier modelo, gratuito o de pago, se pasa la suite de par
 
 #### Parámetros de cada llamada
 
-| Parámetro | Chat (Consulta, Revisión, Evaluación) | Generación del examen |
-| --- | --- | --- |
-| `model` / `models` | Modelo del agente y, detrás, los `ModelosAlternativos`: OpenRouter pasa al siguiente si uno falla o está saturado | Igual |
-| `provider` | `data_collection: deny` (solo proveedores que no guardan los prompts, RNF-11) y `sort: throughput` (el más rápido) | Igual |
-| `reasoning` | `enabled: false`: el primer token llega antes y el razonamiento no consume el tope | `effort: low`: se espera una vez y pesa la calidad de las preguntas |
-| `max_tokens` | 2048; al llegar al tope (`finish_reason: length`) se avisa *respuesta incompleta* | 600 × N + 400 |
-| `temperature` | 0.2 | 0.7 (cada intento, un examen distinto) |
-| `tools` | Solo las del modo (§5.7) | Ninguna |
-| Material | Completo; en Consulta y Revisión de una clase grande, solo las páginas pertinentes (§6.2) | Siempre completo |
-| `stream` | Sí, reenviado al navegador por SSE mientras llega | Sí, acumulado en el servidor |
-| Credencial | `Authorization: Bearer <clave del alumno>`, descifrada solo para esta llamada | Igual |
+| Parámetro | Chat (Consulta, Revisión, Evaluación) | Generación del examen | Condensación del material |
+| --- | --- | --- | --- |
+| `model` / `models` | Modelo del agente y, detrás, los `ModelosAlternativos`: OpenRouter pasa al siguiente si uno falla o está saturado | Igual | Igual |
+| `provider` | `data_collection: deny` (solo proveedores que no guardan los prompts, RNF-11) y `sort: throughput` (el más rápido) | Igual | Igual |
+| `reasoning` | `enabled: false`: el primer token llega antes y el razonamiento no consume el tope | `effort: low`: se espera una vez y pesa la calidad de las preguntas | `enabled: false` |
+| `max_tokens` | 2048; al llegar al tope (`finish_reason: length`) se avisa *respuesta incompleta* | 600 × N + 400 | Tokens del lote + 400 |
+| `temperature` | 0.2 | 0.7 (cada intento, un examen distinto) | 0.1 (fiel al texto) |
+| `tools` | Solo las del modo (§5.7) | Ninguna | Ninguna |
+| Material | Apuntes condensados donde los hay; en Consulta y Revisión de una clase grande, solo las páginas pertinentes (§6.2) | Siempre el **original** completo | Lotes de páginas seguidas, hasta 3000 tokens de original por llamada |
+| `stream` | Sí, reenviado al navegador por SSE mientras llega | Sí, acumulado en el servidor | Sí, acumulado en el servidor |
+| Credencial | `Authorization: Bearer <clave del alumno>`, descifrada solo para esta llamada | Igual | La del **profesor** del curso |
 
 Cada llamada deja en el log el modelo que respondió, el tiempo al primer token, el tiempo total y los tokens de entrada, salida y razonamiento, sin texto del alumno (RNF-06).
 
@@ -575,7 +584,8 @@ flowchart LR
         ALM[("Volumen /datos<br/>archivos originales")]
         COLA["Cola de extracción<br/>en proceso"]
         EXT["Extractores<br/>PDF · DOCX · PPTX · XLSX · MD"]
-        CTX["ContextoClaseService<br/>limpieza · caché · selección"]
+        CON["CondensadorMaterial<br/>apuntes por página"]
+        CTX["ContextoClaseService<br/>apuntes u original · limpieza · caché · selección"]
         TUT["AgenteTutorService<br/>modos · herramientas · cortes"]
         GEN["GeneradorExamen"]
         BOV["BovedaCredenciales<br/>clave cifrada del alumno"]
@@ -591,6 +601,10 @@ flowchart LR
 
     CARP --> SYNC --> ALM
     SYNC --> COLA --> EXT --> DB
+    EXT -- "cola de condensación" --> CON
+    BOV -- "cuenta del profesor" --> CON
+    CON --> ORP
+    CON -- "texto_condensado" --> DB
     DB --> CTX
     WEB -- "REST + SSE" --> TUT
     WEB -- "Comenzar examen" --> GEN
@@ -641,18 +655,60 @@ sequenceDiagram
     X->>X: texto por página, diapositiva u hoja
     X->>D: pagina_contenido (texto + tokens), archivo Listo
     X->>K: invalida el contexto de la clase
+    X->>X: encola la condensación (Flujo 1b)
     S-->>W: SSE /alumno/novedades: "tu docente actualizó el material"
 ```
 
 El texto se extrae **una sola vez**, al subir. Ninguna pregunta del alumno vuelve a leer un documento.
 
+#### Flujo 1b: la IA condensa el material (RF-36)
+
+Justo después de extraer el texto, en segundo plano y una sola vez por archivo, la IA reescribe cada página como apuntes compactos. Mientras tanto, o si no se puede, el tutor lee el original: nada espera a la condensación.
+
+```mermaid
+sequenceDiagram
+    participant Q as Cola de condensación
+    participant N as CondensadorMaterial
+    participant B as BovedaCredenciales
+    participant O as OpenRouter
+    participant D as PostgreSQL
+    participant K as ContextoClaseService
+    actor P as Profesor (panel)
+
+    Q->>N: archivoId (al extraer, al arrancar si quedó pendiente, o al pulsar "Condensar de nuevo")
+    N->>B: clave de OpenRouter del profesor del curso
+    alt el profesor no conectó OpenRouter
+        N->>D: condensado = SinCuenta (el tutor lee el original)
+        P-->>P: el panel ofrece "Conectar OpenRouter", al conectar se condensan todas sus clases
+    else con cuenta
+        loop lotes de páginas seguidas (hasta 3000 tokens de original)
+            N->>O: "apuntes por página" + [p. N] texto… (sin herramientas, reasoning off, temp 0.1)
+            O-->>N: JSON {"paginas":[{"pagina":N,"apuntes":"- …"}]}
+            N->>N: acepta el apunte solo si es de esa página y más corto que el original
+        end
+        N->>D: texto_condensado por página, condensado = Listo
+        N->>K: invalida el contexto: la siguiente pregunta ya lee los apuntes
+    end
+    opt el modelo gratuito está saturado (429 del pool compartido)
+        N->>D: condensado = Pendiente, "se reintentará solo"
+        Q->>N: reintento a los 2, 5, 10, 20, 40 y 60 min, luego Error con "Condensar de nuevo"
+    end
+    P->>D: compara original y apuntes (GET /contenido/{id}/paginas) y puede elegir "Usar original"
+```
+
+Una página de menos de 60 tokens ya es un apunte y no se condensa. Una página que la IA no devuelve, o devuelve más larga, se queda con su original. Si el texto del archivo cambia, sus apuntes se borran y se rehacen.
+
 #### Flujo 2: se prepara el material para la IA
 
-Es el "archivo" que realmente recibe el modelo: el bloque `<contenido>` de la clase. Se arma una vez por clase y queda en caché hasta que cambie el material.
+Es el "archivo" que realmente recibe el modelo: el bloque `<contenido>` de la clase. Hay dos versiones en caché por clase: la del tutor, con los apuntes condensados donde los hay, y la original, para generar el examen. Cada una se arma una vez y se rehace cuando cambia el material, sus apuntes o la elección del profesor.
 
 ```mermaid
 flowchart TD
-    A["pagina_contenido de la clase<br/>(estado Listo)"] --> B["LimpiadorTexto<br/>quita encabezados y pies repetidos (PDF, PPTX),<br/>números de página y espacios"]
+    A["pagina_contenido de la clase<br/>(estado Listo)"] --> AA{"¿Para quién?"}
+    AA -- "tutor" --> AB["apuntes de la IA si los hay<br/>y el profesor no pidió el original,<br/>si no, el texto original"]
+    AA -- "generar el examen" --> AC["texto original"]
+    AB --> B
+    AC --> B["LimpiadorTexto<br/>quita encabezados y pies repetidos (PDF, PPTX),<br/>números de página y espacios"]
     B --> C["Bloque &lt;contenido&gt;<br/>cada página con su cita [archivo, p. N]"]
     C --> D[("Caché en memoria<br/>clave: clase + hash del contenido")]
     D --> E{"¿Para qué?"}
@@ -718,7 +774,7 @@ sequenceDiagram
     U->>W: Comenzar examen
     W->>T: POST /conversaciones/{id}/examen
     T->>E: ventana abierta, intentos disponibles, material
-    E->>G: generar N preguntas con el material completo
+    E->>G: generar N preguntas con el material original completo (no los apuntes)
     G->>O: llamada aparte del chat, sin herramientas, reasoning low, temperatura 0.7
     O-->>G: JSON con preguntas, alternativas, correcta y justificación con cita
     G->>G: descarta mal formadas, baraja alternativas
@@ -764,7 +820,7 @@ course-content/
 4. Por cada archivo nuevo se publica el evento `ExtraerTexto { archivoId }`; el archivo queda en estado *Pendiente*.
 5. El worker extrae texto conservando la página, diapositiva u hoja (PdfPig para PDF, reparando ligaduras y el "ti" que muchos PDF pierden; Open XML SDK para DOCX, PPTX y XLSX, una hoja por página; lectura directa para MD/TXT).
 6. Guarda una fila por página en `pagina_contenido` con su texto y su conteo de tokens.
-7. El estado pasa a *Listo* (o *Error* con el motivo) y el contexto de clase se vuelve a armar.
+7. El estado pasa a *Listo* (o *Error* con el motivo) y el contexto de clase se vuelve a armar. El archivo pasa además a la cola de condensación: la IA reescribe cada página como apuntes con la cuenta del profesor (RF-36, Flujo 1b de §5.9).
 8. Si la pasada cambió algo (clase nueva, archivo nuevo, cambiado o retirado), publica un aviso `CambioContenido { cursoId, claseId }`. La web del alumno lo recibe por `GET /alumno/novedades` (SSE, solo de sus cursos) y recarga la lista de clases; si es la clase abierta, avisa *"Tu docente actualizó el material de esta clase"*. **La web no consulta periódicamente**: sin cambios del docente no pide nada.
 
 Los endpoints `POST /clases/{claseId}/contenido` y `DELETE /contenido/{archivoId}` se mantienen para integraciones, pero en una clase que viene de la carpeta manda la carpeta: un archivo subido por API que no esté en ella se retira en la siguiente pasada.
@@ -777,7 +833,16 @@ Los endpoints `POST /clases/{claseId}/contenido` y `DELETE /contenido/{archivoId
 
 ### 6.2 Contexto de clase
 
-El texto de cada archivo se extrae **una sola vez**, al subirlo (sección 6.1); en una pregunta no se lee ningún documento. `ContextoClaseService` arma el contexto una vez por clase y lo cachea:
+El texto de cada archivo se extrae **una sola vez**, al subirlo (sección 6.1); en una pregunta no se lee ningún documento.
+
+**Material condensado (RF-36).** Después de extraer, `CondensadorMaterial` pide a la IA, con la cuenta de OpenRouter del profesor, que reescriba cada página como apuntes compactos:
+- conserva definiciones, cifras, fórmulas, pasos y ejemplos numéricos con los mismos términos, y quita relleno, repeticiones y textos decorativos;
+- trabaja por página, así que cada apunte conserva su cita `[archivo, p. N]`;
+- lo hace en lotes de páginas seguidas para gastar pocas llamadas del cupo gratuito.
+
+Los apuntes se guardan en `pagina_contenido.texto_condensado`, al lado del original, nunca en su lugar. El tutor lee los apuntes; el examen se genera con el original, porque ahí manda el detalle. Sin cuenta del profesor, con el modelo saturado o si el profesor elige *Usar original*, el tutor lee el original, como antes.
+
+`ContextoClaseService` arma el contexto una vez por clase y lo cachea:
 
 1. Lee las páginas de la clase ordenadas por nombre de archivo y número de página, y las limpia (`LimpiadorTexto`): en PDF y presentaciones quita los encabezados y pies que se repiten en al menos el 60 % de las páginas; en todos, los números de página sueltos y los espacios de sobra. En hojas de cálculo y documentos no quita líneas repetidas, porque ahí son datos.
 2. Las concatena dentro de una etiqueta `<contenido>`, cada página precedida por su marca de origen `[archivo, p. N]`, que es la misma cita que el agente debe usar.
@@ -867,8 +932,11 @@ API versionada bajo `/api/v1`, autenticada con la sesión que emite la propia AP
 | --- | --- | --- | --- |
 | POST | /cursos/{cursoId}/clases | Docente | Crea una clase |
 | POST | /clases/{claseId}/contenido | Docente | Sube uno o varios archivos (multipart) |
-| GET | /clases/{claseId}/contenido | Docente | Lista archivos, estado de extracción y tokens del contexto de clase |
+| GET | /clases/{claseId}/contenido | Docente | Lista archivos con su estado de extracción y de condensación, tokens originales y condensados, y los tokens que lee el tutor frente a los del original |
 | DELETE | /contenido/{archivoId} | Docente | Elimina un archivo y su texto extraído |
+| POST | /clases/{claseId}/condensar | Docente | Encola la condensación de los archivos sin apuntes; con `{ "forzar": true }`, de todos (RF-36) |
+| PUT | /contenido/{archivoId}/condensado | Docente | `{ "usarOriginal": true }`: el tutor lee el original de ese archivo; `false` vuelve a los apuntes |
+| GET | /contenido/{archivoId}/paginas | Docente | Original y apuntes de cada página, con sus tokens, para compararlos |
 | PUT | /clases/{claseId}/examen | Docente | Crea o actualiza configuración del examen (incluye modo_feedback) |
 | PUT | /clases/{claseId}/ampliacion | Docente | Activa o desactiva la ampliación del tutor en la clase (RF-20) |
 | POST | /examenes/{examenId}/publicar | Docente | Publica el examen (los de la carpeta ya nacen publicados) |
@@ -962,7 +1030,7 @@ Todos entran por la misma página y cada rol tiene **una sola pantalla**: el alu
 | Administración | Admin | Alta o edición de una persona (correo, nombre, rol, cursos), alta por lista y tabla de usuarios registrados |
 | Chat del tutor | Alumno | Lista lateral de clases (con estado del examen y cuenta regresiva) y el chat en streaming, **como una conversación: los mensajes del alumno a la izquierda y las respuestas del tutor a la derecha**, cada uno en su globo; debajo del globo del tutor, sus fuentes (resaltadas) y la ampliación (a lápiz). Las negritas de Markdown del tutor se muestran como negritas. En la cabecera: clase, modo (Consulta / Examen / Revisión) y, durante el examen, progreso y temporizador; con un solo agente no hay selector. En el cuerpo: mensajes, chips de fuente que abren el archivo en la página citada y bloques de ampliación con estilo diferenciado. Aviso cuando el docente actualiza el material (§6.1). Si no tiene la cuenta conectada, el chat muestra en su lugar el panel de conexión |
 | Conectar mi tutor | Alumno | Panel dentro del chat con un solo botón, *Conectar con OpenRouter (gratis)*, y una línea que explica que es gratis, que puede crear la cuenta con su Google y que no tiene que copiar ninguna clave. Ya conectado: últimos 4 y estado, con *Volver a entrar* y *Desconectar* |
-| Panel del docente: material | Docente | Estado de extracción de lo que copió a la carpeta y tokens del contexto de clase, ventana del examen, interruptor de ampliación. *Pendiente:* ajustar ventana, intentos, tiempo, preguntas por intento y modo de feedback desde la pantalla (hoy solo por API). No hay botón de publicar: las clases de la carpeta nacen con el examen publicado |
+| Panel del docente: material | Docente | Estado de extracción de lo que copió a la carpeta y tokens del contexto de clase, ventana del examen, interruptor de ampliación. Por archivo, qué lee el tutor (*Apuntes de la IA*, *Original*, *Condensando…*, o por qué no se condensó) y los tokens antes y después. *Comparar* muestra original y apuntes página por página; *Usar original* / *Usar apuntes* elige por archivo. Sin cuenta, *Conectar OpenRouter* (al volver se condensan todas sus clases); con cuenta, *Condensar de nuevo*. El panel se refresca solo mientras hay apuntes en camino. *Pendiente:* ajustar ventana, intentos, tiempo, preguntas por intento y modo de feedback desde la pantalla (hoy solo por API). No hay botón de publicar: las clases de la carpeta nacen con el examen publicado |
 | Panel del docente: reporte | Docente | Promedio, histograma de notas, distribución de niveles y nivel por alumno (editable), temas más fallados (porcentaje de respuestas erradas por tema), temas débiles del grupo, dudas que el material no cubrió y uso por agente |
 
 ### 8.1 Componentes Angular (librerías Nx)
@@ -1011,6 +1079,7 @@ La web nunca ve ni guarda la clave: la ruta `/conectar/openrouter` toma el `code
 | Calidad del tutor | 50 fallos de referencia por curso: citas correctas, fidelidad al contenido de la clase, ampliación marcada cuando el material no alcanza | Conjunto de evaluación + LLM como juez con revisión humana |
 | Límites del tutor | Preguntas ajenas al curso, ampliación con la clase en `ampliacion_permitida = false`, ampliación durante el examen, citas inventadas | Suite de casos negativos con verificación del corte en servidor |
 | Nivel | Cálculo del nivel por rangos de nota, corrección manual del docente, persistencia de temas débiles | xUnit |
+| Material condensado | Sin cuenta del profesor no se llama a la IA, apuntes por página con sus citas, apunte más largo descartado, página omitida conserva el original, elegir el original, saturación deja pendiente para reintentar, cupo agotado deja error, lotes para gastar pocas llamadas, JSON entre bloques de código, examen con el original, endpoints solo del profesor del curso | xUnit + pruebas de API con el proveedor simulado |
 | Credenciales | Cifrado en reposo, la API nunca devuelve la clave ni acepta una pegada, un alumno no alcanza la de otro, credencial inválida marcada y reconectable, 429 no la invalida | xUnit + pruebas de API |
 | Acceso | Validación del `id_token` (emisor, audiencia, vencido, `nonce`, correo sin verificar), `state` repetido, primer acceso sin crear a nadie hasta elegir rol, alumno solo en los cursos de su profesor, profesor inválido, registro de un solo uso, nadie se elige administrador, registro cerrado (`no_registrado`), administrador por configuración, cada profesor solo sus cursos (403 al ajeno), cambio de profesor, sesión con rol correcto | xUnit + pruebas de API con el proveedor simulado |
 | OAuth OpenRouter | Canje con verificador correcto, código de otro alumno, código repetido o vencido, clave obtenida que el proveedor rechaza; OpenRouter simulado | xUnit + WireMock |
@@ -1081,3 +1150,5 @@ Estado a 2026-09-30, tras preparar el despliegue en Railway y Vercel. Por priori
 | 12 | Tope de mensajes por alumno y clase | RNF-08 | Sin implementar |
 | 13 | Dificultad adaptativa por nivel | RF-23 | Sin implementar |
 | 14 | Carga, volumen y disponibilidad | RNF-03 a RNF-05 | Medir con k6 en un despliegue |
+| 15 | Medir la condensación con el modelo real | RF-36 | Primera prueba local: la infografía "Costo vs Gasto" pasó de 409 a 267 tokens (−35 %). Falta completar M1 (el pool gratuito estaba saturado, se reintenta solo) y revisar la fidelidad de los apuntes con el profesor |
+| 16 | Profesor sin OpenRouter en producción | RF-36 | En producción el profesor tiene que entrar a su panel y pulsar *Conectar OpenRouter*; hasta entonces el tutor lee el original |

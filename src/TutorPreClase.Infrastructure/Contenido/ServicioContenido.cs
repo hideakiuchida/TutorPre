@@ -32,6 +32,7 @@ public sealed class ServicioContenido(
     IAlmacenArchivos almacen,
     IExtractorTextoFactory extractores,
     IContextoClaseService contexto,
+    IColaCondensacion condensacion,
     IRelojSistema reloj,
     ILogger<ServicioContenido> log) : IServicioContenido
 {
@@ -119,9 +120,14 @@ public sealed class ServicioContenido(
             {
                 db.Paginas.AddRange(utiles);
                 archivo.Estado = EstadoArchivo.Listo;
+                archivo.Condensado = EstadoCondensado.Pendiente;
+                archivo.ErrorCondensado = null;
             }
 
             await db.SaveChangesAsync(ct);
+
+            // Texto nuevo, apuntes nuevos: la IA los rehace en segundo plano (SDD §6.2).
+            if (archivo.Estado == EstadoArchivo.Listo) await condensacion.EncolarAsync(archivo.Id, ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

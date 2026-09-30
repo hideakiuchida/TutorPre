@@ -1,13 +1,23 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { TutorStreamService } from '../datos/tutor-stream.service';
 import { SesionService } from '../datos/sesion.service';
-import { ClaseResumen } from '../datos/tutor.modelos';
-import { ContenidoClase, DocenteService, ReporteClase } from '../datos/docente.service';
+import { ClaseResumen, Credencial } from '../datos/tutor.modelos';
+import {
+  ArchivoClase,
+  ContenidoClase,
+  DocenteService,
+  PaginaComparada,
+  ReporteClase,
+} from '../datos/docente.service';
+
+/** Mientras la IA condensa, el panel se refresca cada tanto para mostrar el avance. */
+const REFRESCO_MS = 5000;
 
 /**
  * Pantalla del docente (RF-34). El material no se sube aquí: se copia a la carpeta del
- * curso y aquí se ve cómo quedó, junto con el examen, la ampliación y el reporte.
+ * curso y aquí se ve cómo quedó, junto con los apuntes que hace la IA para el tutor
+ * (SDD §6.2), el examen, la ampliación y el reporte.
  */
 @Component({
   selector: 'app-docente',
@@ -15,7 +25,7 @@ import { ContenidoClase, DocenteService, ReporteClase } from '../datos/docente.s
   templateUrl: './docente.page.html',
   styleUrl: './docente.page.css',
 })
-export class DocentePage {
+export class DocentePage implements OnDestroy {
   private readonly api = inject(TutorStreamService);
   private readonly docente = inject(DocenteService);
   readonly sesion = inject(SesionService);
@@ -26,9 +36,29 @@ export class DocentePage {
   readonly reporte = signal<ReporteClase | null>(null);
   readonly error = signal('');
 
+  /** Cuenta de OpenRouter del profesor: con ella la IA condensa su material. */
+  readonly cuenta = signal<Credencial | null>(null);
+  readonly conectando = signal(false);
+
+  /** Archivo cuyo original y apuntes se comparan página por página. */
+  readonly comparando = signal<ArchivoClase | null>(null);
+  readonly paginas = signal<PaginaComparada[]>([]);
+
+  /** Hay apuntes en camino (no cuenta un archivo que espera a que el modelo se desature). */
+  readonly condensando = computed(() =>
+    (this.contenido()?.archivos ?? []).some(
+      (a) => a.condensado === 'Procesando' || (a.condensado === 'Pendiente' && !a.errorCondensado),
+    ),
+  );
+
   readonly tramosNota = ['0-10', '11-14', '15-17', '18-20'];
 
+  private refresco?: ReturnType<typeof setTimeout>;
+
   async ngOnInit(): Promise<void> {
+    await this.completarOAuth();
+    await this.cargarCuenta();
+
     try {
       const clases = await this.api.clases();
       this.clases.set(clases);
@@ -38,10 +68,15 @@ export class DocentePage {
     }
   }
 
+  ngOnDestroy(): void {
+    clearTimeout(this.refresco);
+  }
+
   async abrir(clase: ClaseResumen): Promise<void> {
     this.activa.set(clase);
     this.contenido.set(null);
     this.reporte.set(null);
+    this.comparando.set(null);
     this.error.set('');
 
     try {
@@ -51,6 +86,7 @@ export class DocentePage {
       ]);
       this.contenido.set(contenido);
       this.reporte.set(reporte);
+      this.programarRefresco();
     } catch {
       this.error.set('No se pudo cargar esta clase.');
     }
@@ -65,7 +101,104 @@ export class DocentePage {
     this.contenido.set({ ...contenido, ampliacionPermitida });
   }
 
+  /** La cuenta se conecta igual que la del alumno: OAuth con OpenRouter, sin claves. */
+  async conectar(): Promise<void> {
+    this.conectando.set(true);
+    try {
+      const { url } = await this.api.iniciarOAuth('openrouter');
+      location.href = url;
+    } catch {
+      this.conectando.set(false);
+      this.error.set('No se pudo iniciar la conexión con OpenRouter.');
+    }
+  }
+
+  async condensar(forzar: boolean): Promise<void> {
+    const clase = this.activa();
+    if (!clase) return;
+
+    await this.docente.condensar(clase.claseId, forzar);
+    await this.refrescarContenido();
+  }
+
+  async alternarOriginal(archivo: ArchivoClase): Promise<void> {
+    await this.docente.usarOriginal(archivo.archivoId, !archivo.usarOriginal);
+    await this.refrescarContenido();
+  }
+
+  async comparar(archivo: ArchivoClase): Promise<void> {
+    if (this.comparando()?.archivoId === archivo.archivoId) {
+      this.comparando.set(null);
+      return;
+    }
+
+    this.comparando.set(archivo);
+    this.paginas.set(await this.docente.paginas(archivo.archivoId));
+  }
+
+  /** Lo que ve el profesor en la columna "Para el tutor". */
+  estadoTutor(a: ArchivoClase): string {
+    if (a.estado !== 'Listo') return '—';
+    if (a.usarOriginal) return 'Original (elegido por ti)';
+
+    switch (a.condensado) {
+      case 'Listo':
+        return a.tokensCondensado < a.tokensOriginal ? 'Apuntes de la IA' : 'Original (ya era breve)';
+      case 'SinCuenta':
+        return 'Original: conecta OpenRouter para condensar';
+      case 'Error':
+        return 'Original: no se pudo condensar';
+      case 'Pendiente':
+        return a.errorCondensado ? 'Original: el modelo gratuito está saturado, se reintentará solo' : 'Condensando…';
+      default:
+        return 'Condensando…';
+    }
+  }
+
   maximo(distribucion: Partial<Record<string, number>>): number {
     return Math.max(1, ...Object.values(distribucion).map((v) => v ?? 0));
+  }
+
+  private async refrescarContenido(): Promise<void> {
+    const clase = this.activa();
+    if (!clase) return;
+
+    this.contenido.set(await this.docente.contenido(clase.claseId));
+    this.programarRefresco();
+  }
+
+  private programarRefresco(): void {
+    clearTimeout(this.refresco);
+    if (this.condensando()) this.refresco = setTimeout(() => this.refrescarContenido(), REFRESCO_MS);
+  }
+
+  private async cargarCuenta(): Promise<void> {
+    try {
+      const credenciales = await this.api.credenciales();
+      this.cuenta.set(credenciales.find((c) => c.agenteId === 'openrouter' && c.estado === 'Valida') ?? null);
+    } catch {
+      this.cuenta.set(null);
+    }
+  }
+
+  /**
+   * OpenRouter vuelve a /conectar/openrouter?code=…: se canjea el código y se piden los
+   * apuntes de todas sus clases, que hasta ahora el tutor leía en original.
+   */
+  private async completarOAuth(): Promise<void> {
+    const ruta = /^\/conectar\/([\w-]+)\/?$/.exec(location.pathname);
+    if (!ruta) return;
+
+    const codigo = new URLSearchParams(location.search).get('code');
+    history.replaceState(null, '', '/');
+    if (!codigo) return;
+
+    try {
+      await this.api.canjearOAuth(ruta[1], codigo);
+      const clases = await this.api.clases();
+      await Promise.all(clases.map((c) => this.docente.condensar(c.claseId)));
+    } catch (e: any) {
+      this.error.set(e?.error?.mensaje ?? 'No se pudo conectar tu cuenta de OpenRouter.');
+    }
   }
 }

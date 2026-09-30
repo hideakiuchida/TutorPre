@@ -257,6 +257,9 @@ public sealed class GeneradorFijo : IGeneradorExamen
 {
     public int Llamadas { get; private set; }
 
+    /// <summary>El material con el que se pidió el último examen.</summary>
+    public ContextoClase? UltimoMaterial { get; private set; }
+
     /// <summary>Si se fija, la generacion falla con este error del proveedor.</summary>
     public ErrorProveedor? Falla { get; set; }
 
@@ -264,6 +267,7 @@ public sealed class GeneradorFijo : IGeneradorExamen
         ILlmProvider proveedor, string modelo, ContextoClase contexto, int cantidad, CancellationToken ct = default)
     {
         Llamadas++;
+        UltimoMaterial = contexto;
         if (Falla is not null) throw new GeneracionExamenException("Fallo el proveedor.", Falla);
 
         IReadOnlyList<Pregunta> preguntas =
