@@ -168,6 +168,8 @@ flowchart LR
 
 La API nunca espera a la extracción: al subir un archivo publica un evento y el worker extrae el texto página por página y lo guarda en PostgreSQL.
 
+En la v1 desplegada, la cola y el worker corren dentro del mismo proceso de la API (una cola en memoria y un servicio en segundo plano, con el mismo contrato), y los archivos van a un volumen de Railway. RabbitMQ y Blob Storage llegan cuando la carga lo pida. La §5.9 dibuja la arquitectura real con OpenRouter y sus flujos.
+
 ### 3.1 Módulos del backend
 
 - **Clases y contenido**: CRUD de cursos/clases, subida de archivos, estado de extracción y armado del contexto de clase.
@@ -520,6 +522,221 @@ Orquestación en `AgenteTutorService`, por cada mensaje del alumno:
 3. Reenvía cada `TextoParcial` al navegador por SSE en cuanto llega, también con la ampliación desactivada: `EmisorConCorte` retiene solo los últimos 64 caracteres, lo justo para contener la marca de ampliación aunque llegue partida, y si aparece deja de emitir y termina con el aviso estándar (sección 6.4). Ante una `LlamadaHerramienta` la ejecuta en el servidor, agrega el resultado y vuelve a llamar (máximo 6 vueltas por mensaje).
 4. Aplica los cortes de la sección 6.4 (ampliación no permitida, citas inválidas) antes de dar por buena la respuesta.
 5. Guarda mensajes, llamadas a herramientas, marca de ampliación y tokens en `MensajeChat` para auditoría y control de costos.
+
+### 5.9 Arquitectura con OpenRouter y flujos de extremo a extremo
+
+Esta sección reúne cómo usa la plataforma a OpenRouter en toda la app y los cuatro flujos que lo atraviesan. Describe la implementación v1 desplegada (Railway y Vercel). Las secciones 3 y 6 fijan el diseño de referencia.
+
+#### Por qué OpenRouter y por qué un modelo `:free`
+
+- **Un solo gateway para muchos modelos.** OpenRouter expone modelos de muchos proveedores (Qwen, Google, NVIDIA, OpenAI, Anthropic…) con el mismo formato de chat de OpenAI. Cambiar de modelo es configuración (`Agentes:openrouter:Modelo` o `PUT /admin/agentes/{id}`), no código.
+- **Cada alumno usa su propia cuenta (BYOK).** La conecta con un clic por OAuth con PKCE (§5.1). La plataforma no guarda una clave compartida ni paga por los alumnos. La clave se guarda cifrada y solo se usa en las conversaciones de su dueño.
+- **Gratis por defecto.** El administrador elige una variante `:free` (hoy `qwen/qwen3.8-27b:free`) que soporte herramientas y haya pasado la suite de paridad. El alumno no paga ni configura nada.
+  - El costo son los límites del plan gratuito: un cupo diario por cuenta y un pool compartido que a ciertas horas se satura (429 `upstream_provider_shared_pool`).
+  - Por eso cada llamada lleva modelos de respaldo, y el chat distingue *modelo saturado* de *cupo agotado* (RF-30).
+- **ChatGPT y Claude no tienen versión gratuita en la API.** Las suscripciones ChatGPT Plus o claude.ai Pro tampoco la habilitan. OpenRouter sí sirve esos modelos de pago (`openai/…`, `anthropic/…`): habilitarlos es cambiar el modelo, sin tocar código. El consumo, en cambio, corre por la cuenta de quien pague:
+
+| Opción | Quién paga | Ventaja | Costo para el diseño |
+| --- | --- | --- | --- |
+| **`:free` (v1, vigente)** | Nadie | El alumno entra sin tarjeta | Saturación en horas pico, cupo diario, calidad variable |
+| Modelo de pago con la cuenta del alumno | Cada alumno carga saldo en OpenRouter | Rápido y sin saturación; la app no cambia | Fricción: tarjeta y recargas por alumno |
+| Modelo de pago con clave institucional | La universidad | La mejor experiencia | Rompe el BYOK: hace falta una clave compartida en el servidor, topes por alumno (RNF-08) y aprobación del envío de datos a Anthropic u OpenAI |
+
+Antes de habilitar cualquier modelo, gratuito o de pago, se pasa la suite de paridad (§9.2), y se revisa dónde se procesan los datos (RNF-11).
+
+#### Parámetros de cada llamada
+
+| Parámetro | Chat (Consulta, Revisión, Evaluación) | Generación del examen |
+| --- | --- | --- |
+| `model` / `models` | Modelo del agente y, detrás, los `ModelosAlternativos`: OpenRouter pasa al siguiente si uno falla o está saturado | Igual |
+| `provider` | `data_collection: deny` (solo proveedores que no guardan los prompts, RNF-11) y `sort: throughput` (el más rápido) | Igual |
+| `reasoning` | `enabled: false`: el primer token llega antes y el razonamiento no consume el tope | `effort: low`: se espera una vez y pesa la calidad de las preguntas |
+| `max_tokens` | 2048; al llegar al tope (`finish_reason: length`) se avisa *respuesta incompleta* | 600 × N + 400 |
+| `temperature` | 0.2 | 0.7 (cada intento, un examen distinto) |
+| `tools` | Solo las del modo (§5.7) | Ninguna |
+| Material | Completo; en Consulta y Revisión de una clase grande, solo las páginas pertinentes (§6.2) | Siempre completo |
+| `stream` | Sí, reenviado al navegador por SSE mientras llega | Sí, acumulado en el servidor |
+| Credencial | `Authorization: Bearer <clave del alumno>`, descifrada solo para esta llamada | Igual |
+
+Cada llamada deja en el log el modelo que respondió, el tiempo al primer token, el tiempo total y los tokens de entrada, salida y razonamiento, sin texto del alumno (RNF-06).
+
+#### Componentes
+
+```mermaid
+flowchart LR
+    subgraph Docente
+        CARP["course-content/<br/>correo/curso/clase/archivos"]
+    end
+    subgraph Vercel
+        WEB["Web Angular<br/>chat · panel del docente"]
+    end
+    subgraph Railway["Railway · servicio api"]
+        SYNC["SincronizadorCarpeta<br/>cada 30 s"]
+        ALM[("Volumen /datos<br/>archivos originales")]
+        COLA["Cola de extracción<br/>en proceso"]
+        EXT["Extractores<br/>PDF · DOCX · PPTX · XLSX · MD"]
+        CTX["ContextoClaseService<br/>limpieza · caché · selección"]
+        TUT["AgenteTutorService<br/>modos · herramientas · cortes"]
+        GEN["GeneradorExamen"]
+        BOV["BovedaCredenciales<br/>clave cifrada del alumno"]
+        ORP["OpenRouterProvider"]
+        DB[("PostgreSQL<br/>pagina_contenido · conversaciones · intentos")]
+    end
+    subgraph OpenRouter
+        OR["API /api/v1/chat/completions"]
+        M1["qwen …:free"]
+        M2["gemma …:free"]
+        M3["nemotron …:free"]
+    end
+
+    CARP --> SYNC --> ALM
+    SYNC --> COLA --> EXT --> DB
+    DB --> CTX
+    WEB -- "REST + SSE" --> TUT
+    WEB -- "Comenzar examen" --> GEN
+    CTX --> TUT
+    CTX --> GEN
+    BOV --> TUT
+    BOV --> GEN
+    TUT --> ORP
+    GEN --> ORP
+    ORP -- "HTTPS + clave del alumno" --> OR
+    OR --> M1
+    OR -. "respaldo" .-> M2
+    OR -. "respaldo" .-> M3
+    TUT --> DB
+    GEN --> DB
+```
+
+#### Flujo 1: el profesor sube material
+
+El profesor no usa formularios: copia el archivo en su carpeta (§6.1). En producción la carpeta viaja en la imagen de la API, así que subir material es hacer commit en `course-content/` y dejar que el CD despliegue.
+
+```mermaid
+sequenceDiagram
+    actor P as Profesor
+    participant C as course-content/
+    participant S as SincronizadorCarpeta
+    participant A as Volumen /datos
+    participant Q as Cola de extracción
+    participant X as Extractor
+    participant D as PostgreSQL
+    participant K as ContextoClaseService
+    participant W as Web del alumno
+
+    P->>C: copia el archivo en correo/curso/clase/
+    loop al arrancar y cada 30 s
+        S->>C: recorre carpetas
+        S->>S: SHA-256 del archivo
+        alt nuevo o cambiado
+            S->>A: guarda el original
+            S->>D: archivo_contenido (Pendiente)
+            S->>Q: ExtraerTexto(archivoId)
+        else sin cambios
+            S->>S: no hace nada
+        end
+    end
+    Q->>X: archivoId
+    X->>A: lee el original
+    X->>X: texto por página, diapositiva u hoja
+    X->>D: pagina_contenido (texto + tokens), archivo Listo
+    X->>K: invalida el contexto de la clase
+    S-->>W: SSE /alumno/novedades: "tu docente actualizó el material"
+```
+
+El texto se extrae **una sola vez**, al subir. Ninguna pregunta del alumno vuelve a leer un documento.
+
+#### Flujo 2: se prepara el material para la IA
+
+Es el "archivo" que realmente recibe el modelo: el bloque `<contenido>` de la clase. Se arma una vez por clase y queda en caché hasta que cambie el material.
+
+```mermaid
+flowchart TD
+    A["pagina_contenido de la clase<br/>(estado Listo)"] --> B["LimpiadorTexto<br/>quita encabezados y pies repetidos (PDF, PPTX),<br/>números de página y espacios"]
+    B --> C["Bloque &lt;contenido&gt;<br/>cada página con su cita [archivo, p. N]"]
+    C --> D[("Caché en memoria<br/>clave: clase + hash del contenido")]
+    D --> E{"¿Para qué?"}
+    E -- "examen (generar o rendir)" --> F["Material completo"]
+    E -- "consulta o revisión" --> G{"¿Más de 4000 tokens?"}
+    G -- no --> F
+    G -- sí --> H["SelectorPaginas (BM25)<br/>páginas relacionadas con la pregunta,<br/>hasta 3000 tokens"]
+    H -- "ninguna coincide" --> F
+    H --> I["Bloque con seleccion=…<br/>citas validadas contra toda la clase"]
+```
+
+#### Flujo 3: el alumno consulta al agente
+
+```mermaid
+sequenceDiagram
+    actor U as Alumno
+    participant W as Web (Vercel)
+    participant T as AgenteTutorService
+    participant B as BovedaCredenciales
+    participant K as ContextoClaseService
+    participant O as OpenRouter
+    participant D as PostgreSQL
+
+    U->>W: escribe la pregunta
+    W->>T: POST /conversaciones/{id}/mensajes (SSE)
+    T->>D: guarda el mensaje, lee los últimos 20
+    T->>B: clave del alumno dueño
+    alt sin clave
+        T-->>W: aviso sin_credencial (botón Conectar)
+    end
+    T->>K: material para la pregunta (completo o páginas pertinentes)
+    T->>O: chat/completions: prompt + material + historial + herramientas del modo
+    O-->>T: tokens en streaming
+    T-->>W: tokens en vivo (EmisorConCorte retiene la marca de ampliación)
+    opt llama a una herramienta (p. ej. registrar_duda_sin_cobertura)
+        T->>D: ejecuta la herramienta en el servidor
+        T->>O: segunda vuelta con el resultado (máximo 6)
+    end
+    T->>T: cortes §6.4: ampliación no permitida, citas contra toda la clase
+    T->>D: guarda respuesta, citas, tokens
+    T-->>W: fuentes, avisos (incompleta, saturado, cupo), fin
+```
+
+Si OpenRouter responde 429 o 401, no se reintenta a ciegas:
+- 429 del pool compartido: *modelo saturado, reintenta en segundos*;
+- 429 del cupo propio: *podrás seguir en N min*;
+- 401 o 403: la credencial se marca inválida y el chat pide reconectarla.
+
+En ningún caso se pierde el avance.
+
+#### Flujo 4: se genera el examen del alumno
+
+```mermaid
+sequenceDiagram
+    actor U as Alumno
+    participant W as Web (Vercel)
+    participant T as AgenteTutorService
+    participant E as ServicioExamen
+    participant G as GeneradorExamen
+    participant O as OpenRouter
+    participant D as PostgreSQL
+
+    U->>W: Comenzar examen
+    W->>T: POST /conversaciones/{id}/examen
+    T->>E: ventana abierta, intentos disponibles, material
+    E->>G: generar N preguntas con el material completo
+    G->>O: llamada aparte del chat, sin herramientas, reasoning low, temperatura 0.7
+    O-->>G: JSON con preguntas, alternativas, correcta y justificación con cita
+    G->>G: descarta mal formadas, baraja alternativas
+    alt al menos 3 válidas
+        G-->>E: preguntas
+        E->>D: intento + preguntas ligadas a él
+        T->>D: conversación en modo Evaluación
+        T-->>W: examen listo
+    else la IA falla o devuelve menos de 3
+        E-->>W: aviso, el intento no se crea ni se consume
+    end
+```
+
+Rendir el examen es el mismo Flujo 3 en modo Evaluación, con dos diferencias:
+- el agente solo tiene `obtener_siguiente_pregunta`, `registrar_respuesta`, `obtener_progreso` y `finalizar_examen`;
+- la clave de respuestas nunca entra en su contexto.
+
+La calificación la hace el servidor, sin IA (§5.3).
 
 ## 6. Módulo de contenido de clase
 
