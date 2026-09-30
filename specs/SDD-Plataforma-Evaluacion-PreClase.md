@@ -496,7 +496,7 @@ public sealed record LlmSolicitud(
     IReadOnlyList<LlmMensaje> Mensajes,
     IReadOnlyList<DefinicionHerramienta> Herramientas,
     double Temperatura = 0.2,
-    int MaxTokens = 2048,
+    int? MaxTokens = null,          // null: sin tope (el chat)
     string? Razonamiento = null);   // "desactivado" | "bajo"; null usa el del agente
 
 public abstract record LlmEvento;
@@ -531,7 +531,7 @@ public sealed record Fin(int TokensEntrada, int TokensSalida, bool CortadaPorTop
 **Latencia (RNF-02).** Los modelos `:free` que razonan piensan antes de escribir: ese razonamiento no se ve, retrasa el primer token y consume el tope de salida (con 1024 tokens había respuestas cortadas a media frase). Por eso:
 
 - En el chat el razonamiento va **desactivado** (`Agentes:openrouter:Razonamiento`, que OpenRouter recibe como `reasoning.enabled = false`). La generación del examen pide razonamiento **bajo**: el alumno la espera una sola vez y la calidad de las preguntas pesa más.
-- El tope de salida es de 2048 tokens. Si aun así la respuesta llega al tope (`finish_reason: length`), el chat avisa *"La respuesta quedó incompleta… Pide al tutor que continúe"*.
+- El chat **no pone tope de salida**: no se envía `max_tokens` (ni `maxOutputTokens` a Gemini), así que el modelo responde completo, hasta su propio máximo. Con 1024 había respuestas cortadas a media cita. Si aun así llega al máximo del modelo (`finish_reason: length` / `MAX_TOKENS`), el chat avisa *"La respuesta quedó incompleta… Pide al tutor que continúe"*. Generar el examen y condensar el material sí fijan un tope, calculado según lo que piden.
 - Entre los proveedores que no guardan los prompts, OpenRouter elige el de más tokens por segundo (`provider.sort = throughput`).
 - Cada llamada deja en el log el tiempo al primer token, el tiempo total, los tokens de entrada, salida y razonamiento, y el modelo que respondió, sin texto del alumno (RNF-06).
 
@@ -576,7 +576,7 @@ Antes de habilitar cualquier modelo, gratuito o de pago, se pasa la suite de par
 | `model` / `models` | Modelo del agente y, detrás, los `ModelosAlternativos`: OpenRouter pasa al siguiente si uno falla o está saturado | Igual | Igual |
 | `provider` | `data_collection: deny` (solo proveedores que no guardan los prompts, RNF-11) y `sort: throughput` (el más rápido) | Igual | Igual |
 | `reasoning` | `enabled: false`: el primer token llega antes y el razonamiento no consume el tope | `effort: low`: se espera una vez y pesa la calidad de las preguntas | `enabled: false` |
-| `max_tokens` | 2048; al llegar al tope (`finish_reason: length`) se avisa *respuesta incompleta* | 600 × N + 400 | Tokens del lote + 400 |
+| `max_tokens` | Sin tope (no se envía): el modelo responde completo; si llega a su propio máximo se avisa *respuesta incompleta* | 600 × N + 400 | Tokens del lote + 400 |
 | `temperature` | 0.2 | 0.7 (cada intento, un examen distinto) | 0.1 (fiel al texto) |
 | `tools` | Solo las del modo (§5.7) | Ninguna | Ninguna |
 | Material | Apuntes condensados donde los hay; en Consulta y Revisión de una clase grande, solo las páginas pertinentes (§6.2) | Siempre el **original** completo | Lotes de páginas seguidas, hasta 3000 tokens de original por llamada |
@@ -1210,7 +1210,7 @@ Estado a 2026-09-30, con el examen pregunta a pregunta, Gemini con Google y el m
 | # | Pendiente | Requisito | Detalle |
 | --- | --- | --- | --- |
 | 1 | Registrar la app en Microsoft (Outlook) | RF-31 | La cuenta UPC de alumno no puede registrar apps en Entra (403). Lo hace TI de la UPC o una cuenta personal con su propio directorio (skill `setup-oauth`); luego `secrets/microsoft.json` |
-| 2 | Medir la latencia con el modelo real | RNF-02 | Hecho en código (§5.8): razonamiento desactivado en el chat, tope de 2048 con aviso de respuesta incompleta, streaming con la ampliación apagada y páginas pertinentes en clases grandes. Falta medir el primer token con el modelo real: el 2026-09-30 los modelos `:free` de qwen y gemma estaban saturados (429 del pool compartido) |
+| 2 | Medir la latencia con el modelo real | RNF-02 | Hecho en código (§5.8): razonamiento desactivado en el chat, sin tope de salida en el chat, con aviso si el modelo llega a su máximo, streaming con la ampliación apagada y páginas pertinentes en clases grandes. Falta medir el primer token con el modelo real: el 2026-09-30 los modelos `:free` de qwen y gemma estaban saturados (429 del pool compartido) |
 | 3 | Citas válidas marcadas como inválidas | RF-11, §6.4 | El modelo abrevia nombres de archivo largos (`MDSTI_MFEP_M1_INFOGRAFÍA_Costo vs Gasto` en vez del nombre completo) y la cita sale tachada. Aceptar coincidencia por prefijo o dar al modelo nombres cortos por archivo |
 | 4 | Markdown del tutor | UI | Se muestran negritas; listas, títulos y tablas siguen como texto plano |
 | 5 | Ajustes del examen en el panel del docente | RF-34 | Ventana, intentos, tiempo, preguntas por intento y modo de feedback solo por `PUT /clases/{id}/examen` |

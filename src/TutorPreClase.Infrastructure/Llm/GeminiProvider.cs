@@ -190,11 +190,10 @@ public sealed class GeminiProvider(
 
     internal object Cuerpo(LlmSolicitud s)
     {
-        var generacion = new JsonObject
-        {
-            ["maxOutputTokens"] = s.MaxTokens,
-            ["temperature"] = s.Temperatura
-        };
+        var generacion = new JsonObject { ["temperature"] = s.Temperatura };
+
+        // Sin tope pedido, Gemini usa el máximo del modelo.
+        if (s.MaxTokens is int tope) generacion["maxOutputTokens"] = tope;
 
         if (Presupuesto(s.Razonamiento ?? opciones.Razonamiento) is int presupuesto)
             generacion["thinkingConfig"] = new JsonObject { ["thinkingBudget"] = presupuesto };

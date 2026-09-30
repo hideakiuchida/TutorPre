@@ -20,7 +20,9 @@ public sealed record LlmSolicitud(
     IReadOnlyList<LlmMensaje> Mensajes,
     IReadOnlyList<DefinicionHerramienta> Herramientas,
     double Temperatura = 0.2,
-    int MaxTokens = 2048,
+    // null: sin tope propio, el modelo escribe lo que necesite (el chat). Generar el examen
+    // y condensar el material sí fijan uno, calculado según lo que piden.
+    int? MaxTokens = null,
     string? Razonamiento = null);
 
 public enum RolLlm { Usuario, Asistente, Herramienta }
@@ -38,7 +40,7 @@ public sealed record DefinicionHerramienta(string Nombre, string Descripcion, Js
 public abstract record LlmEvento;
 public sealed record TextoParcial(string Texto) : LlmEvento;
 public sealed record LlamadaHerramienta(string Id, string Nombre, JsonElement Argumentos) : LlmEvento;
-/// <summary>`CortadaPorTope`: la respuesta llegó a MaxTokens y quedó incompleta.</summary>
+/// <summary>`CortadaPorTope`: la respuesta llegó al máximo (el pedido o el del modelo) y quedó incompleta.</summary>
 public sealed record Fin(int TokensEntrada, int TokensSalida, bool CortadaPorTope = false) : LlmEvento;
 /// <summary>
 /// Fallo del proveedor. `LimiteDeUso` es un 429: la credencial sigue siendo buena y el

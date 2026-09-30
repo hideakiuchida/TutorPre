@@ -132,7 +132,8 @@ public class RazonamientoOpenRouterTests
         Assert.False(cuerpo.GetProperty("reasoning").GetProperty("enabled").GetBoolean());
         Assert.Equal("throughput", cuerpo.GetProperty("provider").GetProperty("sort").GetString());
         Assert.Equal("deny", cuerpo.GetProperty("provider").GetProperty("data_collection").GetString());
-        Assert.Equal(2048, cuerpo.GetProperty("max_tokens").GetInt32());
+        // El chat no pone tope: el modelo responde completo.
+        Assert.False(cuerpo.TryGetProperty("max_tokens", out _));
     }
 
     [Fact]

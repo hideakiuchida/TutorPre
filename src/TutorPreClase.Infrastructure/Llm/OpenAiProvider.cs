@@ -205,6 +205,7 @@ public class OpenAiProvider(
         {
             model = s.Modelo,
             models = Respaldo(s.Modelo),
+            // null se omite del JSON: sin tope pedido, el modelo usa su máximo.
             max_tokens = s.MaxTokens,
             reasoning = Razonamiento(s.Razonamiento ?? Opciones.Razonamiento),
             temperature = s.Temperatura,

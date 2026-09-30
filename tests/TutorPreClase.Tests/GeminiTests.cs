@@ -133,6 +133,7 @@ public class GeminiTests
         var cuerpo = JsonDocument.Parse(google.Recibidas.Last().Cuerpo).RootElement;
         Assert.Equal("Eres el tutor.", cuerpo.GetProperty("systemInstruction").GetProperty("parts")[0].GetProperty("text").GetString());
         Assert.Equal(0, cuerpo.GetProperty("generationConfig").GetProperty("thinkingConfig").GetProperty("thinkingBudget").GetInt32());
+        Assert.False(cuerpo.GetProperty("generationConfig").TryGetProperty("maxOutputTokens", out _));
 
         var roles = cuerpo.GetProperty("contents").EnumerateArray().Select(c => c.GetProperty("role").GetString()!).ToArray();
         Assert.Equal(["user", "model", "user", "model", "user"], roles);
