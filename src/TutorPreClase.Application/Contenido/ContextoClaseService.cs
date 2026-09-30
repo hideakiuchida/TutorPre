@@ -11,6 +11,10 @@ namespace TutorPreClase.Application.Contenido;
 public interface IContextoClaseService
 {
     Task<ContextoClase> ObtenerAsync(Guid claseId, CancellationToken ct = default);
+
+    /// <summary>El material para una pregunta: completo, o sus páginas pertinentes si es grande.</summary>
+    Task<ContextoClase> ObtenerParaPreguntaAsync(Guid claseId, string consulta, CancellationToken ct = default);
+
     void Invalidar(Guid claseId);
 }
 
@@ -52,6 +56,9 @@ public sealed class ContextoClaseService(
 
         return contexto;
     }
+
+    public async Task<ContextoClase> ObtenerParaPreguntaAsync(Guid claseId, string consulta, CancellationToken ct = default) =>
+        SelectorPaginas.Seleccionar(await ObtenerAsync(claseId, ct), consulta, _opciones);
 
     public void Invalidar(Guid claseId) => cache.Remove(Clave(claseId));
 

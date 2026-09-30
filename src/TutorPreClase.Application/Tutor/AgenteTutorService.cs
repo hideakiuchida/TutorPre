@@ -149,8 +149,13 @@ public sealed class AgenteTutorService(
             yield break;
         }
 
-        var contextoClase = await contexto.ObtenerAsync(conversacion.ClaseId, ct);
         var historial = await HistorialAsync(conversacion.Id, ct);
+
+        // En el examen va el material completo; al conversar, si la clase es grande, solo
+        // las páginas relacionadas con lo que pregunta el alumno (SDD §6.2).
+        var contextoClase = conversacion.Modo == ModoConversacion.Evaluacion
+            ? await contexto.ObtenerAsync(conversacion.ClaseId, ct)
+            : await contexto.ObtenerParaPreguntaAsync(conversacion.ClaseId, Consulta(historial), ct);
         var proveedor = proveedores.Obtener(agente.Id, clave);
 
         var intento = conversacion.IntentoId is Guid id
@@ -170,11 +175,11 @@ public sealed class AgenteTutorService(
         var tokensEntrada = 0;
         var tokensSalida = 0;
         var huboAmpliacion = false;
+        var cortadaPorTope = false;
 
-        // Con la ampliacion desactivada el texto se retiene hasta validarlo: es la unica
-        // forma de garantizar que el alumno no vea contenido fuera del material (SDD §6.4).
-        // Con la ampliacion permitida se emite en vivo para cumplir RNF-02.
-        var emitirEnVivo = ampliacionPermitida;
+        // Se emite en vivo (RNF-02). Con la ampliacion desactivada el emisor retiene solo
+        // la cola donde podria empezar la marca: lo que viene detras nunca llega (SDD §6.4).
+        var emisor = new EmisorConCorte(retenerAmpliacion: !ampliacionPermitida);
 
         for (var vuelta = 0; vuelta < MaxVueltasHerramienta; vuelta++)
         {
@@ -194,7 +199,8 @@ public sealed class AgenteTutorService(
                 {
                     case TextoParcial t:
                         textoVuelta.Append(t.Texto);
-                        if (emitirEnVivo) yield return new EventoToken(t.Texto);
+                        var visible = emisor.Agregar(t.Texto);
+                        if (visible.Length > 0) yield return new EventoToken(visible);
                         break;
 
                     case LlamadaHerramienta l:
@@ -204,6 +210,7 @@ public sealed class AgenteTutorService(
                     case Fin f:
                         tokensEntrada += f.TokensEntrada;
                         tokensSalida += f.TokensSalida;
+                        cortadaPorTope |= f.CortadaPorTope;
                         break;
 
                     case ErrorProveedor e:
@@ -277,14 +284,17 @@ public sealed class AgenteTutorService(
             if (resultado.CierraExamen)
             {
                 ampliacionPermitida = AmpliacionPermitida(conversacion.Modo, clase);
-                emitirEnVivo = ampliacionPermitida;
                 yield return new EventoModo(conversacion.Modo, ampliacionPermitida);
             }
         }
 
         var texto = textoFinal.ToString();
 
-        if (!ampliacionPermitida && Salvaguardas.ContieneAmpliacion(texto))
+        var resto = emisor.Cerrar();
+        if (resto.Length > 0) yield return new EventoToken(resto);
+
+        // Lo guardado coincide con lo que vio el alumno: si el emisor corto, se corta aqui.
+        if (emisor.Cortado || (!ampliacionPermitida && Salvaguardas.ContieneAmpliacion(texto)))
         {
             log.LogInformation("Ampliacion cortada en conversacion {Conversacion} (modo {Modo})",
                 conversacion.Id, conversacion.Modo);
@@ -295,10 +305,14 @@ public sealed class AgenteTutorService(
             huboAmpliacion = Salvaguardas.ContieneAmpliacion(texto);
         }
 
-        if (!emitirEnVivo && texto.Length > 0)
-            yield return new EventoToken(texto);
+        if (cortadaPorTope)
+        {
+            yield return new EventoAviso("respuesta_incompleta",
+                "La respuesta quedó incompleta porque superó el largo máximo. Pide al tutor que continúe.");
+        }
 
-        var citas = Salvaguardas.ExtraerCitas(texto, contextoClase.PaginasIncluidas);
+        // Una cita es valida si la pagina es de la clase, aunque esta vez no se enviara.
+        var citas = Salvaguardas.ExtraerCitas(texto, contextoClase.PaginasDeLaClase);
         if (citas.Count > 0) yield return new EventoFuentes(citas);
 
         if (conversacion.Modo == ModoConversacion.Revision &&
@@ -355,6 +369,16 @@ public sealed class AgenteTutorService(
                 m.Texto))
             .ToList();
     }
+
+    /// <summary>
+    /// La pregunta y la anterior del alumno: "¿y eso cómo se calcula?" solo se entiende con
+    /// el turno previo.
+    /// </summary>
+    private static string Consulta(IReadOnlyList<LlmMensaje> historial) =>
+        string.Join('\n', historial
+            .Where(m => m.Rol == RolLlm.Usuario && !string.IsNullOrWhiteSpace(m.Texto))
+            .TakeLast(2)
+            .Select(m => m.Texto));
 
     private async Task<Conversacion> CargarAsync(Guid conversacionId, CancellationToken ct) =>
         await db.Conversaciones.FirstOrDefaultAsync(c => c.Id == conversacionId, ct)

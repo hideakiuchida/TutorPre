@@ -20,7 +20,8 @@ public sealed record LlmSolicitud(
     IReadOnlyList<LlmMensaje> Mensajes,
     IReadOnlyList<DefinicionHerramienta> Herramientas,
     double Temperatura = 0.2,
-    int MaxTokens = 1024);
+    int MaxTokens = 2048,
+    string? Razonamiento = null);
 
 public enum RolLlm { Usuario, Asistente, Herramienta }
 
@@ -37,7 +38,8 @@ public sealed record DefinicionHerramienta(string Nombre, string Descripcion, Js
 public abstract record LlmEvento;
 public sealed record TextoParcial(string Texto) : LlmEvento;
 public sealed record LlamadaHerramienta(string Id, string Nombre, JsonElement Argumentos) : LlmEvento;
-public sealed record Fin(int TokensEntrada, int TokensSalida) : LlmEvento;
+/// <summary>`CortadaPorTope`: la respuesta llegó a MaxTokens y quedó incompleta.</summary>
+public sealed record Fin(int TokensEntrada, int TokensSalida, bool CortadaPorTope = false) : LlmEvento;
 /// <summary>
 /// Fallo del proveedor. `LimiteDeUso` es un 429: la credencial sigue siendo buena y el
 /// alumno puede volver cuando indique `ReintentarEn`, si el proveedor lo dijo (RF-30).

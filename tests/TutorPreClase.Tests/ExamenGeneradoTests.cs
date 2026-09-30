@@ -11,8 +11,12 @@ namespace TutorPreClase.Tests;
 public class GeneradorExamenTests
 {
     private static readonly ContextoClase Material = new(
+        "M1",
         "<contenido clase=\"M1\">\n[M1.pdf, p. 43]\nLos ingresos se registran cuando se ganan.\n</contenido>",
-        20, false, new HashSet<(string, int)> { ("M1.pdf", 43) });
+        20, false,
+        new HashSet<(string, int)> { ("M1.pdf", 43) },
+        new HashSet<(string, int)> { ("M1.pdf", 43) },
+        [new PaginaContexto("M1.pdf", 43, "Los ingresos se registran cuando se ganan.", 20)]);
 
     private static string Json(params object[] preguntas) => JsonSerializer.Serialize(new { preguntas });
 

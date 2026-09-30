@@ -47,7 +47,10 @@ public sealed class GeneradorExamen(bool barajar = true) : IGeneradorExamen
             [],
             // Algo de variedad: cada alumno y cada intento reciben un examen distinto.
             Temperatura: 0.7,
-            MaxTokens: 600 * cantidad + 400);
+            MaxTokens: 600 * cantidad + 400,
+            // Armar preguntas con una sola correcta y su justificación sí gana con algo de
+            // razonamiento; el alumno espera una vez, no en cada mensaje.
+            Razonamiento: NivelRazonamiento.Bajo);
 
         var texto = new StringBuilder();
 

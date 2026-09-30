@@ -22,6 +22,13 @@ public sealed class OpcionesAgente
     /// </summary>
     public List<string> ModelosAlternativos { get; set; } = [];
 
+    /// <summary>
+    /// Cuánto razona el modelo antes de contestar: "desactivado", "bajo" o vacío (lo que
+    /// decida el modelo). El razonamiento no se ve y retrasa el primer token, así que en el
+    /// chat va desactivado; cada solicitud puede pedir otro nivel (SDD §5.8).
+    /// </summary>
+    public string? Razonamiento { get; set; }
+
     /// <summary>"Clave" (el alumno la pega) u "OAuth" (inicia sesion en el proveedor, RF-29).</summary>
     public string Conexion { get; set; } = ConexionAgente.Clave;
 
@@ -33,6 +40,12 @@ public sealed class OpcionesAgente
     /// nunca se toma de la peticion, para que nadie la desvie (SDD §9.1).
     /// </summary>
     public string? UrlRetorno { get; set; }
+}
+
+public static class NivelRazonamiento
+{
+    public const string Desactivado = "desactivado";
+    public const string Bajo = "bajo";
 }
 
 public static class ConexionAgente

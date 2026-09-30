@@ -29,6 +29,7 @@ public sealed class ProveedorLlmFactory(
             BaseUrl = plantilla.BaseUrl,
             Modelo = plantilla.Modelo,
             ModelosAlternativos = plantilla.ModelosAlternativos,
+            Razonamiento = plantilla.Razonamiento,
             Descripcion = plantilla.Descripcion,
             Habilitado = plantilla.Habilitado,
             Conexion = plantilla.Conexion,

@@ -26,6 +26,15 @@ public static partial class Salvaguardas
     public static bool ContieneAmpliacion(string texto) =>
         !string.IsNullOrEmpty(texto) && RegexAmpliacion().IsMatch(texto);
 
+    /// <summary>Dónde empieza la marca de ampliación, o -1 si no está.</summary>
+    public static int PosicionAmpliacion(string texto)
+    {
+        if (string.IsNullOrEmpty(texto)) return -1;
+
+        var match = RegexAmpliacion().Match(texto);
+        return match.Success ? match.Index : -1;
+    }
+
     /// <summary>
     /// Corta el texto en la marca de ampliación cuando no está permitida (modo Evaluación
     /// o clase con AmpliacionPermitida = false) y deja el aviso estándar.

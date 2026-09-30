@@ -195,6 +195,19 @@
   }
 }
 
+/* Solo si el modelo tarda en empezar: antes de 2 s basta el cursor. */
+.pensando {
+  color: var(--grafito);
+  font-style: italic;
+  animation: aparecer 0.3s ease-out 2s both;
+}
+
+@keyframes aparecer {
+  from {
+    opacity: 0;
+  }
+}
+
 /* Resaltador: un trazo en la mitad baja de la línea, como el de un marcador real. */
 .cita,
 .muestra,
@@ -315,6 +328,10 @@
   .cursor,
   .recien .trazo {
     animation: none;
+  }
+
+  .pensando {
+    animation: aparecer 0s 2s both;
   }
 }
 

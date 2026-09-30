@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -30,9 +31,15 @@ public class OpenAiProvider(
     /// <summary>Modelos de respaldo que el compatible prueba si falla el principal; null los omite.</summary>
     protected virtual IReadOnlyList<string>? Respaldo(string modelo) => null;
 
+    /// <summary>Parámetro de razonamiento en el formato del compatible; null lo omite.</summary>
+    protected virtual object? Razonamiento(string? nivel) => null;
+
     public async IAsyncEnumerable<LlmEvento> StreamAsync(
         LlmSolicitud solicitud, [EnumeratorCancellation] CancellationToken ct)
     {
+        var reloj = Stopwatch.StartNew();
+        long? primerTokenMs = null;
+
         using var peticion = new HttpRequestMessage(HttpMethod.Post, RutaChat)
         {
             Content = JsonContent.Create(Cuerpo(solicitud), options: MapeoLlm.Json)
@@ -60,6 +67,9 @@ public class OpenAiProvider(
 
             var entrada = 0;
             var salida = 0;
+            var razonamiento = 0;
+            var modeloQueRespondio = solicitud.Modelo;
+            var razonFin = "";
             string? herramientaId = null;
             string? herramientaNombre = null;
             var argumentos = new StringBuilder();
@@ -80,6 +90,11 @@ public class OpenAiProvider(
 
                 entrada += MapeoLlm.Entero(evento, "usage", "prompt_tokens");
                 salida += MapeoLlm.Entero(evento, "usage", "completion_tokens");
+                razonamiento += MapeoLlm.Entero(evento, "usage", "completion_tokens_details", "reasoning_tokens");
+
+                // Con modelos de respaldo puede contestar otro distinto del pedido.
+                var modelo = MapeoLlm.Texto(evento, "model");
+                if (modelo.Length > 0) modeloQueRespondio = modelo;
 
                 if (!evento.TryGetProperty("choices", out var opcionesJson) ||
                     opcionesJson.ValueKind != JsonValueKind.Array ||
@@ -92,7 +107,11 @@ public class OpenAiProvider(
                 if (!opcion.TryGetProperty("delta", out var delta)) continue;
 
                 var texto = MapeoLlm.Texto(delta, "content");
-                if (texto.Length > 0) yield return new TextoParcial(texto);
+                if (texto.Length > 0)
+                {
+                    primerTokenMs ??= reloj.ElapsedMilliseconds;
+                    yield return new TextoParcial(texto);
+                }
 
                 if (delta.TryGetProperty("tool_calls", out var llamadas) &&
                     llamadas.ValueKind == JsonValueKind.Array)
@@ -110,6 +129,8 @@ public class OpenAiProvider(
                 }
 
                 var razon = MapeoLlm.Texto(opcion, "finish_reason");
+                if (razon.Length > 0) razonFin = razon;
+
                 if (razon == "tool_calls" && herramientaId is not null && herramientaNombre is not null)
                 {
                     yield return new LlamadaHerramienta(
@@ -121,7 +142,14 @@ public class OpenAiProvider(
                 }
             }
 
-            yield return new Fin(entrada, salida);
+            // Sin el texto del alumno (RNF-06): solo tiempos y consumo, para medir la latencia.
+            logger.LogInformation(
+                "LLM {Proveedor} {Modelo}: primer token {PrimerTokenMs} ms, total {TotalMs} ms, " +
+                "entrada {Entrada}, salida {Salida}, razonamiento {Razonamiento}, fin {RazonFin}",
+                Id, modeloQueRespondio, primerTokenMs, reloj.ElapsedMilliseconds,
+                entrada, salida, razonamiento, razonFin);
+
+            yield return new Fin(entrada, salida, CortadaPorTope: razonFin == "length");
         }
     }
 
@@ -178,6 +206,7 @@ public class OpenAiProvider(
             model = s.Modelo,
             models = Respaldo(s.Modelo),
             max_tokens = s.MaxTokens,
+            reasoning = Razonamiento(s.Razonamiento ?? Opciones.Razonamiento),
             temperature = s.Temperatura,
             stream = true,
             stream_options = new { include_usage = true },
@@ -209,8 +238,21 @@ public sealed class OpenRouterProvider(HttpClient http, OpcionesAgente opciones,
     /// <summary>
     /// Solo proveedores que no guardan ni entrenan con los prompts (RNF-11): lo garantiza
     /// la plataforma en cada llamada, sin que el alumno toque su configuracion de privacidad.
+    /// Entre los que quedan, primero el de más tokens por segundo: el pool gratuito tiene
+    /// colas muy distintas según el proveedor.
     /// </summary>
-    protected override object? PreferenciasProveedor => new { data_collection = "deny" };
+    protected override object? PreferenciasProveedor => new { data_collection = "deny", sort = "throughput" };
+
+    /// <summary>
+    /// Parámetro unificado de OpenRouter; los modelos que no razonan lo ignoran. Desactivado,
+    /// el primer token llega antes y el razonamiento no se come el tope de salida.
+    /// </summary>
+    protected override object? Razonamiento(string? nivel) => nivel switch
+    {
+        NivelRazonamiento.Desactivado => new { enabled = false },
+        NivelRazonamiento.Bajo => new { effort = "low" },
+        _ => null
+    };
 
     /// <summary>
     /// Si el modelo gratuito está saturado (429 del pool compartido) o caído, OpenRouter

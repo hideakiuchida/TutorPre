@@ -471,17 +471,18 @@ public sealed record LlmSolicitud(
     IReadOnlyList<LlmMensaje> Mensajes,
     IReadOnlyList<DefinicionHerramienta> Herramientas,
     double Temperatura = 0.2,
-    int MaxTokens = 1024);
+    int MaxTokens = 2048,
+    string? Razonamiento = null);   // "desactivado" | "bajo"; null usa el del agente
 
 public abstract record LlmEvento;
 public sealed record TextoParcial(string Texto) : LlmEvento;
 public sealed record LlamadaHerramienta(string Id, string Nombre, JsonElement Argumentos) : LlmEvento;
-public sealed record Fin(int TokensEntrada, int TokensSalida) : LlmEvento;
+public sealed record Fin(int TokensEntrada, int TokensSalida, bool CortadaPorTope = false) : LlmEvento;
 ```
 
 | Agente en la web | Implementación | API | Nota |
 | --- | --- | --- | --- |
-| OpenRouter (gratis) | OpenRouterProvider | API de OpenRouter, formato de chat de OpenAI (function calling) | Hereda del adaptador `OpenAiProvider` con la ruta `/api/v1/chat/completions`; pide `provider.data_collection = deny` y traduce el 429 a `LimiteDeUso` |
+| OpenRouter (gratis) | OpenRouterProvider | API de OpenRouter, formato de chat de OpenAI (function calling) | Hereda del adaptador `OpenAiProvider` con la ruta `/api/v1/chat/completions`; pide `provider.data_collection = deny` y `provider.sort = throughput`, envía el nivel de razonamiento y traduce el 429 a `LimiteDeUso` |
 
 ```json
 "Agentes": {
@@ -489,6 +490,8 @@ public sealed record Fin(int TokensEntrada, int TokensSalida) : LlmEvento;
     "Nombre": "OpenRouter (gratis)",
     "BaseUrl": "https://openrouter.ai",
     "Modelo": "qwen/qwen3.8-27b:free",
+    "ModelosAlternativos": [ "google/gemma-4-31b-it:free", "nvidia/nemotron-3-super-120b-a12b:free" ],
+    "Razonamiento": "desactivado",
     "Habilitado": true,
     "Conexion": "OAuth",
     "UrlAutorizacion": "https://openrouter.ai/auth",
@@ -499,6 +502,13 @@ public sealed record Fin(int TokensEntrada, int TokensSalida) : LlmEvento;
 
 **Modelo saturado.** Los modelos `:free` se sirven desde un cupo compartido por todos sus usuarios, y a ciertas horas el proveedor responde 429 aunque el alumno no haya gastado nada (`limit_source: upstream_provider_shared_pool`). Por eso cada llamada lleva, además del modelo principal, una lista de respaldo (`models`, configurada en `Agentes:openrouter:ModelosAlternativos`): OpenRouter pasa al siguiente en la misma llamada, con las mismas preferencias de privacidad. Si todos están saturados, el chat dice que el modelo está saturado y que reintente en segundos, distinto del aviso de cupo propio agotado (RF-30); ninguno de los dos gasta intentos ni invalida la credencial.
 
+**Latencia (RNF-02).** Los modelos `:free` que razonan piensan antes de escribir: ese razonamiento no se ve, retrasa el primer token y consume el tope de salida (con 1024 tokens había respuestas cortadas a media frase). Por eso:
+
+- En el chat el razonamiento va **desactivado** (`Agentes:openrouter:Razonamiento`, que OpenRouter recibe como `reasoning.enabled = false`). La generación del examen pide razonamiento **bajo**: el alumno la espera una sola vez y la calidad de las preguntas pesa más.
+- El tope de salida es de 2048 tokens. Si aun así la respuesta llega al tope (`finish_reason: length`), el chat avisa *"La respuesta quedó incompleta… Pide al tutor que continúe"*.
+- Entre los proveedores que no guardan los prompts, OpenRouter elige el de más tokens por segundo (`provider.sort = throughput`).
+- Cada llamada deja en el log el tiempo al primer token, el tiempo total, los tokens de entrada, salida y razonamiento, y el modelo que respondió, sin texto del alumno (RNF-06).
+
 El administrador puede cambiar el modelo `:free` sin desplegar, pero solo por uno que haya pasado la suite de paridad: no todos los modelos gratuitos soportan herramientas, y sin herramientas no hay examen. OpenRouter también sirve modelos de pago (Claude, GPT…); habilitarlos no cambia nada en la plataforma, pero el consumo correría por la cuenta de cada alumno, que tendría que cargar saldo.
 
 La configuración describe el proveedor y el modelo; no contiene claves. La de cada alumno vive cifrada en `credencial_agente`.
@@ -507,7 +517,7 @@ Orquestación en `AgenteTutorService`, por cada mensaje del alumno:
 
 1. Carga la conversación con su modo, el intento asociado si lo hay, el proveedor elegido, la credencial del alumno dueño y los últimos 20 mensajes desde la base de datos.
 2. Arma la `LlmSolicitud` con el prompt de sistema común (sección 6.3), el contexto de clase cacheado (sección 6.2) y solo las herramientas válidas para ese modo.
-3. Reenvía cada `TextoParcial` al navegador por SSE; ante una `LlamadaHerramienta` la ejecuta en el servidor, agrega el resultado y vuelve a llamar (máximo 6 vueltas por mensaje).
+3. Reenvía cada `TextoParcial` al navegador por SSE en cuanto llega, también con la ampliación desactivada: `EmisorConCorte` retiene solo los últimos 64 caracteres, lo justo para contener la marca de ampliación aunque llegue partida, y si aparece deja de emitir y termina con el aviso estándar (sección 6.4). Ante una `LlamadaHerramienta` la ejecuta en el servidor, agrega el resultado y vuelve a llamar (máximo 6 vueltas por mensaje).
 4. Aplica los cortes de la sección 6.4 (ampliación no permitida, citas inválidas) antes de dar por buena la respuesta.
 5. Guarda mensajes, llamadas a herramientas, marca de ampliación y tokens en `MensajeChat` para auditoría y control de costos.
 
@@ -550,9 +560,9 @@ Los endpoints `POST /clases/{claseId}/contenido` y `DELETE /contenido/{archivoId
 
 ### 6.2 Contexto de clase
 
-El agente recibe el contenido completo de la clase en su contexto. `ContextoClaseService` lo arma una vez por clase y lo cachea:
+El texto de cada archivo se extrae **una sola vez**, al subirlo (sección 6.1); en una pregunta no se lee ningún documento. `ContextoClaseService` arma el contexto una vez por clase y lo cachea:
 
-1. Lee las páginas de la clase ordenadas por nombre de archivo y número de página.
+1. Lee las páginas de la clase ordenadas por nombre de archivo y número de página, y las limpia (`LimpiadorTexto`): en PDF y presentaciones quita los encabezados y pies que se repiten en al menos el 60 % de las páginas; en todos, los números de página sueltos y los espacios de sobra. En hojas de cálculo y documentos no quita líneas repetidas, porque ahí son datos.
 2. Las concatena dentro de una etiqueta `<contenido>`, cada página precedida por su marca de origen `[archivo, p. N]`, que es la misma cita que el agente debe usar.
 3. Suma los tokens; si superan el máximo, corta y avisa al docente que el material excede el contexto disponible (el examen sigue funcionando con el contenido incluido).
 4. El resultado se guarda en caché con la clave `claseId + hash del contenido`, y se invalida cuando se agrega, reemplaza o borra un archivo.
@@ -568,7 +578,9 @@ ReLU mantiene gradiente 1 para entradas positivas, por lo que evita…
 </contenido>
 ```
 
-La decisión de "esto no está en el material" la toma el modelo leyendo el contenido completo, y la registra con `registrar_duda_sin_cobertura` para el reporte del docente (RF-13).
+**Páginas pertinentes en clases grandes.** Si el material supera `ContextoClase:TokensParaSeleccionar` (4000 tokens), en Consulta y Revisión no se envía completo: `SelectorPaginas` puntúa las páginas contra la pregunta y la anterior del alumno (BM25 en memoria, sin tildes ni palabras vacías, singular y plural juntos) y envía las mejores hasta `ContextoClase:TokensSeleccionados` (3000 tokens), en su orden original. La etiqueta lleva `seleccion="páginas más relacionadas con la pregunta"` para que el modelo sepa que no ve todo. Si ninguna página coincide, va el material completo. En Evaluación y en la generación del examen va siempre completo. Las citas se validan contra **todas** las páginas de la clase, no solo las enviadas.
+
+La decisión de "esto no está en el material" la toma el modelo leyendo el contenido enviado, y la registra con `registrar_duda_sin_cobertura` para el reporte del docente (RF-13).
 
 ### 6.3 Prompt de sistema del agente tutor
 
@@ -839,12 +851,12 @@ Estado a 2026-09-30, tras preparar el despliegue en Railway y Vercel. Por priori
 | # | Pendiente | Requisito | Detalle |
 | --- | --- | --- | --- |
 | 1 | Registrar la app en Microsoft (Outlook) | RF-31 | La cuenta UPC de alumno no puede registrar apps en Entra (403). Lo hace TI de la UPC o una cuenta personal con su propio directorio (skill `setup-oauth`); luego `secrets/microsoft.json` |
-| 2 | Respuestas del tutor cortadas | RF-19, RF-11 | En la prueba, la respuesta sobre costo y gasto terminó a media cita. Revisar el tope de tokens de salida (`MaxTokens` 1024) con el modelo `:free`, que además razona, y avisar al alumno si la respuesta quedó incompleta |
+| 2 | Medir la latencia con el modelo real | RNF-02 | Hecho en código (§5.8): razonamiento desactivado en el chat, tope de 2048 con aviso de respuesta incompleta, streaming con la ampliación apagada y páginas pertinentes en clases grandes. Falta medir el primer token con el modelo real: el 2026-09-30 los modelos `:free` de qwen y gemma estaban saturados (429 del pool compartido) |
 | 3 | Citas válidas marcadas como inválidas | RF-11, §6.4 | El modelo abrevia nombres de archivo largos (`MDSTI_MFEP_M1_INFOGRAFÍA_Costo vs Gasto` en vez del nombre completo) y la cita sale tachada. Aceptar coincidencia por prefijo o dar al modelo nombres cortos por archivo |
 | 4 | Markdown del tutor | UI | Se muestran negritas; listas, títulos y tablas siguen como texto plano |
 | 5 | Ajustes del examen en el panel del docente | RF-34 | Ventana, intentos, tiempo, preguntas por intento y modo de feedback solo por `PUT /clases/{id}/examen` |
 | 6 | Botón de reintento tras un fallo del proveedor | RF-17 | El avance no se pierde, pero el alumno tiene que reenviar el mensaje |
-| 7 | Validar los modelos de respaldo | RNF-11, §5.8 | `gemma-4-31b-it:free` y `nemotron-3-super-120b-a12b:free` se eligieron del listado público y no han pasado la suite de paridad |
+| 7 | Validar los modelos de respaldo | RNF-11, §5.8 | `gemma-4-31b-it:free` y `nemotron-3-super-120b-a12b:free` se eligieron del listado público y no han pasado la suite de paridad. Con los tiempos que ahora registra cada llamada, elegir el principal también por velocidad |
 | 8 | Probar el examen generado con el modelo real | RF-04, RF-05 | Calidad de las 6 preguntas, citas de las justificaciones y consumo del cupo gratuito |
 | 9 | Referencias de cada pregunta a `pregunta_referencia` | RF-05 | La justificación cita el material, pero no se guardan las referencias |
 | 10 | Cuentas del despliegue | Despliegue | El código, el CI y el CD están listos y la imagen arranca contra PostgreSQL (`docs/DESPLIEGUE.md`). Las migraciones se regeneraron en una sola `Inicial` para PostgreSQL. Ya existen el proyecto `tutor-preclase` en Railway (PostgreSQL, servicio `api` con volumen y dominio) y en Vercel (sin Git, Root Directory `web`, `API_URL`), solo en producción, y el repositorio pasó a `hideakiuchida/TutorPre`. Faltan los tokens en GitHub, la clave de sesión y el cliente de Google en Railway, y añadir la URL de la web al cliente OAuth de Google |

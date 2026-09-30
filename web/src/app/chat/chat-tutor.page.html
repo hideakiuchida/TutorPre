@@ -135,7 +135,7 @@
                (resaltado) y lo que añade por su cuenta (a lápiz) (RF-11, RF-12). -->
           <li class="tutor" [class.recien]="$last && !mensaje.enCurso">
             <div class="cuerpo">
-              <p class="texto">@for (tramo of tramos(mensaje.texto); track $index) {@if (tramo.cita) {<mark class="cita">{{ tramo.texto }}</mark>} @else if (tramo.negrita) {<strong>{{ tramo.texto }}</strong>} @else {<span>{{ tramo.texto }}</span>}}@if (mensaje.enCurso) {<span class="cursor" aria-hidden="true">▌</span>}</p>
+              <p class="texto">@for (tramo of tramos(mensaje.texto); track $index) {@if (tramo.cita) {<mark class="cita">{{ tramo.texto }}</mark>} @else if (tramo.negrita) {<strong>{{ tramo.texto }}</strong>} @else {<span>{{ tramo.texto }}</span>}}@if (mensaje.enCurso && !mensaje.texto) {<span class="pensando">Pensando…</span>}@if (mensaje.enCurso) {<span class="cursor" aria-hidden="true">▌</span>}</p>
 
               @if (mensaje.aviso) {
                 <p class="aviso">{{ mensaje.aviso }}</p>
