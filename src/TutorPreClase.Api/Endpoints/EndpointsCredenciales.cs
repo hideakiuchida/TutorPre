@@ -1,14 +1,19 @@
+using Microsoft.Extensions.Options;
 using TutorPreClase.Api.Seguridad;
 using TutorPreClase.Application.Llm;
+using TutorPreClase.Domain.Entidades;
 
 namespace TutorPreClase.Api.Endpoints;
 
 public sealed record CanjeOAuthPeticion(string Code);
 
+public sealed record ClavePegadaPeticion(string Clave);
+
 /// <summary>
-/// Credenciales BYOK del alumno (SDD §7). La unica forma de conectar una es iniciar
-/// sesion en el proveedor (RF-24, RF-29): la plataforma no acepta claves pegadas. Todo va
-/// contra el usuario del token, y la clave nunca se devuelve.
+/// Credenciales BYOK del alumno (SDD §7). Los agentes OAuth se conectan iniciando sesion
+/// en el proveedor (RF-29); los de tipo Clave aceptan la clave de API del propio alumno,
+/// validada contra el proveedor y guardada cifrada (RF-38). Todo va contra el usuario del
+/// token, y la clave nunca se devuelve.
 /// </summary>
 public static class EndpointsCredenciales
 {
@@ -29,6 +34,31 @@ public static class EndpointsCredenciales
                 creadaEn = c.CreadaEn,
                 ultimoUsoEn = c.UltimoUsoEn
             }));
+        });
+
+        // Clave pegada (RF-38): solo en agentes de tipo Clave; en los OAuth sigue sin aceptarse.
+        grupo.MapPut("/{agenteId}", async (
+            string agenteId,
+            ClavePegadaPeticion peticion,
+            HttpContext http,
+            IOptions<OpcionesAgentes> opciones,
+            IBovedaCredenciales boveda,
+            CancellationToken ct) =>
+        {
+            if (!opciones.Value.TryGetValue(agenteId, out var agente) || agente.Conexion != ConexionAgente.Clave)
+                throw new CredencialException("conexion_por_oauth",
+                    "Este agente se conecta iniciando sesión en el proveedor, no pegando una clave.");
+
+            var clave = (peticion.Clave ?? "").Trim();
+
+            if (clave.Length > 512 ||
+                (!string.IsNullOrEmpty(agente.PrefijoClave) &&
+                 !clave.StartsWith(agente.PrefijoClave, StringComparison.Ordinal)))
+                throw new CredencialException("clave_invalida",
+                    $"Esa no parece una clave de {agente.Nombre}: debería empezar por \"{agente.PrefijoClave}\".");
+
+            var credencial = await boveda.ConectarAsync(http.User.Id(), agenteId, clave, OrigenCredencial.Pegada, ct);
+            return Results.Ok(Resumen(credencial));
         });
 
         // Conexion por inicio de sesion en el proveedor, sin pegar clave (RF-29, SDD §5.1).

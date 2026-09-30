@@ -31,6 +31,8 @@ public sealed class ProveedorLlmFactory(
             Modelo = plantilla.Modelo,
             ModelosAlternativos = plantilla.ModelosAlternativos,
             Razonamiento = plantilla.Razonamiento,
+            RutaChat = plantilla.RutaChat,
+            EsfuerzoDesactivado = plantilla.EsfuerzoDesactivado,
             Descripcion = plantilla.Descripcion,
             Habilitado = plantilla.Habilitado,
             Conexion = plantilla.Conexion,
@@ -45,6 +47,8 @@ public sealed class ProveedorLlmFactory(
             ConexionAgente.OAuthGoogle => new GeminiProvider(
                 cliente, configAgente, tokensGoogle, logs.CreateLogger<GeminiProvider>(), agenteId),
             _ when agenteId == "openrouter" => new OpenRouterProvider(cliente, configAgente, logs.CreateLogger<OpenRouterProvider>()),
+            // Clave pegada por el alumno (RF-38): OpenAI, Anthropic o Gemini, en formato OpenAI.
+            ConexionAgente.Clave => new OpenAiProvider(cliente, configAgente, logs.CreateLogger<OpenAiProvider>(), agenteId),
             _ => throw new InvalidOperationException($"Agente '{agenteId}' no soportado.")
         };
     }

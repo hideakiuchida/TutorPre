@@ -22,8 +22,15 @@ public class OpenAiProvider(
 
     protected OpcionesAgente Opciones { get; } = opciones;
 
-    /// <summary>Ruta del chat relativa a la BaseUrl; cada compatible la puede mover.</summary>
-    protected virtual string RutaChat => "/v1/chat/completions";
+    /// <summary>Ruta del chat relativa a la BaseUrl; cada compatible la puede mover (RF-38).</summary>
+    protected virtual string RutaChat =>
+        string.IsNullOrWhiteSpace(Opciones.RutaChat) ? "/v1/chat/completions" : Opciones.RutaChat;
+
+    /// <summary>`reasoning_effort` del formato OpenAI, solo si el agente lo configura.</summary>
+    protected virtual string? Esfuerzo(string? nivel) =>
+        nivel == NivelRazonamiento.Desactivado && !string.IsNullOrWhiteSpace(Opciones.EsfuerzoDesactivado)
+            ? Opciones.EsfuerzoDesactivado
+            : null;
 
     /// <summary>Preferencias de enrutado que algunos compatibles aceptan; null las omite.</summary>
     protected virtual object? PreferenciasProveedor => null;
@@ -208,6 +215,7 @@ public class OpenAiProvider(
             // null se omite del JSON: sin tope pedido, el modelo usa su máximo.
             max_tokens = s.MaxTokens,
             reasoning = Razonamiento(s.Razonamiento ?? Opciones.Razonamiento),
+            reasoning_effort = Esfuerzo(s.Razonamiento ?? Opciones.Razonamiento),
             temperature = s.Temperatura,
             stream = true,
             stream_options = new { include_usage = true },

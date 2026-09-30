@@ -29,6 +29,21 @@ public sealed class OpcionesAgente
     /// </summary>
     public string? Razonamiento { get; set; }
 
+    /// <summary>
+    /// Solo Clave: ruta del chat en formato OpenAI relativa a BaseUrl. OpenAI, Anthropic
+    /// (compatibilidad OpenAI) y Gemini de AI Studio lo exponen en rutas distintas (RF-38).
+    /// </summary>
+    public string? RutaChat { get; set; }
+
+    /// <summary>Solo Clave: cómo empieza una clave válida de ese proveedor ("sk-", "sk-ant-", "AIza").</summary>
+    public string? PrefijoClave { get; set; }
+
+    /// <summary>
+    /// Solo Clave: valor de `reasoning_effort` con el razonamiento desactivado, si el
+    /// proveedor lo admite (OpenAI: "minimal"). Vacío: no se envía.
+    /// </summary>
+    public string? EsfuerzoDesactivado { get; set; }
+
     /// <summary>"Clave" (el alumno la pega) u "OAuth" (inicia sesion en el proveedor, RF-29).</summary>
     public string Conexion { get; set; } = ConexionAgente.Clave;
 

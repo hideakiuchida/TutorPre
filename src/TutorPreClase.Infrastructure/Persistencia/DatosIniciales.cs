@@ -56,6 +56,40 @@ public static class DatosIniciales
             BaseUrl = "https://generativelanguage.googleapis.com",
             Descripcion = "Entra con tu cuenta de Google. Sin claves ni tarjeta.",
             Habilitado = true
+        },
+        // Con la clave de API del propio alumno (RF-38): la pega una vez y se guarda cifrada.
+        new AgenteIA
+        {
+            Id = "openai",
+            NombreVisible = "ChatGPT (tu clave de OpenAI)",
+            Proveedor = "OpenAI",
+            Modelo = "gpt-5-mini",
+            BaseUrl = "https://api.openai.com",
+            UrlConsola = "https://platform.openai.com/api-keys",
+            Descripcion = "Pega una clave de API de OpenAI. El uso se cobra en tu cuenta de OpenAI (la suscripción de ChatGPT no incluye la API).",
+            Habilitado = true
+        },
+        new AgenteIA
+        {
+            Id = "anthropic",
+            NombreVisible = "Claude (tu clave de Anthropic)",
+            Proveedor = "Anthropic",
+            Modelo = "claude-haiku-4-5",
+            BaseUrl = "https://api.anthropic.com",
+            UrlConsola = "https://console.anthropic.com/settings/keys",
+            Descripcion = "Pega una clave de API de Anthropic. El uso se cobra en tu cuenta de Anthropic (la suscripción de Claude no incluye la API).",
+            Habilitado = true
+        },
+        new AgenteIA
+        {
+            Id = "gemini-clave",
+            NombreVisible = "Gemini (tu clave de AI Studio)",
+            Proveedor = "GoogleAIStudio",
+            Modelo = "gemini-3.8-flash",
+            BaseUrl = "https://generativelanguage.googleapis.com",
+            UrlConsola = "https://aistudio.google.com/apikey",
+            Descripcion = "Pega una clave gratuita de Google AI Studio: usa el cupo gratis de tu propia cuenta.",
+            Habilitado = true
         }
     ];
 }

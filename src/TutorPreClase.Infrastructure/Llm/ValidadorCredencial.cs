@@ -61,16 +61,43 @@ public sealed class ValidadorCredencial(
     }
 
     public const string ProveedorGoogle = "Google";
+    public const string ProveedorOpenAi = "OpenAI";
+    public const string ProveedorAnthropic = "Anthropic";
+    public const string ProveedorGoogleAiStudio = "GoogleAIStudio";
 
     /// <summary>
-    /// Consultar la propia clave en OpenRouter, o listar los modelos en Gemini, autentica
-    /// sin gastar cupo.
+    /// Una llamada que autentica sin gastar cupo: la propia clave en OpenRouter, o listar
+    /// los modelos en Gemini, OpenAI y Anthropic, cada uno con su cabecera.
     /// </summary>
-    private static HttpRequestMessage Armar(AgenteIA agente, string clave)
+    public static HttpRequestMessage Armar(AgenteIA agente, string clave)
     {
-        var ruta = agente.Proveedor == ProveedorGoogle ? "/v1beta/models?pageSize=1" : "/api/v1/key";
-        var peticion = new HttpRequestMessage(HttpMethod.Get, ruta);
-        peticion.Headers.Authorization = new("Bearer", clave);
-        return peticion;
+        switch (agente.Proveedor)
+        {
+            case ProveedorAnthropic:
+            {
+                var peticion = new HttpRequestMessage(HttpMethod.Get, "/v1/models?limit=1");
+                peticion.Headers.Add("x-api-key", clave);
+                peticion.Headers.Add("anthropic-version", "2023-06-01");
+                return peticion;
+            }
+            case ProveedorGoogleAiStudio:
+            {
+                var peticion = new HttpRequestMessage(HttpMethod.Get, "/v1beta/models?pageSize=1");
+                peticion.Headers.Add("x-goog-api-key", clave);
+                return peticion;
+            }
+            default:
+            {
+                var ruta = agente.Proveedor switch
+                {
+                    ProveedorGoogle => "/v1beta/models?pageSize=1",
+                    ProveedorOpenAi => "/v1/models",
+                    _ => "/api/v1/key"
+                };
+                var peticion = new HttpRequestMessage(HttpMethod.Get, ruta);
+                peticion.Headers.Authorization = new("Bearer", clave);
+                return peticion;
+            }
+        }
     }
 }
