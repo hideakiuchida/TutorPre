@@ -53,9 +53,10 @@ public sealed class TokensGoogle(
         if (respuesta?.AccessToken is not { Length: > 0 } acceso || respuesta.RefreshToken is not { Length: > 0 } renovacion)
             return (null, false);
 
-        // Google devuelve los permisos concedidos separados por espacios.
+        // Google devuelve los permisos concedidos separados por espacios; hacen falta todos.
         var concedidos = (respuesta.Scope ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (!string.IsNullOrEmpty(opciones.Scope) && !concedidos.Contains(opciones.Scope))
+        var pedidos = (opciones.Scope ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (pedidos.Except(concedidos).Any())
         {
             log.LogWarning("Google no concedio el permiso {Permiso}; concedidos: {Concedidos}", opciones.Scope, respuesta.Scope);
             return (null, true);

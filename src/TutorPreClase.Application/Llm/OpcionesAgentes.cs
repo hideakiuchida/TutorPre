@@ -38,7 +38,11 @@ public sealed class OpcionesAgente
     /// <summary>Solo OAuthGoogle: donde se canjea el código y se renueva el acceso.</summary>
     public string? UrlToken { get; set; }
 
-    /// <summary>Solo OAuthGoogle: permiso que se pide a la cuenta de Google del usuario.</summary>
+    /// <summary>
+    /// Solo OAuthGoogle: permisos que se piden a la cuenta de Google del usuario, separados
+    /// por espacios. La API de Gemini exige cloud-platform y generative-language.retriever:
+    /// con solo el primero responde 403 "insufficient authentication scopes".
+    /// </summary>
     public string? Scope { get; set; }
 
     /// <summary>

@@ -68,7 +68,10 @@ persona** (cambian la configuración de su cuenta):
 1. `https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com?project=<id>`
    → *Enable* (la **Gemini API**, servicio `generativelanguage.googleapis.com`).
 2. `…/auth/scopes?project=<id>` → *Add or remove scopes* → *Manually add scopes*:
-   `https://www.googleapis.com/auth/cloud-platform` → *Add to table* → *Update* → **Save**.
+   `https://www.googleapis.com/auth/cloud-platform` y
+   `https://www.googleapis.com/auth/generative-language.retriever` (una por línea) → *Add to
+   table* → *Update* → **Save**. Con solo el primero, la API de Gemini responde 403
+   "insufficient authentication scopes".
    Queda en *Your sensitive scopes*: en modo *Testing* basta con ser usuario de prueba.
 3. El cliente web → *Authorized redirect URIs* → `http://localhost:4200/conectar/gemini` y
    `https://<web>/conectar/gemini` → **Save**. Comprueba que se guardaron releyendo la página.
@@ -133,7 +136,9 @@ entorno tiene prioridad.
 | `acceso_rechazado` tras volver | Secreto equivocado o vencido; crea uno nuevo |
 | `configurado:false` aunque el JSON está en `secrets/` | El JSON se dañó (por ejemplo, quedó cortado). Compruébalo **sin leer valores**: `python -c "import json,glob;json.load(open(glob.glob('secrets/client_secret_*.json')[0]))" && echo valido`. Si falla, la persona lo repara o crea un secreto nuevo en el cliente (*Add secret*) |
 | Gemini: "La API de Gemini no está activada" | Falta el paso 1b.1 en el proyecto |
-| Gemini: `invalid_scope` o falta el permiso al volver | Falta el paso 1b.2 (scope `cloud-platform` en *Data Access*) |
+| Gemini: `invalid_scope` o falta el permiso al volver | Falta el paso 1b.2 (scopes `cloud-platform` y `generative-language.retriever` en *Data Access*) |
+| Gemini: "rechazó esa credencial" y en el log `insufficient authentication scopes` | Falta pedir o conceder `generative-language.retriever`: revisa `Agentes:gemini:Scope` y *Data Access* |
+| Gemini: `access_denied` "The developer hasn't given you access" | La app está en *Testing* y el usuario no está en *Test users* (los permisos sensibles lo exigen) |
 | Gemini: 429 frecuentes | El plan gratuito del proyecto se agotó para todos: espera o activa facturación en el proyecto |
 
 ## Al terminar

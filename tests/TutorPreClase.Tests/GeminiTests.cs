@@ -25,7 +25,7 @@ public sealed class GoogleSimulado : HttpMessageHandler, IHttpClientFactory
             access_token = "ya29.acceso",
             refresh_token = "1//renovacion-del-usuario",
             expires_in = 3599,
-            scope = "openid https://www.googleapis.com/auth/cloud-platform"
+            scope = "openid https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/generative-language.retriever"
         });
 
     public Func<HttpRequestMessage, HttpResponseMessage> Gemini { get; set; } = _ => Sse(
@@ -249,7 +249,7 @@ public class ConexionGoogleGeminiTests
             Conexion = ConexionAgente.OAuthGoogle,
             UrlAutorizacion = "https://accounts.google.com/o/oauth2/v2/auth",
             UrlToken = "https://oauth2.googleapis.com/token",
-            Scope = "https://www.googleapis.com/auth/cloud-platform",
+            Scope = "https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/generative-language.retriever",
             UrlRetorno = "http://localhost:4200/conectar/gemini",
             ClientId = "cliente.apps.googleusercontent.com",
             ClientSecret = "secreto-de-prueba"
@@ -286,7 +286,7 @@ public class ConexionGoogleGeminiTests
 
         Assert.StartsWith("https://accounts.google.com/o/oauth2/v2/auth?", url);
         Assert.Equal("cliente.apps.googleusercontent.com", p["client_id"]);
-        Assert.Equal("https://www.googleapis.com/auth/cloud-platform", p["scope"]);
+        Assert.Equal("https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/generative-language.retriever", p["scope"]);
         Assert.Equal("http://localhost:4200/conectar/gemini", p["redirect_uri"]);
         Assert.Equal(("offline", "S256", "code"), (p["access_type"], p["code_challenge_method"], p["response_type"]));
         Assert.Equal("alumna@uni.edu", p["login_hint"]);
@@ -324,7 +324,9 @@ public class ConexionGoogleGeminiTests
         // En la pantalla de Google el permiso sensible es una casilla: sin marcarla, no viene.
         google.Token = (_, _) => GoogleSimulado.Json(new
         {
-            access_token = "ya29.acceso", refresh_token = "1//renovacion", expires_in = 3599, scope = "openid"
+            // Marcó un permiso pero no el otro: igual falta.
+            access_token = "ya29.acceso", refresh_token = "1//renovacion", expires_in = 3599,
+            scope = "openid https://www.googleapis.com/auth/cloud-platform"
         });
 
         await conexion.IniciarAsync(banco.AlumnoId, "gemini");
