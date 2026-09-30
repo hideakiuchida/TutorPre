@@ -58,15 +58,26 @@ public sealed class CondensadorMaterial(
             .Select(c => c.DocenteId)
             .FirstOrDefaultAsync(ct);
 
-        var agente = await db.Agentes.FirstOrDefaultAsync(a => a.Habilitado, ct);
-        var clave = docenteId is Guid profesor && agente is not null
-            ? await credenciales.ClaveParaAsync(profesor, agente.Id, ct)
-            : null;
+        // Con la cuenta que el profesor tenga conectada: OpenRouter o Gemini (RF-37).
+        AgenteIA? agente = null;
+        string? clave = null;
+
+        if (docenteId is Guid profesor)
+        {
+            foreach (var candidato in await db.Agentes.Where(a => a.Habilitado).OrderBy(a => a.Id).ToListAsync(ct))
+            {
+                clave = await credenciales.ClaveParaAsync(profesor, candidato.Id, ct);
+                if (clave is null) continue;
+
+                agente = candidato;
+                break;
+            }
+        }
 
         if (clave is null)
         {
             await TerminarAsync(archivo, EstadoCondensado.SinCuenta,
-                "Conecta tu cuenta de OpenRouter para que la IA condense el material.", ct);
+                "Conecta Gemini u OpenRouter en tu panel para que la IA condense el material.", ct);
             return ResultadoCondensacion.SinCuenta;
         }
 

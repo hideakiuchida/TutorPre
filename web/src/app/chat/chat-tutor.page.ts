@@ -15,7 +15,7 @@ import {
   tramos,
 } from '../datos/tutor.modelos';
 
-/** Marca de que ya se intentó conectar OpenRouter automáticamente en esta sesión. */
+/** Marca de que ya se intentó conectar la IA automáticamente en esta sesión. */
 const AUTOMATICO = 'tutor.openrouter.automatico';
 
 /**
@@ -190,9 +190,10 @@ export class ChatTutorPage {
       // Sin credencial, lo primero es conectarla: el chat no sirve de nada aún.
       this.panelCredenciales.set(this.sinAgente());
 
-      // RF-32: al entrar sin OpenRouter se le lleva directo a autorizarlo, una sola vez por
-      // sesión: si cancela o falla, se queda el botón y no se le reenvía en bucle.
-      const oauth = this.agentesOAuth()[0];
+      // RF-32: al entrar sin IA conectada se le lleva directo a autorizarla, una sola vez por
+      // sesión: si cancela o falla, se queda el botón y no se le reenvía en bucle. Con más de
+      // una opción (Gemini y OpenRouter, RF-37) elige él en el panel.
+      const oauth = this.agentesOAuth().length === 1 ? this.agentesOAuth()[0] : undefined;
       if (this.sinAgente() && oauth && !this.errorCredencial() && !sessionStorage.getItem(AUTOMATICO)) {
         sessionStorage.setItem(AUTOMATICO, '1');
         await this.entrarCon(oauth.id);

@@ -12,12 +12,22 @@ public interface IValidadorCredencial
 
 public sealed class ValidadorCredencial(
     IHttpClientFactory http,
+    TokensGoogle tokensGoogle,
     ILogger<ValidadorCredencial> log) : IValidadorCredencial
 {
     public async Task<bool> EsUsableAsync(AgenteIA agente, string clave, CancellationToken ct = default)
     {
         var cliente = http.CreateClient($"llm:{agente.Id}");
         cliente.Timeout = TimeSpan.FromSeconds(20);
+
+        // Con Google la clave es un refresh token: primero se cambia por un acceso (RF-37).
+        if (agente.Proveedor == ProveedorGoogle)
+        {
+            var token = await tokensGoogle.AccesoAsync(agente.Id, clave, ct);
+            if (token.Revocado) return false;
+            if (token.Acceso is null) return true;
+            clave = token.Acceso;
+        }
 
         using var peticion = Armar(agente, clave);
 
@@ -44,12 +54,16 @@ public sealed class ValidadorCredencial(
         }
     }
 
+    public const string ProveedorGoogle = "Google";
+
     /// <summary>
-    /// Consultar la propia clave en OpenRouter autentica sin gastar el cupo gratuito.
+    /// Consultar la propia clave en OpenRouter, o listar los modelos en Gemini, autentica
+    /// sin gastar cupo.
     /// </summary>
     private static HttpRequestMessage Armar(AgenteIA agente, string clave)
     {
-        var peticion = new HttpRequestMessage(HttpMethod.Get, "/api/v1/key");
+        var ruta = agente.Proveedor == ProveedorGoogle ? "/v1beta/models?pageSize=1" : "/api/v1/key";
+        var peticion = new HttpRequestMessage(HttpMethod.Get, ruta);
         peticion.Headers.Authorization = new("Bearer", clave);
         return peticion;
     }

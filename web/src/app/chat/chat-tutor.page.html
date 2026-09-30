@@ -85,8 +85,9 @@
       <section class="credenciales" aria-labelledby="titulo-conexion">
         <h2 id="titulo-conexion">Conecta tu tutor</h2>
         <p class="ayuda">
-          Es gratis y es un solo paso: entra con tu cuenta de OpenRouter (puedes crearla con tu
-          cuenta de Google) y autoriza al tutor. No tienes que copiar ninguna clave.
+          Conecta la IA que prefieras con tu propia cuenta: es un solo paso y no tienes que copiar
+          ninguna clave. Con Gemini entras con tu cuenta de Google; OpenRouter es gratis y puedes
+          crear la cuenta con tu Google.
         </p>
 
         @if (errorCredencial()) {
@@ -98,9 +99,9 @@
             @if (credencialDe(agente.id); as credencial) {
               <p class="estado" [class.invalida]="credencial.estado === 'Invalida'">
                 @if (credencial.estado === 'Invalida') {
-                  OpenRouter rechazó tu cuenta. Vuelve a entrar para seguir.
+                  {{ agente.nombre }} rechazó tu cuenta. Vuelve a entrar para seguir.
                 } @else {
-                  Conectado con tu cuenta de OpenRouter (termina en {{ credencial.ultimos4 }}).
+                  Conectado con {{ agente.nombre }}@if (agente.id === 'openrouter') { (termina en {{ credencial.ultimos4 }})}.
                 }
               </p>
             }
@@ -115,7 +116,10 @@
             </div>
 
             @if (credencialDe(agente.id)) {
-              <p class="ayuda">Al desconectar, también puedes revocar el acceso desde tu cuenta de OpenRouter.</p>
+              <p class="ayuda">
+                Al desconectar, también puedes revocar el acceso desde tu cuenta de
+                {{ agente.id === 'gemini' ? 'Google (myaccount.google.com, Seguridad)' : 'OpenRouter' }}.
+              </p>
             } @else if (agente.descripcion) {
               <p class="ayuda">{{ agente.descripcion }}</p>
             }

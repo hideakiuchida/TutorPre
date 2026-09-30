@@ -2,7 +2,7 @@ import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { TutorStreamService } from '../datos/tutor-stream.service';
 import { SesionService } from '../datos/sesion.service';
-import { ClaseResumen, Credencial } from '../datos/tutor.modelos';
+import { Agente, ClaseResumen, Credencial } from '../datos/tutor.modelos';
 import {
   ArchivoClase,
   ContenidoClase,
@@ -36,9 +36,15 @@ export class DocentePage implements OnDestroy {
   readonly reporte = signal<ReporteClase | null>(null);
   readonly error = signal('');
 
-  /** Cuenta de OpenRouter del profesor: con ella la IA condensa su material. */
+  /** Cuenta de IA del profesor (Gemini u OpenRouter): con ella la IA condensa su material. */
   readonly cuenta = signal<Credencial | null>(null);
+  readonly agentes = signal<Agente[]>([]);
   readonly conectando = signal(false);
+
+  readonly agentesOAuth = computed(() => this.agentes().filter((a) => a.conexion === 'OAuth'));
+  readonly nombreCuenta = computed(
+    () => this.agentes().find((a) => a.id === this.cuenta()?.agenteId)?.nombre ?? 'tu cuenta de IA',
+  );
 
   /** Archivo cuyo original y apuntes se comparan página por página. */
   readonly comparando = signal<ArchivoClase | null>(null);
@@ -101,15 +107,15 @@ export class DocentePage implements OnDestroy {
     this.contenido.set({ ...contenido, ampliacionPermitida });
   }
 
-  /** La cuenta se conecta igual que la del alumno: OAuth con OpenRouter, sin claves. */
-  async conectar(): Promise<void> {
+  /** La cuenta se conecta igual que la del alumno: OAuth con Google o con OpenRouter, sin claves. */
+  async conectar(agenteId: string): Promise<void> {
     this.conectando.set(true);
     try {
-      const { url } = await this.api.iniciarOAuth('openrouter');
+      const { url } = await this.api.iniciarOAuth(agenteId);
       location.href = url;
-    } catch {
+    } catch (e: any) {
       this.conectando.set(false);
-      this.error.set('No se pudo iniciar la conexión con OpenRouter.');
+      this.error.set(e?.error?.mensaje ?? 'No se pudo iniciar la conexión.');
     }
   }
 
@@ -145,7 +151,7 @@ export class DocentePage implements OnDestroy {
       case 'Listo':
         return a.tokensCondensado < a.tokensOriginal ? 'Apuntes de la IA' : 'Original (ya era breve)';
       case 'SinCuenta':
-        return 'Original: conecta OpenRouter para condensar';
+        return 'Original: conecta Gemini u OpenRouter para condensar';
       case 'Error':
         return 'Original: no se pudo condensar';
       case 'Pendiente':
@@ -174,16 +180,17 @@ export class DocentePage implements OnDestroy {
 
   private async cargarCuenta(): Promise<void> {
     try {
-      const credenciales = await this.api.credenciales();
-      this.cuenta.set(credenciales.find((c) => c.agenteId === 'openrouter' && c.estado === 'Valida') ?? null);
+      const [credenciales, agentes] = await Promise.all([this.api.credenciales(), this.api.agentes()]);
+      this.agentes.set(agentes);
+      this.cuenta.set(credenciales.find((c) => c.estado === 'Valida') ?? null);
     } catch {
       this.cuenta.set(null);
     }
   }
 
   /**
-   * OpenRouter vuelve a /conectar/openrouter?code=…: se canjea el código y se piden los
-   * apuntes de todas sus clases, que hasta ahora el tutor leía en original.
+   * Google u OpenRouter vuelven a /conectar/{agente}?code=…: se canjea el código y se piden
+   * los apuntes de todas sus clases, que hasta ahora el tutor leía en original.
    */
   private async completarOAuth(): Promise<void> {
     const ruta = /^\/conectar\/([\w-]+)\/?$/.exec(location.pathname);
@@ -198,7 +205,7 @@ export class DocentePage implements OnDestroy {
       const clases = await this.api.clases();
       await Promise.all(clases.map((c) => this.docente.condensar(c.claseId)));
     } catch (e: any) {
-      this.error.set(e?.error?.mensaje ?? 'No se pudo conectar tu cuenta de OpenRouter.');
+      this.error.set(e?.error?.mensaje ?? 'No se pudo conectar tu cuenta.');
     }
   }
 }

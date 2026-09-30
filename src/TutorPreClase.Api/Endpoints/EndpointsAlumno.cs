@@ -49,8 +49,11 @@ public static class EndpointsAlumno
                 a.nombre,
                 a.descripcion,
                 a.consola,
-                // "OAuth": la web ofrece iniciar sesion en lugar del campo para pegar la clave.
-                conexion = opciones.Value.TryGetValue(a.id, out var o) ? o.Conexion : ConexionAgente.Clave,
+                // "OAuth": la web ofrece iniciar sesion en lugar del campo para pegar la clave,
+                // sea con OpenRouter o con Google (RF-29, RF-37).
+                conexion = opciones.Value.TryGetValue(a.id, out var o) && ConexionAgente.EsOAuth(o.Conexion)
+                    ? ConexionAgente.OAuth
+                    : ConexionAgente.Clave,
                 conectado = conectados.Contains(a.id)
             }));
         });

@@ -33,6 +33,20 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
 // propia sesion, con el rol que tiene el usuario en la plataforma.
 builder.Services.Configure<OpcionesAcceso>(builder.Configuration.GetSection(OpcionesAcceso.Seccion));
 builder.Services.PostConfigure<OpcionesAcceso>(CredencialesEnCarpeta.Completar);
+
+// Gemini se conecta con el mismo cliente OAuth de Google del inicio de sesión (RF-37): sus
+// credenciales salen de secrets/ o de las variables del servidor, nunca de appsettings.
+builder.Services.AddOptions<OpcionesAgentes>()
+    .PostConfigure<Microsoft.Extensions.Options.IOptions<OpcionesAcceso>>((agentes, acceso) =>
+    {
+        if (!acceso.Value.Proveedores.TryGetValue("google", out var google)) return;
+
+        foreach (var agente in agentes.Values.Where(a => a.Conexion == ConexionAgente.OAuthGoogle))
+        {
+            if (string.IsNullOrWhiteSpace(agente.ClientId)) agente.ClientId = google.ClientId;
+            if (string.IsNullOrWhiteSpace(agente.ClientSecret)) agente.ClientSecret = google.ClientSecret;
+        }
+    });
 builder.Services.AddSingleton<ServicioSesion>();
 builder.Services.AddScoped<ConexionIdentidad>();
 builder.Services.AddHttpClient("identidad", c => c.Timeout = TimeSpan.FromSeconds(20));

@@ -91,14 +91,16 @@
             <div class="condensar">
               @if (!cuenta()) {
                 <p class="ayuda">
-                  Conecta tu cuenta de OpenRouter (gratis) para que la IA condense tu material una sola vez.
-                  Sin ella, el tutor lee el texto original.
+                  Conecta tu cuenta de IA para que condense tu material una sola vez. Sin ella, el tutor
+                  lee el texto original.
                 </p>
-                <button type="button" class="principal" [disabled]="conectando()" (click)="conectar()">
-                  Conectar OpenRouter
-                </button>
+                @for (agente of agentesOAuth(); track agente.id) {
+                  <button type="button" class="principal" [disabled]="conectando()" (click)="conectar(agente.id)">
+                    Conectar {{ agente.nombre }}
+                  </button>
+                }
               } @else {
-                <span class="ayuda">Condensando con tu cuenta de OpenRouter (termina en {{ cuenta()!.ultimos4 }}).</span>
+                <span class="ayuda">Condensando con {{ nombreCuenta() }}.</span>
                 <button type="button" class="enlace" [disabled]="condensando()" (click)="condensar(true)">
                   {{ condensando() ? 'Condensando…' : 'Condensar de nuevo' }}
                 </button>

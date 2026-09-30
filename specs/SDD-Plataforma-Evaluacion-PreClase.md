@@ -85,6 +85,7 @@ Medir los conocimientos previos del alumno, cerrar sus vacíos con un tutor que 
 | RF-33 | Autorregistro: en la página de entrada la persona elige primero su perfil, **alumno** o **profesor**, y luego entra con Google o Microsoft/Outlook, sin aprobación de nadie. Un profesor puede entrar también como alumno. El alumno elige además a su profesor y solo ve los cursos de ese profesor; puede cambiarlo después. El administrador puede corregir roles y matrículas. Con el registro cerrado, solo entran los registrados | Alta |
 | RF-34 | El profesor administra el contenido de **sus** cursos (su carpeta `course-content/<su correo>/`) y tiene su pantalla: estado del material, ajustes del examen y de la ampliación de cada clase y el reporte (RF-13, RF-16, RF-22). No ve ni toca los cursos de otro profesor | Alta |
 | RF-35 | El administrador elige el modelo de IA que usa el tutor y puede cambiarlo sin desplegar (RF-06, RF-17) | Media |
+| RF-37 | Cada usuario conecta **sus propias cuentas de IA** y elige con cuál conversar. Hoy: **Gemini con su cuenta de Google** (OAuth, sin claves) y **OpenRouter** (OAuth). ChatGPT y Claude no ofrecen OAuth para usar la suscripción del usuario desde otra app; su vía es OpenRouter con la clave de API del usuario enlazada en su cuenta de OpenRouter (fase 2) | Alta |
 | RF-36 | Al subir el material, la IA lo **condensa una sola vez**: reescribe cada página como apuntes compactos (definiciones, cifras, fórmulas y pasos, sin relleno), conservando su cita `[archivo, p. N]`, para que el tutor lea menos y responda más rápido. Se hace con la cuenta de OpenRouter del profesor; el profesor ve el original y los apuntes lado a lado y puede elegir el original por archivo. El examen se sigue generando con el original | Media |
 
 ### 2.2 Requisitos por rol, dependencias y orden de implementación
@@ -96,7 +97,7 @@ Medir los conocimientos previos del alumno, cerrar sus vacíos con un tutor que 
 | Todos | RF-31 inicio de sesión y rol |
 | Administrador | RF-33 corregir roles y matrículas · RF-35 modelo del tutor |
 | Docente (profesor) | RF-33 registrarse como profesor · RF-02 subir material a su carpeta · RF-36 conectar OpenRouter y revisar los apuntes · RF-01 clases y ventana del examen · RF-14 modo de feedback · RF-18 temporizador · RF-20 ampliación · RF-34 su pantalla · RF-13, RF-16, RF-22 reporte |
-| Alumno | RF-33 registrarse y elegir profesor · RF-32 y RF-24–RF-27, RF-29 conectar OpenRouter · RF-19 consulta · RF-11 repreguntar · RF-06, RF-07 rendir el examen · RF-10 revisar errores |
+| Alumno | RF-33 registrarse y elegir profesor · RF-32, RF-37 y RF-24–RF-27, RF-29 conectar Gemini u OpenRouter · RF-19 consulta · RF-11 repreguntar · RF-06, RF-07 rendir el examen · RF-10 revisar errores |
 | Sistema | RF-03 extraer texto · RF-04, RF-05 generar el examen · RF-08, RF-09 ventana, intentos y nota · RF-12, RF-15 límites del tutor · RF-21 nivel · RF-23 dificultad adaptativa · RF-17, RF-28, RF-30 resiliencia |
 
 **Dependencias.** Una flecha `A --> B` significa "B no funciona sin A":
@@ -136,6 +137,7 @@ Lo que casi todo necesita es saber **quién es el usuario y qué rol tiene** (RF
 | 7 | Seguimiento del docente | RF-21, RF-22, RF-16, RF-34 | Hecho; RF-34 aún sin ajustar ventana, intentos ni tiempo desde la pantalla (solo por API) |
 | 8 | Resiliencia y administración | RF-28, RF-30, RF-17, RF-35 | RF-28 y RF-30 hechos; RF-17 parcial (sin botón de reintento); RF-35 solo por API |
 | 9 | Mejora | RF-23 | Pendiente |
+| 11 | Cuentas de IA propias | RF-37 | Hecho: Gemini con OAuth de Google (PKCE, refresh token cifrado, selector de agente); falta la fase 2 (OpenRouter con claves propias de OpenAI y Anthropic, proyecto de Google propio) |
 | 10 | Material condensado | RF-36 | Hecho: condensación por página con la cuenta del profesor, reintento automático si el modelo gratuito está saturado, comparación y elección del original en el panel. Falta medir la reducción real con el modelo (el 2026-09-30 el pool gratuito estaba saturado) |
 
 ### 2.3 No funcionales
@@ -197,7 +199,7 @@ En la v1 desplegada, la cola y el worker corren dentro del mismo proceso de la A
 | Base de datos | PostgreSQL 16 | Datos relacionales y texto del contenido en una sola base |
 | Archivos | Volumen de Railway en la v1; Azure Blob Storage o Amazon S3 más adelante | Almacenamiento barato del contenido original |
 | Cola | RabbitMQ | Desacopla subida y extracción de texto |
-| LLM | OpenRouter (modelo `:free` elegido por el administrador) vía ILlmProvider | Una sola cuenta gratuita por alumno, conectada con un clic; el modelo se cambia por configuración |
+| LLM | Gemini con la cuenta de Google del usuario (`GeminiProvider`) y OpenRouter (modelo `:free` elegido por el administrador, `OpenRouterProvider`), ambos vía ILlmProvider | Cada usuario conecta sus cuentas con un clic (OAuth) y elige con cuál conversar (RF-37); el modelo de cada agente se cambia por configuración |
 | Autenticación | OpenID Connect con Microsoft (Entra ID) y Google; sesión propia firmada por la API | Login institucional, sin contraseñas propias; el rol lo decide la plataforma |
 | Cifrado de credenciales | ASP.NET Data Protection, con clave por usuario | Cifrado en reposo sin montar un KMS para la v1 |
 | Despliegue | API en Docker sobre Railway (con PostgreSQL) y web estática en Vercel, desplegadas por GitHub Actions solo con el CI en verde (`docs/DESPLIEGUE.md`); Azure Container Apps o AWS ECS si la universidad lo exige | Barato para la v1, un despliegue por push a `main` y escalado horizontal más adelante |
@@ -354,6 +356,8 @@ La página solo ofrece OAuth: un botón *Continuar con Google* y otro *Continuar
 
 ### 5.1 Conexión del agente
 
+Hay dos formas de conectar, y el alumno puede tener ambas y elegir en el chat (RF-37): **Gemini con su cuenta de Google** (Flujo 5 de §5.9) y **OpenRouter**, que es la que describe esta sección. Con dos opciones, al entrar sin ninguna conectada no se le redirige: el panel *Conecta tu tutor* le muestra las dos.
+
 Antes de conversar, el alumno conecta su cuenta de OpenRouter (RF-24). Es un solo clic y se hace una vez: sin cuenta conectada, el chat muestra el botón *Conectar con OpenRouter (gratis)* y no deja escribir (RF-27). No hay campo para pegar claves (RF-29): la clave la obtiene y la guarda la API, y el navegador solo transporta un código de un solo uso:
 
 ```mermaid
@@ -494,6 +498,7 @@ public sealed record Fin(int TokensEntrada, int TokensSalida, bool CortadaPorTop
 | Agente en la web | Implementación | API | Nota |
 | --- | --- | --- | --- |
 | OpenRouter (gratis) | OpenRouterProvider | API de OpenRouter, formato de chat de OpenAI (function calling) | Hereda del adaptador `OpenAiProvider` con la ruta `/api/v1/chat/completions`; pide `provider.data_collection = deny` y `provider.sort = throughput`, envía el nivel de razonamiento y traduce el 429 a `LimiteDeUso` |
+| Gemini (tu cuenta de Google) | GeminiProvider | API de Gemini (`/v1beta/models/{modelo}:streamGenerateContent?alt=sse`) con un token de acceso OAuth | La credencial guardada es el **refresh token**; `TokensGoogle` lo cambia por un acceso de una hora (en memoria, renovado antes de vencer). Traduce herramientas a `functionDeclarations` (limpiando el JSON Schema que Gemini no acepta), el historial a turnos `user`/`model` y el razonamiento a `thinkingBudget` (0 desactivado, 512 bajo). 401 o permiso insuficiente → reconectar; API desactivada en el proyecto → error de la plataforma (no invalida la credencial); 429 → `LimiteDeUso` |
 
 ```json
 "Agentes": {
@@ -534,7 +539,7 @@ Orquestación en `AgenteTutorService`, por cada mensaje del alumno:
 
 ### 5.9 Arquitectura con OpenRouter y flujos de extremo a extremo
 
-Esta sección reúne cómo usa la plataforma a OpenRouter en toda la app y los cuatro flujos que lo atraviesan. Describe la implementación v1 desplegada (Railway y Vercel). Las secciones 3 y 6 fijan el diseño de referencia.
+Esta sección reúne cómo usa la plataforma a OpenRouter y a Gemini en toda la app, y los flujos que los atraviesan. Describe la implementación v1 desplegada (Railway y Vercel). Las secciones 3 y 6 fijan el diseño de referencia.
 
 #### Por qué OpenRouter y por qué un modelo `:free`
 
@@ -543,6 +548,7 @@ Esta sección reúne cómo usa la plataforma a OpenRouter en toda la app y los c
 - **Gratis por defecto.** El administrador elige una variante `:free` (hoy `qwen/qwen3.8-27b:free`) que soporte herramientas y haya pasado la suite de paridad. El alumno no paga ni configura nada.
   - El costo son los límites del plan gratuito: un cupo diario por cuenta y un pool compartido que a ciertas horas se satura (429 `upstream_provider_shared_pool`).
   - Por eso cada llamada lleva modelos de respaldo, y el chat distingue *modelo saturado* de *cupo agotado* (RF-30).
+- **Cada usuario puede usar su cuenta de Google con Gemini (RF-37).** Es el único gran proveedor que acepta OAuth para que una app llame a su IA en nombre del usuario (scope `cloud-platform`). Condición de Google: los límites de la API de Gemini son **por proyecto de Google Cloud, no por usuario**. Con OAuth, Google identifica al alumno por su Gmail, pero el uso cuenta contra el plan gratuito del proyecto de la app (`tutor-pre-clase`), salvo que el alumno indique un proyecto propio (`x-goog-user-project`, fase 2). Si el piloto crece, se activa facturación en ese proyecto.
 - **ChatGPT y Claude no tienen versión gratuita en la API.** Las suscripciones ChatGPT Plus o claude.ai Pro tampoco la habilitan. OpenRouter sí sirve esos modelos de pago (`openai/…`, `anthropic/…`): habilitarlos es cambiar el modelo, sin tocar código. El consumo, en cambio, corre por la cuenta de quien pague:
 
 | Opción | Quién paga | Ventaja | Costo para el diseño |
@@ -590,7 +596,12 @@ flowchart LR
         GEN["GeneradorExamen"]
         BOV["BovedaCredenciales<br/>clave cifrada del alumno"]
         ORP["OpenRouterProvider"]
+        GEP["GeminiProvider<br/>+ TokensGoogle"]
         DB[("PostgreSQL<br/>pagina_contenido · conversaciones · intentos")]
+    end
+    subgraph Google
+        GOA["OAuth de Google<br/>refresh token → acceso"]
+        GEM["API de Gemini<br/>gemini-2.5-flash"]
     end
     subgraph OpenRouter
         OR["API /api/v1/chat/completions"]
@@ -614,6 +625,10 @@ flowchart LR
     BOV --> GEN
     TUT --> ORP
     GEN --> ORP
+    TUT --> GEP
+    GEN --> GEP
+    GEP -- "refresh token del usuario" --> GOA
+    GEP -- "Bearer acceso" --> GEM
     ORP -- "HTTPS + clave del alumno" --> OR
     OR --> M1
     OR -. "respaldo" .-> M2
@@ -793,6 +808,36 @@ Rendir el examen es el mismo Flujo 3 en modo Evaluación, con dos diferencias:
 - la clave de respuestas nunca entra en su contexto.
 
 La calificación la hace el servidor, sin IA (§5.3).
+
+#### Flujo 5: el usuario conecta Gemini con su cuenta de Google (RF-37)
+
+El mismo cliente OAuth web del inicio de sesión, con un permiso más. El refresh token no pasa nunca por el navegador.
+
+```mermaid
+sequenceDiagram
+    actor U as Usuario (Gmail)
+    participant W as Web (Vercel)
+    participant A as API (ConexionGoogleGemini)
+    participant G as Google OAuth
+    participant B as BovedaCredenciales
+    participant M as API de Gemini
+
+    U->>W: Entrar con Gemini (tu cuenta de Google)
+    W->>A: POST /alumno/credenciales/gemini/oauth/inicio
+    A->>A: code_verifier 10 min ligado al usuario
+    A-->>W: URL de accounts.google.com (scope cloud-platform, access_type offline, PKCE S256, login_hint)
+    W->>G: el usuario elige su cuenta y acepta el permiso
+    G-->>W: vuelve a /conectar/gemini?code=…
+    W->>A: POST /alumno/credenciales/gemini/oauth/canje { code }
+    A->>G: POST oauth2.googleapis.com/token { code, code_verifier, secreto del cliente }
+    G-->>A: access_token (1 h) + refresh_token
+    A->>M: GET /v1beta/models (valida sin gastar cuota, RF-25)
+    A->>B: guarda el refresh token cifrado (origen OAuth)
+    A-->>W: agente gemini conectado (nunca el token)
+    Note over A,M: En cada mensaje, TokensGoogle renueva el acceso si venció, y GeminiProvider llama a streamGenerateContent con él
+```
+
+Si el usuario revoca el acceso en su cuenta de Google, la renovación responde `invalid_grant`: la credencial se marca inválida y el chat pide reconectar (RF-28). Si la API de Gemini no está activada en el proyecto, el error es de la plataforma y la credencial del usuario sigue válida.
 
 ## 6. Módulo de contenido de clase
 
@@ -1061,6 +1106,7 @@ La web nunca ve ni guarda la clave: la ruta `/conectar/openrouter` toma el `code
 - Límite de tasa por alumno (p. ej. 10 mensajes/min) y tope por clase (RNF-08).
 - Las credenciales son del alumno y solo suyas: se cifran en reposo, se descifran únicamente para la llamada saliente de *sus* conversaciones, y ni el docente ni el administrador pueden leerlas ni usarlas.
 - La API nunca devuelve una credencial: solo proveedor, últimos 4 caracteres, origen, estado y fecha de conexión.
+- OAuth con Google para Gemini (RF-37): PKCE con S256 y el mismo cliente web del inicio de sesión. Se pide solo el permiso `cloud-platform`, que exige la API de Gemini y que Google marca como sensible; en modo *Testing* basta con que el usuario esté en *Test users*, y para abrirlo a todos hay que verificar la app. El refresh token se guarda cifrado en `credencial_agente` y nunca se devuelve. El token de acceso vive solo en memoria, con clave de caché que es un hash del refresh token, nunca el token en claro. Revocarlo en la cuenta de Google corta el acceso en la siguiente renovación.
 - OAuth con OpenRouter: PKCE con S256, `code_verifier` de un solo uso que vive 10 minutos en el servidor y ligado al alumno autenticado, `callback_url` fija por entorno (nunca tomada de la petición), y canje hecho por la API, de modo que la clave no toca el navegador.
 - Las claves de infraestructura (base de datos, clave de sesión, secretos OAuth) van como variables del servicio en Railway (en Azure Key Vault o AWS Secrets Manager si se migra), nunca en el frontend ni en el repositorio; rotación trimestral. La cadena de conexión referencia las variables del PostgreSQL de Railway, así que nadie ve la contraseña.
 - Las claves de Data Protection que cifran las credenciales de los alumnos se guardan en un volumen (`ProteccionDatos:Carpeta`): si se perdieran, las credenciales guardadas quedarían ilegibles y cada alumno tendría que volver a conectar OpenRouter.
@@ -1151,4 +1197,6 @@ Estado a 2026-09-30, tras preparar el despliegue en Railway y Vercel. Por priori
 | 13 | Dificultad adaptativa por nivel | RF-23 | Sin implementar |
 | 14 | Carga, volumen y disponibilidad | RNF-03 a RNF-05 | Medir con k6 en un despliegue |
 | 15 | Medir la condensación con el modelo real | RF-36 | Primera prueba local: la infografía "Costo vs Gasto" pasó de 409 a 267 tokens (−35 %). Falta completar M1 (el pool gratuito estaba saturado, se reintenta solo) y revisar la fidelidad de los apuntes con el profesor |
-| 16 | Profesor sin OpenRouter en producción | RF-36 | En producción el profesor tiene que entrar a su panel y pulsar *Conectar OpenRouter*; hasta entonces el tutor lee el original |
+| 16 | Profesor sin cuenta de IA en producción | RF-36 | En producción el profesor tiene que entrar a su panel y conectar Gemini u OpenRouter; hasta entonces el tutor lee el original |
+| 17 | Cuentas de IA propias, fase 2 | RF-37 | Elegir modelo por usuario en OpenRouter con sus claves de OpenAI, Anthropic o Google enlazadas en su cuenta de OpenRouter (BYOK); proyecto de Google propio (`x-goog-user-project`) para cargar el uso de Gemini a la cuenta del alumno |
+| 18 | Cuota de Gemini compartida | RF-37 | El plan gratuito del proyecto `tutor-pre-clase` lo comparten todos los alumnos conectados con Gemini; vigilar el 429 y, si crece, activar facturación o la fase 2. Para abrirlo más allá de 100 usuarios de prueba hay que verificar la app en Google |

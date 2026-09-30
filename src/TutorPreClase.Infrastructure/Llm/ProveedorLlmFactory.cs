@@ -11,6 +11,7 @@ namespace TutorPreClase.Infrastructure.Llm;
 public sealed class ProveedorLlmFactory(
     IHttpClientFactory http,
     IOptions<OpcionesAgentes> opciones,
+    TokensGoogle tokensGoogle,
     ILoggerFactory logs) : IProveedorLlmFactory
 {
     private readonly OpcionesAgentes _agentes = opciones.Value;
@@ -38,9 +39,12 @@ public sealed class ProveedorLlmFactory(
 
         var cliente = http.CreateClient($"llm:{agenteId}");
 
-        return agenteId switch
+        // Con Google la "clave" es el refresh token del usuario; el provider pide el acceso.
+        return plantilla.Conexion switch
         {
-            "openrouter" => new OpenRouterProvider(cliente, configAgente, logs.CreateLogger<OpenRouterProvider>()),
+            ConexionAgente.OAuthGoogle => new GeminiProvider(
+                cliente, configAgente, tokensGoogle, logs.CreateLogger<GeminiProvider>(), agenteId),
+            _ when agenteId == "openrouter" => new OpenRouterProvider(cliente, configAgente, logs.CreateLogger<OpenRouterProvider>()),
             _ => throw new InvalidOperationException($"Agente '{agenteId}' no soportado.")
         };
     }

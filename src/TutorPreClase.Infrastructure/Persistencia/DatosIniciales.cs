@@ -33,6 +33,17 @@ public static class DatosIniciales
             BaseUrl = "https://openrouter.ai",
             Descripcion = "Sin costo: entra con tu cuenta de OpenRouter. Tiene un límite de mensajes por día.",
             Habilitado = true
+        },
+        // Con la cuenta de Google del usuario (RF-37); el uso cuenta en el proyecto de la app.
+        new AgenteIA
+        {
+            Id = "gemini",
+            NombreVisible = "Gemini (tu cuenta de Google)",
+            Proveedor = "Google",
+            Modelo = "gemini-2.5-flash",
+            BaseUrl = "https://generativelanguage.googleapis.com",
+            Descripcion = "Entra con tu cuenta de Google. Sin claves ni tarjeta.",
+            Habilitado = true
         }
     ];
 }

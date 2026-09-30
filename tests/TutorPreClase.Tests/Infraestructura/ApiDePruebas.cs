@@ -22,7 +22,14 @@ public sealed class ApiDePruebas : WebApplicationFactory<Program>
 
     public ProveedorGuionado Proveedor { get; } = new();
 
-    public ApiDePruebas() => _conexion.Open();
+    /// <summary>Ajustes de configuración extra para una prueba (clave de configuración → valor).</summary>
+    private readonly IReadOnlyDictionary<string, string> _ajustes;
+
+    public ApiDePruebas(IReadOnlyDictionary<string, string>? ajustes = null)
+    {
+        _ajustes = ajustes ?? new Dictionary<string, string>();
+        _conexion.Open();
+    }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -31,6 +38,7 @@ public sealed class ApiDePruebas : WebApplicationFactory<Program>
         // La API se configura para Sqlite; la conexion en memoria la comparte el test.
         builder.UseSetting("Base:Proveedor", "Sqlite");
         builder.UseSetting("ConnectionStrings:Sqlite", _conexion.ConnectionString);
+        foreach (var (clave, valor) in _ajustes) builder.UseSetting(clave, valor);
 
         builder.ConfigureServices(servicios =>
         {

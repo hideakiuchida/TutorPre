@@ -1,6 +1,6 @@
 ---
 name: setup-oauth
-description: Registra el Tutor Pre-Clase en Google Cloud y en Microsoft Entra para que funcionen los botones "Continuar con Google" y "Continuar con Microsoft (Outlook)" — crea proyecto, pantalla de consentimiento, cliente OAuth y registro de app con Chrome, y deja que la API lea las credenciales desde secrets/. Úsalo cuando pidan configurar, registrar o arreglar el inicio de sesión con Google, Microsoft u Outlook, o cuando esos botones digan "aún no está configurado".
+description: Registra el Tutor Pre-Clase en Google Cloud y en Microsoft Entra para que funcionen los botones "Continuar con Google" y "Continuar con Microsoft (Outlook)", y la conexión "Entrar con Gemini (tu cuenta de Google)" — crea proyecto, pantalla de consentimiento, cliente OAuth, activa la API de Gemini y su permiso, y deja que la API lea las credenciales desde secrets/. Úsalo cuando pidan configurar, registrar o arreglar el inicio de sesión con Google, Microsoft u Outlook, conectar Gemini, o cuando esos botones digan "aún no está configurado".
 ---
 
 # Configurar el inicio de sesión (Google y Microsoft)
@@ -60,6 +60,26 @@ Redirecciones (deben coincidir exacto con `Acceso:UrlRetorno` + `/{proveedor}`):
 
 Google avisa que los cambios pueden tardar de 5 minutos a unas horas en aplicarse.
 
+### 1b. Gemini con la cuenta de Google (RF-37)
+
+Usa el mismo cliente OAuth web. Tres cambios en el proyecto, **cada uno con el OK de la
+persona** (cambian la configuración de su cuenta):
+
+1. `https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com?project=<id>`
+   → *Enable* (la **Gemini API**, servicio `generativelanguage.googleapis.com`).
+2. `…/auth/scopes?project=<id>` → *Add or remove scopes* → *Manually add scopes*:
+   `https://www.googleapis.com/auth/cloud-platform` → *Add to table* → *Update* → **Save**.
+   Queda en *Your sensitive scopes*: en modo *Testing* basta con ser usuario de prueba.
+3. El cliente web → *Authorized redirect URIs* → `http://localhost:4200/conectar/gemini` y
+   `https://<web>/conectar/gemini` → **Save**. Comprueba que se guardaron releyendo la página.
+
+La API toma el ClientId y el secreto del cliente de Google de `Acceso:Proveedores:google`
+(secrets/ o variables) para el agente `gemini`. En producción, `Agentes__gemini__UrlRetorno`
+apunta a la web publicada.
+
+Google aplica los límites de la API de Gemini **por proyecto**: todos los usuarios conectados
+comparten el plan gratuito de este proyecto.
+
 ## 2. Microsoft Entra
 
 1. `https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/CreateApplicationBlade/quickStartType~/null/isMSAApp~/false`
@@ -111,6 +131,10 @@ entorno tiene prioridad.
 | `AADSTS50020` o "cuenta no existe en el inquilino" | El registro de Microsoft no admite cuentas personales: cambia los tipos de cuenta |
 | El botón dice "aún no está configurado" | La API no encontró credenciales: nombre del archivo, carpeta montada o `configurado:false` |
 | `acceso_rechazado` tras volver | Secreto equivocado o vencido; crea uno nuevo |
+| `configurado:false` aunque el JSON está en `secrets/` | El JSON se dañó (por ejemplo, quedó cortado). Compruébalo **sin leer valores**: `python -c "import json,glob;json.load(open(glob.glob('secrets/client_secret_*.json')[0]))" && echo valido`. Si falla, la persona lo repara o crea un secreto nuevo en el cliente (*Add secret*) |
+| Gemini: "La API de Gemini no está activada" | Falta el paso 1b.1 en el proyecto |
+| Gemini: `invalid_scope` o falta el permiso al volver | Falta el paso 1b.2 (scope `cloud-platform` en *Data Access*) |
+| Gemini: 429 frecuentes | El plan gratuito del proyecto se agotó para todos: espera o activa facturación en el proyecto |
 
 ## Al terminar
 
