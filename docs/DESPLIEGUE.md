@@ -113,7 +113,15 @@ repositorio privado del plan gratuito no hay GitHub Environments):
 En el cliente OAuth de Google (skill `setup-oauth`):
 
 - *Authorized JavaScript origins*: `https://tutor-preclase.vercel.app`
-- *Authorized redirect URIs*: `https://tutor-preclase.vercel.app/entrar`
+- *Authorized redirect URIs*: `https://tutor-preclase.vercel.app/entrar/google`
+
+La API vuelve a `{Acceso__UrlRetorno}/{proveedor}`, así que la URI lleva `/google` al
+final; sin ella Google responde `Error 400: redirect_uri_mismatch`. El cambio tarda de
+unos minutos a unas horas en aplicarse.
+
+Mientras la app esté en **Testing** (*Google Auth Platform* → *Audience*), solo entran
+el propietario del proyecto y los usuarios de prueba que se añadan ahí (hasta 100). Para
+abrirla a cualquier cuenta hay que completar *Branding* y pulsar *Publish app*.
 
 OpenRouter no necesita registro: la URL de retorno la manda la API.
 
