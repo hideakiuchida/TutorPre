@@ -46,3 +46,7 @@ tutor.env
 
 # Credenciales OAuth descargadas (Google, Microsoft): nunca al repo
 secrets/
+
+# Enlace local con el proyecto de Vercel y variables que baja `vercel pull`
+.vercel/
+.env*.local

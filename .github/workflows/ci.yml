@@ -1,10 +1,10 @@
 name: CI
 
 # No despliega nada: es la puerta que dice si el commit está sano. El CD (cd.yml)
-# solo arranca cuando este workflow termina en verde sobre un push a main o develop.
+# solo arranca cuando este workflow termina en verde sobre un push a main.
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
 
 concurrency:

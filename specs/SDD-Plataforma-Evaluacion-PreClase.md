@@ -847,7 +847,7 @@ Estado a 2026-09-30, tras preparar el despliegue en Railway y Vercel. Por priori
 | 7 | Validar los modelos de respaldo | RNF-11, §5.8 | `gemma-4-31b-it:free` y `nemotron-3-super-120b-a12b:free` se eligieron del listado público y no han pasado la suite de paridad |
 | 8 | Probar el examen generado con el modelo real | RF-04, RF-05 | Calidad de las 6 preguntas, citas de las justificaciones y consumo del cupo gratuito |
 | 9 | Referencias de cada pregunta a `pregunta_referencia` | RF-05 | La justificación cita el material, pero no se guardan las referencias |
-| 10 | Cuentas del despliegue | Despliegue | El código, el CI y el CD están listos y la imagen arranca contra PostgreSQL (`docs/DESPLIEGUE.md`). Las migraciones se regeneraron en una sola `Inicial` para PostgreSQL. Falta crear los proyectos de Railway y Vercel, cargar los tokens en GitHub y añadir la URL de la web al cliente OAuth de Google |
+| 10 | Cuentas del despliegue | Despliegue | El código, el CI y el CD están listos y la imagen arranca contra PostgreSQL (`docs/DESPLIEGUE.md`). Las migraciones se regeneraron en una sola `Inicial` para PostgreSQL. Ya existen el proyecto `tutor-preclase` en Railway (PostgreSQL, servicio `api` con volumen y dominio) y en Vercel (sin Git, Root Directory `web`, `API_URL`), solo en producción, y el repositorio pasó a `hideakiuchida/TutorPre`. Faltan los tokens en GitHub, la clave de sesión y el cliente de Google en Railway, y añadir la URL de la web al cliente OAuth de Google |
 | 11 | Pantalla para elegir el modelo del tutor | RF-35 | Hoy solo por `PUT /admin/agentes/{id}` |
 | 12 | Tope de mensajes por alumno y clase | RNF-08 | Sin implementar |
 | 13 | Dificultad adaptativa por nivel | RF-23 | Sin implementar |

@@ -1,73 +1,47 @@
 name: CD
 
 # El despliegue lo hace este workflow, no las integraciones Git de las plataformas, para
-# que nada llegue a un entorno sin que el CI esté en verde sobre ese commit exacto.
-# `workflow_run` da esa garantía: arranca cuando termina el CI de un push a main/develop,
-# y la condición del primer job descarta toda ejecución que no terminó en verde.
+# que nada llegue a producción sin que el CI esté en verde sobre ese commit exacto.
+# `workflow_run` da esa garantía: arranca cuando termina el CI de un push a main, y la
+# condición del primer job descarta toda ejecución que no terminó en verde.
 #
-# Por eso el auto-deploy de las plataformas queda apagado para esas dos ramas:
-#   - Vercel: `git.deploymentEnabled` en web/vercel.json (ya en false).
-#   - Railway: el servicio no se conecta al repositorio; este workflow sube el código
-#     con `railway up`.
-# Ver docs/DESPLIEGUE.md.
+# Por eso el proyecto de Vercel no está conectado al repositorio y el servicio de Railway
+# tampoco: este workflow sube el código con `railway up` y la web con
+# `vercel deploy --prebuilt`. Ver docs/DESPLIEGUE.md.
 #
-# GitHub solo lanza un workflow `workflow_run` si el archivo existe en la rama por
-# defecto: un cambio a este archivo en develop no surte efecto hasta llegar a main.
+# Solo hay producción. Los secretos van a nivel de repositorio (el repositorio no tiene
+# GitHub Environments). GitHub solo lanza un workflow `workflow_run` si el archivo está
+# en la rama por defecto.
 
 run-name: >-
   ${{ github.event.workflow_run.conclusion == 'success'
   && github.event.workflow_run.event == 'push'
-  && (github.event.workflow_run.head_branch == 'main' && 'production' || 'development')
-  || 'sin despliegue' }}
-  · ${{ github.event.workflow_run.head_branch }}
+  && 'production' || 'sin despliegue' }}
   · ${{ github.event.workflow_run.display_title }}
 
 on:
   workflow_run:
     workflows: [CI]
     types: [completed]
-    branches: [main, develop]
+    branches: [main]
 
-# Un despliegue a la vez por rama, y nunca cancelado a medias: una migración aplicada a
-# medias es peor que un despliegue en cola.
+# Un despliegue a la vez, y nunca cancelado a medias: una migración aplicada a medias es
+# peor que un despliegue en cola.
 concurrency:
-  group: cd-${{ github.event.workflow_run.head_branch }}
+  group: cd-production
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  contexto:
-    name: Elegir el entorno
+  api:
+    name: API → Railway
     # `workflow_run` también salta con CI de pull requests, que nunca deben desplegar.
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
-    outputs:
-      entorno: ${{ steps.elegir.outputs.entorno }}
-      destino_vercel: ${{ steps.elegir.outputs.destino_vercel }}
-    steps:
-      - id: elegir
-        # main → production, develop → development. El filtro de ramas del disparador
-        # hace que no haya un tercer caso.
-        run: |
-          if [ "${{ github.event.workflow_run.head_branch }}" = "main" ]; then
-            echo "entorno=production"        >> "$GITHUB_OUTPUT"
-            echo "destino_vercel=production" >> "$GITHUB_OUTPUT"
-          else
-            echo "entorno=development"       >> "$GITHUB_OUTPUT"
-            echo "destino_vercel=preview"    >> "$GITHUB_OUTPUT"
-          fi
-
-  api:
-    name: API → Railway
-    needs: contexto
-    runs-on: ubuntu-latest
-    # Los secretos van por GitHub Environment: el token de producción no llega a un
-    # despliegue de develop.
-    environment: ${{ needs.contexto.outputs.entorno }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -80,11 +54,10 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_SERVICE: ${{ vars.RAILWAY_SERVICE }}
-          ENTORNO: ${{ needs.contexto.outputs.entorno }}
         run: |
           ok=1
           if [ -z "${RAILWAY_TOKEN:-}" ]; then
-            echo "::error::Falta RAILWAY_TOKEN en el entorno '$ENTORNO'. Añádelo en Settings -> Environments -> $ENTORNO -> Environment secrets."
+            echo "::error::Falta RAILWAY_TOKEN. Añádelo en Settings -> Secrets and variables -> Actions -> Secrets."
             ok=0
           fi
           if [ -z "${RAILWAY_SERVICE:-}" ]; then
@@ -103,14 +76,13 @@ jobs:
         continue-on-error: true
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          ENTORNO: ${{ needs.contexto.outputs.entorno }}
         run: |
           if ! railway status; then
-            echo "::error::Railway rechazó RAILWAY_TOKEN del entorno '$ENTORNO'."
+            echo "::error::Railway rechazó RAILWAY_TOKEN."
             {
               echo "Casi siempre es el tipo de token:"
-              echo "  Token de PROYECTO — Railway -> el proyecto -> Settings -> Tokens, creado"
-              echo "                      desde el environment $ENTORNO. Es el que sirve aquí."
+              echo "  Token de PROYECTO — Railway -> tutor-preclase -> Settings -> Tokens, del"
+              echo "                      environment production. Es el que sirve aquí."
               echo "  Token de CUENTA   — Account Settings -> Tokens. RAILWAY_TOKEN lo rechaza."
             } >&2
             exit 1
@@ -173,9 +145,8 @@ jobs:
     name: Web → Vercel
     # Después de la API a propósito: si la API falla, la web anterior sigue hablando con
     # la API anterior en vez de una web nueva contra nada.
-    needs: [contexto, api]
+    needs: api
     runs-on: ubuntu-latest
-    environment: ${{ needs.contexto.outputs.entorno }}
     # Todo corre desde la raíz del repositorio y así debe seguir: el proyecto de Vercel
     # tiene Root Directory = web, y el CLI lo añade a su directorio de trabajo, así que un
     # `working-directory: web` acabaría en web/web.
@@ -199,29 +170,16 @@ jobs:
 
       - name: Traer la configuración y las variables del proyecto
         # De aquí sale API_URL: vive en las variables del proyecto de Vercel y llega a
-        # .vercel/.env.<destino>.local, que `vercel build` carga para set-env.mjs.
-        run: |
-          vercel pull --yes --token="$VERCEL_TOKEN" \
-            --environment=${{ needs.contexto.outputs.destino_vercel }} \
-            ${{ needs.contexto.outputs.destino_vercel == 'preview' && '--git-branch=develop' || '' }}
+        # .vercel/.env.production.local, que `vercel build` carga para set-env.mjs.
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
 
       - name: Compilar
-        run: vercel build --token="$VERCEL_TOKEN" ${{ needs.contexto.outputs.destino_vercel == 'production' && '--prod' || '' }}
+        run: vercel build --prod --token="$VERCEL_TOKEN"
 
       - name: Desplegar
         id: desplegar
         # --prebuilt sube lo compilado arriba: lo que se validó es lo que se publica.
         run: |
-          url=$(vercel deploy --prebuilt --token="$VERCEL_TOKEN" \
-            ${{ needs.contexto.outputs.destino_vercel == 'production' && '--prod' || '' }})
+          url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Publicado en $url"
-
-      - name: Apuntar el alias de desarrollo a este despliegue
-        # Producción hereda sus dominios solo. Un despliegue del CLI queda registrado en
-        # la rama HEAD, no en develop, así que el alias de desarrollo se fija a mano.
-        if: needs.contexto.outputs.destino_vercel == 'preview' && vars.VERCEL_ALIAS != ''
-        env:
-          ALIAS: ${{ vars.VERCEL_ALIAS }}
-          URL_DESPLIEGUE: ${{ steps.desplegar.outputs.url }}
-        run: vercel alias set "$URL_DESPLIEGUE" "$ALIAS" --token="$VERCEL_TOKEN"
