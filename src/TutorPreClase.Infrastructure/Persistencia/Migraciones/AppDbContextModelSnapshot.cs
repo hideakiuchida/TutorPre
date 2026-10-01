@@ -670,6 +670,44 @@ namespace TutorPreClase.Infrastructure.Persistencia.Migraciones
                     b.ToTable("respuesta_intento", (string)null);
                 });
 
+            modelBuilder.Entity("TutorPreClase.Domain.Entidades.TokenMcp", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreadoEn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Hash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("RevocadoEn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("UltimoUsoEn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Ultimos4")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Hash")
+                        .IsUnique();
+
+                    b.HasIndex("UsuarioId");
+
+                    b.ToTable("token_mcp", (string)null);
+                });
+
             modelBuilder.Entity("TutorPreClase.Domain.Entidades.Usuario", b =>
                 {
                     b.Property<Guid>("Id")
@@ -884,6 +922,17 @@ namespace TutorPreClase.Infrastructure.Persistencia.Migraciones
                     b.Navigation("Intento");
 
                     b.Navigation("Pregunta");
+                });
+
+            modelBuilder.Entity("TutorPreClase.Domain.Entidades.TokenMcp", b =>
+                {
+                    b.HasOne("TutorPreClase.Domain.Entidades.Usuario", "Usuario")
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Usuario");
                 });
 
             modelBuilder.Entity("TutorPreClase.Domain.Entidades.ArchivoContenido", b =>

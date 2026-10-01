@@ -25,6 +25,9 @@ public sealed class ApiDePruebas : WebApplicationFactory<Program>
     /// <summary>Ajustes de configuración extra para una prueba (clave de configuración → valor).</summary>
     private readonly IReadOnlyDictionary<string, string> _ajustes;
 
+    /// <summary>Servicios que una prueba cambia además de los de siempre (p. ej. el generador del examen).</summary>
+    public Action<IServiceCollection>? Servicios { get; init; }
+
     public ApiDePruebas(IReadOnlyDictionary<string, string>? ajustes = null)
     {
         _ajustes = ajustes ?? new Dictionary<string, string>();
@@ -61,6 +64,8 @@ public sealed class ApiDePruebas : WebApplicationFactory<Program>
             // Igual con la pregunta preparada en segundo plano: se genera cuando se pide.
             servicios.RemoveAll<TutorPreClase.Application.Evaluacion.IPreparadorPreguntas>();
             servicios.AddSingleton<TutorPreClase.Application.Evaluacion.IPreparadorPreguntas, PreparadorAnotado>();
+
+            Servicios?.Invoke(servicios);
         });
     }
 

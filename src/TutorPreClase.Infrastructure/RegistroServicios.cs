@@ -45,6 +45,7 @@ public static class RegistroServicios
         servicios.AddScoped<IEjecutorHerramientas, EjecutorHerramientas>();
         servicios.AddSingleton<IGeneradorExamen>(new GeneradorExamen());
         servicios.AddScoped<IAgenteTutorService, AgenteTutorService>();
+        servicios.AddScoped<TutorPreClase.Application.Mcp.IServicioTokenMcp, TutorPreClase.Application.Mcp.ServicioTokenMcp>();
 
         // El examen se genera pregunta a pregunta (RF-04).
         servicios.AddSingleton<CandadosIntento>();

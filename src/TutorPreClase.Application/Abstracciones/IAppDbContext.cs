@@ -23,6 +23,7 @@ public interface IAppDbContext
     DbSet<DudaSinCobertura> DudasSinCobertura { get; }
     DbSet<NivelAlumno> Niveles { get; }
     DbSet<CredencialAgente> Credenciales { get; }
+    DbSet<TokenMcp> TokensMcp { get; }
 
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

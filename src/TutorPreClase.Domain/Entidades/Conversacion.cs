@@ -135,3 +135,21 @@ public class CredencialAgente
     public DateTimeOffset CreadaEn { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UltimoUsoEn { get; set; }
 }
+
+/// <summary>
+/// Token personal con el que el asistente del alumno (Claude, ChatGPT…) usa el Tutor
+/// como servidor MCP (RF-39). Solo se guarda su hash: el token se muestra una vez.
+/// </summary>
+public class TokenMcp
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid UsuarioId { get; set; }
+    public Usuario? Usuario { get; set; }
+    /// <summary>SHA-256 del token, en hexadecimal.</summary>
+    public string Hash { get; set; } = "";
+    /// <summary>Últimos 4 caracteres, para que el alumno lo reconozca.</summary>
+    public string Ultimos4 { get; set; } = "";
+    public DateTimeOffset CreadoEn { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? UltimoUsoEn { get; set; }
+    public DateTimeOffset? RevocadoEn { get; set; }
+}

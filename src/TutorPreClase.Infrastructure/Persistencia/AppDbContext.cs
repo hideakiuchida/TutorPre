@@ -26,6 +26,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> opciones)
     public DbSet<DudaSinCobertura> DudasSinCobertura => Set<DudaSinCobertura>();
     public DbSet<NivelAlumno> Niveles => Set<NivelAlumno>();
     public DbSet<CredencialAgente> Credenciales => Set<CredencialAgente>();
+    public DbSet<TokenMcp> TokensMcp => Set<TokenMcp>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -206,6 +207,18 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> opciones)
             e.Property(d => d.Texto).IsRequired();
             e.Property(d => d.Tema).HasMaxLength(200);
             e.HasIndex(d => d.ClaseId);
+        });
+
+        b.Entity<TokenMcp>(e =>
+        {
+            e.ToTable("token_mcp");
+            e.Property(t => t.Hash).HasMaxLength(64).IsRequired();
+            e.Property(t => t.Ultimos4).HasMaxLength(4).IsRequired();
+            // Se busca por hash en cada llamada del asistente (RF-39).
+            e.HasIndex(t => t.Hash).IsUnique();
+            e.HasIndex(t => t.UsuarioId);
+            e.HasOne(t => t.Usuario).WithMany()
+                .HasForeignKey(t => t.UsuarioId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<CredencialAgente>(e =>

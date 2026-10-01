@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using TutorPreClase.Api.Endpoints;
+using TutorPreClase.Api.Mcp;
 using TutorPreClase.Api.Seguridad;
 using TutorPreClase.Application.Evaluacion;
 using TutorPreClase.Application.Llm;
@@ -57,11 +58,15 @@ var esProduccion = builder.Environment.IsProduction();
 var autenticacion = builder.Services.AddAuthentication(EsquemaMixto)
     // Con "Authorization: Bearer" manda la sesion; fuera de produccion, sin ella, las
     // cabeceras de prueba (X-Usuario-Id) para curl y las pruebas automaticas.
+    // En /mcp solo vale el token personal del asistente del alumno (RF-39).
     .AddPolicyScheme(EsquemaMixto, EsquemaMixto, o => o.ForwardDefaultSelector = contexto =>
-        esProduccion || contexto.Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.Ordinal)
-            ? ServicioSesion.Esquema
-            : ManejadorAutenticacionDesarrollo.Esquema)
-    .AddJwtBearer(ServicioSesion.Esquema, _ => { });
+        contexto.Request.Path.StartsWithSegments(EndpointsMcp.Ruta)
+            ? ManejadorTokenMcp.Esquema
+            : esProduccion || contexto.Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.Ordinal)
+                ? ServicioSesion.Esquema
+                : ManejadorAutenticacionDesarrollo.Esquema)
+    .AddJwtBearer(ServicioSesion.Esquema, _ => { })
+    .AddScheme<OpcionesAutenticacionTokenMcp, ManejadorTokenMcp>(ManejadorTokenMcp.Esquema, _ => { });
 
 builder.Services.AddOptions<JwtBearerOptions>(ServicioSesion.Esquema)
     .Configure<ServicioSesion>((o, sesiones) => o.TokenValidationParameters = new()
@@ -79,6 +84,16 @@ if (!esProduccion)
 }
 
 builder.Services.AddAuthorization();
+
+// El Tutor como servidor MCP (RF-39): sin estado, cada llamada trae el token del alumno.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddMcpServer(o =>
+    {
+        o.ServerInfo = new() { Name = "tutor-preclase", Title = "Tutor Pre-Clase", Version = "1.0.0" };
+        o.ServerInstructions = HerramientasMcp.Instrucciones;
+    })
+    .WithHttpTransport(o => o.Stateless = true)
+    .WithTools<HerramientasMcp>();
 
 var app = builder.Build();
 
@@ -126,6 +141,7 @@ app.MapearAlumno();
 app.MapearCredenciales();
 app.MapearDocente();
 app.MapearAdmin();
+app.MapearMcp();
 
 // En un despliegue (Railway) el contenedor deja el esquema al día al arrancar y asegura
 // el agente de fábrica; Base:MigrarAlArrancar=false lo desactiva.
