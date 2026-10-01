@@ -1,6 +1,6 @@
 ---
 name: functional-test
-description: Prueba funcional del Tutor Pre-Clase trazada al SDD — recorre los requisitos RF-01 a RF-37 (inicio de sesión y pantallas por rol, cuentas de IA con Gemini y OpenRouter, material condensado, examen pregunta a pregunta) y los RNF verificables a mano, en la web y por API, en local o en producción (Vercel + Railway), y reporta cuáles pasan, cuáles fallan y cuáles no están implementados. Úsalo cuando pidan probar la app entera, validarla antes de una demo, probar en producción, o comprobar que un cambio no rompió el flujo completo.
+description: Prueba funcional del Tutor Pre-Clase trazada al SDD — recorre los requisitos RF-01 a RF-39 (inicio de sesión y pantallas por rol, Mi tutor con cuentas de IA por OAuth, claves de API propias y el servidor MCP, material condensado, examen pregunta a pregunta) y los RNF verificables a mano, en la web y por API, en local o en producción (Vercel + Railway), y reporta cuáles pasan, cuáles fallan y cuáles no están implementados. Úsalo cuando pidan probar la app entera, validarla antes de una demo, probar en producción, o comprobar que un cambio no rompió el flujo completo.
 ---
 
 # Prueba funcional según el SDD
@@ -26,6 +26,8 @@ Pregunta o deduce contra cuál se prueba, y dilo en el reporte.
 | Material | Copiar a `course-content/` | Viene en la imagen: cambiarlo es commit y CD. No lo pruebes en producción |
 | Logs | `docker logs tutor-api` | Railway → proyecto `tutor-preclase` → servicio `api` → *Deployments* → *View logs* (en Chrome) |
 | Cuentas de IA | Las conecta la persona | Igual: Gemini u OpenRouter las conecta **la persona** en la web de producción |
+| Claves de API y token MCP | Prueba el rechazo con claves **inventadas**; una real la pega **la persona** | Igual. El token MCP de producción lo genera y lo copia **la persona**; tú no lo leas ni lo pegues en ningún sitio y, si generaste uno para probar, revócalo al terminar |
+| Entrar en local sin Google | `POST /api/v1/acceso/desarrollo {usuarioId}` desde la página y guarda la respuesta en `sessionStorage['tutor.sesion']` | No existe |
 
 En producción, las comprobaciones mínimas antes de los bloques:
 
@@ -130,21 +132,25 @@ con `POST /api/v1/acceso/desarrollo {"usuarioId":…}` y guárdala en la pestañ
 | RF-33 | Un Alumno o un Docente contra `GET /admin/usuarios` → **403** |
 | RF-34 | Un docente que no es dueño del curso contra `GET /clases/$CLA/contenido` → **403**; el dueño → 200 |
 | RF-34 | Como docente: cada clase muestra su material (estado *Listo*, páginas, tokens), la ventana del examen, el interruptor de ampliación (apagado) y el reporte |
-| RF-32 | Al entrar como alumna sin ninguna IA conectada, con Gemini y OpenRouter habilitados, **no** hay redirección automática: el panel *Conecta tu tutor* muestra las dos opciones. Con una sola opción, la web va sola a autorizarla una vez por sesión |
-| RF-37 | *Entrar con Gemini (tu cuenta de Google)* lleva a `accounts.google.com` con `scope=…/cloud-platform …/generative-language.retriever`, `access_type=offline`, `code_challenge_method=S256` y `redirect_uri` a `/conectar/gemini`. La persona elige su Gmail y acepta el permiso (no tú) → vuelve y Gemini queda conectado. El selector de la cabecera deja cambiar entre Gemini y OpenRouter; en el log sale `LLM gemini gemini-2.5-flash: primer token … ms`. Revocar el acceso en myaccount.google.com hace que el chat pida reconectar |
+| RF-32 | Al entrar como alumna sin ninguna IA conectada, con Gemini y OpenRouter habilitados, **no** hay redirección automática: se abre *Mi tutor* con las pestañas. Con una sola opción, la web va sola a autorizarla una vez por sesión |
+| RF-37 | *Entrar con Gemini (tu cuenta de Google)* lleva a `accounts.google.com` con `scope=…/cloud-platform …/generative-language.retriever`, `access_type=offline`, `code_challenge_method=S256` y `redirect_uri` a `/conectar/gemini`. La persona elige su Gmail y acepta el permiso (no tú) → vuelve y Gemini queda conectado. En *Mi tutor* → «Conversas con» se elige entre Gemini y OpenRouter; en el log sale `LLM gemini gemini-3.8-flash: primer token … ms`. Revocar el acceso en myaccount.google.com hace que el chat pida reconectar |
 
 **Conexión de la cuenta.**
 
 | Requisito | Cómo verificarlo |
 | --- | --- |
-| RF-27 | Al entrar sin cuenta conectada, se abre el panel **"Conecta tu tutor"** con un único botón y el campo de mensaje está deshabilitado |
-| RF-29 | El panel no tiene ningún campo para pegar claves, y `PUT /alumno/credenciales/openrouter` con una clave no guarda nada |
+| RF-27 | Al entrar sin cuenta conectada, se abre **Mi tutor** encima del chat y el campo de mensaje está deshabilitado |
+| §8 | La cabecera dice **«Mi tutor: <agente>»** con *Cambiar* (sin combo); *Cambiar* abre *Mi tutor* encima del chat con «Conversas con» (cada IA con su modelo) y tres pestañas: *Con tu cuenta*, *Con tu clave de API*, *Desde tu asistente*. Las flechas del teclado cambian de pestaña. A ~400 px la cabecera cabe en una línea y las pestañas también. En examen, «Conversas con» queda deshabilitado |
+| RF-29 | `PUT /alumno/credenciales/openrouter` con una clave → 400 `conexion_por_oauth` y no guarda nada |
+| RF-38 | Pestaña *Con tu clave de API*: en ChatGPT pega una clave **inventada** con la forma correcta (`sk-proj-…-0000`) → *Conectar* → aviso *rechazó esa credencial* (lo rechaza OpenAI real), el campo queda vacío y `GET /alumno/credenciales` no la tiene. En Claude pega una `sk-proj-…` → aviso *debería empezar por "sk-ant-"* sin llamar al proveedor. Enter en el campo también conecta |
+| RF-38 | Con una clave real que **pega la persona**: queda «Conectada: la clave termina en XXXX», aparece en «Conversas con» con su modelo y el chat responde con ese proveedor |
+| RF-39 | Pestaña *Desde tu asistente*: *Generar token* muestra `tpc_mcp_…` una sola vez con *Copiar*, la URL `…/mcp` y el comando de Claude Code; al recargar solo se ve «Termina en XXXX». *Revocar* lo invalida |
+| RF-39 | Con el token (en local, el de prueba): `initialize` y `tools/call listar_clases` a `/mcp` responden 200 con las clases del alumno; sin token, con la sesión de la web o con el token revocado → 401. En producción, la persona conecta Claude Code con el comando y le pide «¿qué clases tengo?» y «tómame el examen de M1»: cita el material, una pregunta a la vez, y la nota coincide con `GET /intentos/{id}/resultado` |
 | RF-29 | `/conectar/openrouter?code=inventado` sin haber iniciado → aviso *"venció o ya se usó"*, la URL queda en `/` y nada guardado |
 | RF-24 | *Conectar con OpenRouter (gratis)* lleva a `openrouter.ai` con `code_challenge_method=S256` y `callback_url` a `/conectar/openrouter`. La persona inicia sesión y autoriza → vuelve, el panel se cierra y el chat queda listo; **Desconectar** lo revierte |
 | RF-25 | Un código inventado canjeado por la API responde `oauth_rechazado` (lo rechaza OpenRouter real) y no se guarda |
 | RF-26 / RNF-10 | `GET /api/v1/alumno/credenciales` devuelve solo `agenteId`, `ultimos4`, `origen` (`OAuth`), `estado` y fechas. **Si aparece la clave completa, párate y repórtalo: es un fallo grave** |
 | RF-26 | Desde otro `X-Usuario-Id` el mismo endpoint devuelve `[]` |
-| RF-06 | Con un solo agente, la cabecera no muestra selector |
 | RF-30 | Si el modelo gratuito devuelve 429, sale el aviso de cupo (`limite_de_uso`) y la credencial sigue `Valida` |
 
 ```bash

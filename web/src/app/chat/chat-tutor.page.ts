@@ -1,6 +1,7 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
+import { ConfiguracionTutor } from './configuracion-tutor';
 import { EventoTutor, TutorStreamService } from '../datos/tutor-stream.service';
 import { SesionService } from '../datos/sesion.service';
 import { AccesoService } from '../datos/acceso.service';
@@ -24,7 +25,7 @@ const AUTOMATICO = 'tutor.openrouter.automatico';
  */
 @Component({
   selector: 'app-chat-tutor',
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, ConfiguracionTutor],
   templateUrl: './chat-tutor.page.html',
   styleUrl: './chat-tutor.page.css',
 })
@@ -54,7 +55,8 @@ export class ChatTutorPage {
   readonly credenciales = signal<Credencial[]>([]);
   readonly conectando = signal(false);
   readonly errorCredencial = signal('');
-  readonly panelCredenciales = signal(false);
+  /** "Mi tutor" abierto encima del chat. */
+  readonly configuracionAbierta = signal(false);
 
   readonly usuarioId = this.sesion.usuarioId;
   readonly enExamen = computed(() => this.modo() === 'Evaluacion');
@@ -63,8 +65,11 @@ export class ChatTutorPage {
   readonly agentesConectados = computed(() => this.agentes().filter((a) => a.conectado));
   readonly sinAgente = computed(() => this.agentesConectados().length === 0);
 
-  /** La única forma de conectar un agente es iniciar sesión en el proveedor (RF-24, RF-29). */
+  /** Agentes que se conectan iniciando sesión en el proveedor (RF-29, RF-37). */
   readonly agentesOAuth = computed(() => this.agentes().filter((a) => a.conexion === 'OAuth'));
+
+  /** El tutor con el que conversa, para la cabecera. */
+  readonly tutorActivo = computed(() => this.agentesConectados().find((a) => a.id === this.agenteActivo()));
 
   readonly tramos = tramos;
 
@@ -188,7 +193,7 @@ export class ChatTutorPage {
       this.agenteActivo.set(this.agentesConectados()[0]?.id ?? agentes[0]?.id ?? '');
 
       // Sin credencial, lo primero es conectarla: el chat no sirve de nada aún.
-      this.panelCredenciales.set(this.sinAgente());
+      this.configuracionAbierta.set(this.sinAgente());
 
       // RF-32: al entrar sin IA conectada se le lleva directo a autorizarla, una sola vez por
       // sesión: si cancela o falla, se queda el botón y no se le reenvía en bucle. Con más de
@@ -206,12 +211,19 @@ export class ChatTutorPage {
     }
   }
 
-  alternarPanelCredenciales(): void {
-    this.panelCredenciales.update((abierto) => !abierto || this.sinAgente());
+  alternarConfiguracion(): void {
+    this.configuracionAbierta.update((abierto) => !abierto || this.sinAgente());
   }
 
-  credencialDe(agenteId: string): Credencial | undefined {
-    return this.credenciales().find((c) => c.agenteId === agenteId);
+  /** Con la primera IA conectada por clave, se abre la clase y se puede conversar. */
+  async alConectarClave(): Promise<void> {
+    const antes = this.sinAgente();
+    await this.refrescarCredenciales();
+    if (antes && !this.sinAgente()) {
+      this.configuracionAbierta.set(false);
+      const clase = this.claseActiva() ?? this.clases()[0];
+      if (clase) await this.abrir(clase);
+    }
   }
 
   /** Lleva al alumno a iniciar sesión en el proveedor (RF-29). */
@@ -259,7 +271,7 @@ export class ChatTutorPage {
   async desconectar(agenteId: string): Promise<void> {
     await this.api.desconectarCredencial(agenteId);
     await this.refrescarCredenciales();
-    this.panelCredenciales.set(this.sinAgente());
+    if (this.sinAgente()) this.configuracionAbierta.set(true);
   }
 
   private async refrescarCredenciales(): Promise<void> {
@@ -303,7 +315,8 @@ export class ChatTutorPage {
       return;
     }
 
-    await this.api.cambiarAgente(this.conversacionId(), agenteId);
+    // Sin clase abierta todavía, la próxima conversación ya empieza con este tutor.
+    if (this.conversacionId()) await this.api.cambiarAgente(this.conversacionId(), agenteId);
     this.agenteActivo.set(agenteId);
   }
 
@@ -332,7 +345,7 @@ export class ChatTutorPage {
 
       // Si la cuenta fue rechazada, hay que reconectarla antes de nada.
       if (e?.error?.error === 'credencial_rechazada') {
-        this.panelCredenciales.set(true);
+        this.configuracionAbierta.set(true);
         void this.refrescarCredenciales();
       }
     } finally {
@@ -402,7 +415,7 @@ export class ChatTutorPage {
         // Credencial ausente o rechazada: hay que reconectarla antes de seguir. Un
         // límite de uso no la invalida (RF-30): solo se avisa.
         if (evento.codigo === 'sin_credencial' || evento.codigo === 'credencial_rechazada') {
-          this.panelCredenciales.set(true);
+          this.configuracionAbierta.set(true);
           void this.refrescarCredenciales();
         }
         break;

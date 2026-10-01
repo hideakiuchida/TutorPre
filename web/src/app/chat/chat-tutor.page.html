@@ -32,22 +32,18 @@
       </div>
 
       <div class="controles">
-        <!-- Con un solo agente no hay nada que elegir: no se muestra el selector. -->
-        @if (agentesConectados().length > 1) {
-          <label>
-            Agente
-            <select
-              [value]="agenteActivo()"
-              [disabled]="enExamen()"
-              (change)="cambiarAgente($any($event.target).value)">
-              @for (agente of agentesConectados(); track agente.id) {
-                <option [value]="agente.id">{{ agente.nombre }}</option>
-              }
-            </select>
-          </label>
-        }
-
-        <button class="enlace" (click)="alternarPanelCredenciales()">Mi cuenta de tutor</button>
+        <!-- Con qué IA conversa; "Cambiar" abre Mi tutor encima del chat. -->
+        <p class="mi-tutor">
+          @if (tutorActivo(); as tutor) {
+            <span class="etiqueta">Mi tutor:</span>
+            <strong>{{ tutor.nombre }}</strong>
+          } @else {
+            <span class="etiqueta">Sin tutor conectado</span>
+          }
+          <button class="enlace" [attr.aria-expanded]="configuracionAbierta()" (click)="alternarConfiguracion()">
+            {{ tutorActivo() ? 'Cambiar' : 'Conectar' }}
+          </button>
+        </p>
         <button class="enlace" (click)="salir()">Salir</button>
 
         @if (!enExamen() && claseActiva()?.examen?.publicado && !sinAgente()) {
@@ -81,54 +77,19 @@
       <p class="novedad" role="status">{{ novedad() }}</p>
     }
 
-    @if (panelCredenciales()) {
-      <section class="credenciales" aria-labelledby="titulo-conexion">
-        <h2 id="titulo-conexion">Conecta tu tutor</h2>
-        <p class="ayuda">
-          Conecta la IA que prefieras con tu propia cuenta: es un solo paso y no tienes que copiar
-          ninguna clave. Con Gemini entras con tu cuenta de Google; OpenRouter es gratis y puedes
-          crear la cuenta con tu Google.
-        </p>
-
-        @if (errorCredencial()) {
-          <p class="error" role="alert">{{ errorCredencial() }}</p>
-        }
-
-        @for (agente of agentesOAuth(); track agente.id) {
-          <div class="proveedor">
-            @if (agente.modelo) {
-              <p class="modelo-agente">{{ agente.nombre }} · modelo <code>{{ agente.modelo }}</code></p>
-            }
-            @if (credencialDe(agente.id); as credencial) {
-              <p class="estado" [class.invalida]="credencial.estado === 'Invalida'">
-                @if (credencial.estado === 'Invalida') {
-                  {{ agente.nombre }} rechazó tu cuenta. Vuelve a entrar para seguir.
-                } @else {
-                  Conectado con {{ agente.nombre }}@if (agente.id === 'openrouter') { (termina en {{ credencial.ultimos4 }})}.
-                }
-              </p>
-            }
-
-            <div class="acciones">
-              <button type="button" class="principal" [disabled]="conectando()" (click)="entrarCon(agente.id)">
-                {{ credencialDe(agente.id) ? 'Volver a entrar' : 'Entrar con ' + agente.nombre }}
-              </button>
-              @if (credencialDe(agente.id)) {
-                <button type="button" class="quitar" (click)="desconectar(agente.id)">Desconectar</button>
-              }
-            </div>
-
-            @if (credencialDe(agente.id)) {
-              <p class="ayuda">
-                Al desconectar, también puedes revocar el acceso desde tu cuenta de
-                {{ agente.id === 'gemini' ? 'Google (myaccount.google.com, Seguridad)' : 'OpenRouter' }}.
-              </p>
-            } @else if (agente.descripcion) {
-              <p class="ayuda">{{ agente.descripcion }}</p>
-            }
-          </div>
-        }
-      </section>
+    @if (configuracionAbierta()) {
+      <app-configuracion-tutor
+        [agentes]="agentes()"
+        [credenciales]="credenciales()"
+        [agenteActivo]="agenteActivo()"
+        [enExamen]="enExamen()"
+        [conectando]="conectando()"
+        [errorCredencial]="errorCredencial()"
+        (elegir)="cambiarAgente($event)"
+        (entrar)="entrarCon($event)"
+        (desconectar)="desconectar($event)"
+        (cambio)="alConectarClave()"
+        (cerrar)="configuracionAbierta.set(false)" />
     }
 
     <ol class="mensajes" aria-live="polite">

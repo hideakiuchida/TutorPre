@@ -2,7 +2,7 @@ import { environment } from '../../environments/environment';
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
-import { Agente, ClaseResumen, Credencial, Fuente, ModoChat, Progreso } from './tutor.modelos';
+import { Agente, ClaseResumen, Credencial, Fuente, ModoChat, Progreso, TokenMcp } from './tutor.modelos';
 
 export type EventoTutor =
   | { tipo: 'modo'; modo: ModoChat; ampliacionPermitida: boolean }
@@ -58,6 +58,27 @@ export class TutorStreamService {
 
   desconectarCredencial(agenteId: string) {
     return firstValueFrom(this.http.delete<void>(`${API}/alumno/credenciales/${agenteId}`));
+  }
+
+  /** Clave de API propia (RF-38): la valida el proveedor y la API solo devuelve los últimos 4. */
+  conectarClave(agenteId: string, clave: string) {
+    return firstValueFrom(this.http.put<Credencial>(`${API}/alumno/credenciales/${agenteId}`, { clave }));
+  }
+
+  /** Token para usar el Tutor desde el asistente del alumno como servidor MCP (RF-39). */
+  tokenMcp() {
+    return firstValueFrom(this.http.get<{ token: TokenMcp | null; url: string }>(`${API}/alumno/token-mcp`));
+  }
+
+  /** El valor del token solo viene en esta respuesta: no se puede volver a consultar. */
+  generarTokenMcp() {
+    return firstValueFrom(
+      this.http.post<{ valor: string; token: TokenMcp; url: string }>(`${API}/alumno/token-mcp`, {}),
+    );
+  }
+
+  revocarTokenMcp() {
+    return firstValueFrom(this.http.delete<void>(`${API}/alumno/token-mcp`));
   }
 
   abrirConversacion(claseId: string, agenteId: string) {

@@ -1,0 +1,255 @@
+/*
+ * "Mi tutor" se abre encima del chat como una hoja de configuración. Las pestañas son las
+ * lengüetas de un separador de cuaderno: la elegida se une a la hoja, sin borde inferior.
+ */
+:host {
+  display: block;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 70vh;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--pauta);
+  background: #fff;
+}
+
+.configuracion {
+  max-width: 46rem;
+  padding: 1.25rem 2.5rem 1.5rem;
+}
+
+.encabezado {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+h2 {
+  margin: 0 0 0.75rem;
+  font-family: var(--serif);
+  font-size: var(--t-titulo);
+  font-weight: 600;
+}
+
+h3 {
+  margin: 0 0 0.35rem;
+  font-size: var(--t-base);
+  font-weight: 700;
+}
+
+.ayuda {
+  margin: 0 0 0.9rem;
+  color: var(--grafito);
+}
+
+.modelo {
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 2px;
+  background: var(--pauta);
+  font-size: var(--t-pequeno);
+  font-weight: 400;
+  color: var(--tinta);
+}
+
+/* ---------- Con quién conversa ---------- */
+
+.activo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  border: 0;
+}
+
+.activo legend {
+  margin-bottom: 0.4rem;
+  padding: 0;
+  font-size: var(--t-pequeno);
+  color: var(--grafito);
+}
+
+.opcion {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  border: 1.5px solid var(--pauta);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.opcion.elegida {
+  border-color: var(--tapa);
+  background: color-mix(in srgb, var(--tapa) 6%, #fff);
+}
+
+.opcion input {
+  margin: 0;
+  accent-color: var(--tapa);
+}
+
+.opcion .nombre {
+  font-weight: 600;
+}
+
+.activo:disabled .opcion {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.activo .ayuda {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+/* ---------- Pestañas ---------- */
+
+.pestanas {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1.5px solid var(--pauta);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+[role='tab'] {
+  flex: 0 0 auto;
+  margin-bottom: -1.5px;
+  padding: 0.5rem 0.9rem;
+  border: 1.5px solid transparent;
+  border-bottom: 0;
+  border-radius: 3px 3px 0 0;
+  background: transparent;
+  color: var(--grafito);
+}
+
+[role='tab']:hover:not(:disabled) {
+  border-color: transparent;
+  color: var(--tinta);
+}
+
+[role='tab'][aria-selected='true'] {
+  border-color: var(--pauta);
+  background: #fff;
+  color: var(--tinta);
+  font-weight: 700;
+  box-shadow: inset 0 3px 0 var(--tapa);
+}
+
+.panel {
+  padding-top: 1rem;
+}
+
+/* ---------- Proveedores ---------- */
+
+.proveedor {
+  padding: 0.9rem 0;
+  border-bottom: 1px dashed var(--pauta);
+}
+
+.proveedor:last-child {
+  border-bottom: 0;
+}
+
+.estado {
+  margin: 0 0 0.6rem;
+  font-weight: 600;
+}
+
+.estado.invalida,
+.error-campo,
+.aviso-token {
+  color: var(--lapicero);
+}
+
+.error-campo,
+.aviso-token {
+  margin: 0.4rem 0 0;
+  font-size: var(--t-pequeno);
+}
+
+.error {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.75rem;
+}
+
+.acciones,
+.fila {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.clave label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-size: var(--t-pequeno);
+  color: var(--grafito);
+}
+
+.clave input {
+  flex: 1 1 14rem;
+  min-width: 0;
+  font-family: ui-monospace, monospace;
+}
+
+.consola {
+  display: inline-block;
+  margin-top: 0.4rem;
+  font-size: var(--t-pequeno);
+  color: var(--tapa);
+}
+
+/* ---------- Asistente (MCP) ---------- */
+
+.datos-mcp {
+  margin: 0 0 1rem;
+}
+
+.datos-mcp dt {
+  font-size: var(--t-pequeno);
+  color: var(--grafito);
+}
+
+.datos-mcp dd {
+  margin: 0.15rem 0 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.token,
+.comando {
+  display: block;
+  margin: 0.3rem 0;
+  padding: 0.45rem 0.6rem;
+  border-left: 3px solid var(--resaltador);
+  background: var(--papel);
+  font-size: var(--t-pequeno);
+  overflow-wrap: anywhere;
+}
+
+.pasos {
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+}
+
+.pasos li {
+  margin-bottom: 0.6rem;
+}
+
+@media (max-width: 760px) {
+  .configuracion {
+    padding: 1rem;
+  }
+
+  :host {
+    max-height: 75vh;
+  }
+
+  [role='tab'] {
+    padding: 0.45rem 0.6rem;
+    font-size: var(--t-pequeno);
+  }
+}

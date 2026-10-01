@@ -160,7 +160,18 @@ if (app.Environment.IsDevelopment())
 
     // Las migraciones son de PostgreSQL; con Sqlite se crea el esquema directo.
     if (db.Database.IsNpgsql()) await db.Database.MigrateAsync();
-    else await db.Database.EnsureCreatedAsync();
+    else
+    {
+        await db.Database.EnsureCreatedAsync();
+
+        // EnsureCreated no toca una base que ya existe: las tablas nuevas (p. ej. token_mcp)
+        // se agregan aquí para no tener que borrar la base local con sus datos.
+        var script = db.Database.GenerateCreateScript()
+            .Replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ")
+            .Replace("CREATE UNIQUE INDEX ", "CREATE UNIQUE INDEX IF NOT EXISTS ")
+            .Replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ");
+        await db.Database.ExecuteSqlRawAsync(script);
+    }
 
     await DatosIniciales.SembrarAsync(db);
 

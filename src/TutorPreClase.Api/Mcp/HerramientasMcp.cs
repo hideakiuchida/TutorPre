@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Server;
@@ -38,7 +39,11 @@ public sealed class HerramientasMcp(
         - Al terminar, revisa los errores con ver_resultado y propone los temas a reforzar.
         """;
 
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    // Sin escapar tildes ni comillas: el asistente lee el JSON como texto.
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
 
     private Guid AlumnoId => http.HttpContext!.User.Id();
 

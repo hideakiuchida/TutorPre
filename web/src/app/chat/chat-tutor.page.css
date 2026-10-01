@@ -23,7 +23,7 @@
   color: var(--tapa);
 }
 
-/* Columna flexible: el panel de conexión es una fila que aparece y desaparece. */
+/* Columna flexible: "Mi tutor" es una fila que aparece y desaparece encima del chat. */
 .chat {
   display: flex;
   flex-direction: column;
@@ -83,53 +83,6 @@
 .tiempo {
   margin-left: auto;
   font-variant-numeric: tabular-nums;
-}
-
-/* ---------- Conectar el tutor ---------- */
-
-.credenciales {
-  flex: 0 0 auto;
-  max-height: 55vh;
-  overflow-y: auto;
-  padding: 1.25rem 2.5rem 1.5rem;
-  border-bottom: 1px solid var(--pauta);
-  background: #fff;
-}
-
-.credenciales h2 {
-  margin: 0 0 0.35rem;
-  font-family: var(--serif);
-  font-size: var(--t-lectura);
-  font-weight: 600;
-}
-
-.ayuda {
-  max-width: 40rem;
-  margin: 0 0 0.9rem;
-  color: var(--grafito);
-}
-
-.proveedor .acciones {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  margin-bottom: 0.75rem;
-}
-
-/* Qué modelo responde con esa cuenta. */
-.modelo-agente {
-  margin: 0 0 0.35rem;
-  font-size: var(--t-pequeno);
-  color: var(--grafito);
-}
-
-.estado {
-  margin: 0 0 0.75rem;
-  font-weight: 600;
-}
-
-.estado.invalida {
-  color: var(--lapicero);
 }
 
 /* ---------- Conversación ---------- */
@@ -347,7 +300,6 @@
 @media (max-width: 760px) {
   .cabecera,
   .tira-examen,
-  .credenciales,
   .redaccion,
   .pie {
     padding-left: 1rem;

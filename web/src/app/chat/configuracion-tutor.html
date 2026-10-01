@@ -1,0 +1,225 @@
+<section class="configuracion" aria-labelledby="titulo-mi-tutor">
+  <header class="encabezado">
+    <h2 id="titulo-mi-tutor">Mi tutor</h2>
+    @if (conectados().length > 0) {
+      <button type="button" class="enlace" (click)="cerrar.emit()">Volver al chat</button>
+    }
+  </header>
+
+  @if (conectados().length > 0) {
+    <fieldset class="activo" [disabled]="enExamen()">
+      <legend>Conversas con</legend>
+      @for (agente of conectados(); track agente.id) {
+        <label class="opcion" [class.elegida]="agente.id === agenteActivo()">
+          <input
+            type="radio"
+            name="tutor-activo"
+            [value]="agente.id"
+            [checked]="agente.id === agenteActivo()"
+            (change)="elegir.emit(agente.id)" />
+          <span class="nombre">{{ agente.nombre }}</span>
+          @if (agente.modelo) {
+            <code class="modelo">{{ agente.modelo }}</code>
+          }
+        </label>
+      }
+      @if (enExamen()) {
+        <p class="ayuda">Durante el examen sigues con el mismo tutor; puedes cambiarlo al terminar.</p>
+      }
+    </fieldset>
+  } @else {
+    <p class="ayuda">Conecta una IA para empezar. Elige la forma que te quede mejor.</p>
+  }
+
+  <div class="pestanas" role="tablist" aria-label="Formas de conectar tu tutor" (keydown)="moverPestana($event)">
+    @for (p of pestanas; track p.id) {
+      <button
+        type="button"
+        role="tab"
+        [id]="'pestana-' + p.id"
+        [attr.aria-selected]="pestana() === p.id"
+        [attr.aria-controls]="'panel-' + p.id"
+        [attr.tabindex]="pestana() === p.id ? 0 : -1"
+        (click)="abrirPestana(p.id)">
+        {{ p.titulo }}
+      </button>
+    }
+  </div>
+
+  @if (errorCredencial()) {
+    <p class="error" role="alert">{{ errorCredencial() }}</p>
+  }
+
+  <!-- 1. Iniciar sesión en el proveedor: sin copiar claves (RF-29, RF-37). -->
+  @if (pestana() === 'cuenta') {
+    <div class="panel" role="tabpanel" id="panel-cuenta" aria-labelledby="pestana-cuenta">
+      <p class="ayuda">
+        Entras con tu cuenta y listo, sin copiar ninguna clave. Gemini usa tu cuenta de Google;
+        OpenRouter es gratis y puedes crear la cuenta con tu Google.
+      </p>
+
+      @for (agente of porCuenta(); track agente.id) {
+        <article class="proveedor">
+          <h3>{{ agente.nombre }} @if (agente.modelo) {<code class="modelo">{{ agente.modelo }}</code>}</h3>
+
+          @if (credencialDe(agente.id); as credencial) {
+            <p class="estado" [class.invalida]="credencial.estado === 'Invalida'">
+              @if (credencial.estado === 'Invalida') {
+                Rechazó tu cuenta. Vuelve a entrar para seguir.
+              } @else {
+                Conectado.
+              }
+            </p>
+          } @else if (agente.descripcion) {
+            <p class="ayuda">{{ agente.descripcion }}</p>
+          }
+
+          <div class="acciones">
+            <button type="button" class="principal" [disabled]="conectando()" (click)="entrar.emit(agente.id)">
+              {{ credencialDe(agente.id) ? 'Volver a entrar' : 'Entrar con ' + agente.nombre }}
+            </button>
+            @if (credencialDe(agente.id)) {
+              <button type="button" class="quitar" (click)="desconectar.emit(agente.id)">Desconectar</button>
+            }
+          </div>
+        </article>
+      }
+    </div>
+  }
+
+  <!-- 2. Clave de API propia: se valida y se guarda cifrada; nunca vuelve a mostrarse (RF-38). -->
+  @if (pestana() === 'clave') {
+    <div class="panel" role="tabpanel" id="panel-clave" aria-labelledby="pestana-clave">
+      <p class="ayuda">
+        Usa el modelo de tu propia cuenta de desarrollador. La clave se comprueba con el proveedor,
+        se guarda cifrada y nadie puede volver a verla: aquí solo verás sus últimos 4 caracteres.
+        Las suscripciones de ChatGPT Plus o Claude Pro no incluyen claves de API.
+      </p>
+
+      @for (agente of porClave(); track agente.id) {
+        <article class="proveedor">
+          <h3>{{ agente.nombre }} @if (agente.modelo) {<code class="modelo">{{ agente.modelo }}</code>}</h3>
+
+          @if (credencialDe(agente.id); as credencial) {
+            <p class="estado" [class.invalida]="credencial.estado === 'Invalida'">
+              @if (credencial.estado === 'Invalida') {
+                El proveedor rechazó la clave que termina en {{ credencial.ultimos4 }}. Pega una nueva.
+              } @else {
+                Conectada: la clave termina en {{ credencial.ultimos4 }}.
+              }
+            </p>
+          } @else if (agente.descripcion) {
+            <p class="ayuda">{{ agente.descripcion }}</p>
+          }
+
+          <form class="clave" (submit)="$event.preventDefault(); conectarClave(agente.id)">
+            <label [for]="'clave-' + agente.id">{{ credencialDe(agente.id) ? 'Reemplazar la clave' : 'Tu clave de API' }}</label>
+            <div class="fila">
+              <input
+                [id]="'clave-' + agente.id"
+                type="password"
+                autocomplete="off"
+                spellcheck="false"
+                [value]="claves()[agente.id] ?? ''"
+                (input)="escribirClave(agente.id, $any($event.target).value)"
+                (keydown.enter)="$event.preventDefault(); conectarClave(agente.id)" />
+              <button type="submit" class="principal"
+                      [disabled]="!(claves()[agente.id] ?? '').trim() || guardandoClave() !== ''">
+                {{ guardandoClave() === agente.id ? 'Comprobando…' : 'Conectar' }}
+              </button>
+              @if (credencialDe(agente.id)) {
+                <button type="button" class="quitar" (click)="desconectar.emit(agente.id)">Desconectar</button>
+              }
+            </div>
+            @if (errorClave()[agente.id]) {
+              <p class="error-campo" role="alert">{{ errorClave()[agente.id] }}</p>
+            }
+            @if (agente.consola) {
+              <a class="consola" [href]="agente.consola" target="_blank" rel="noopener">Crear una clave en su consola</a>
+            }
+          </form>
+        </article>
+      }
+    </div>
+  }
+
+  <!-- 3. El Tutor como servidor MCP: tu asistente usa tus clases y tu examen (RF-39). -->
+  @if (pestana() === 'asistente') {
+    <div class="panel" role="tabpanel" id="panel-asistente" aria-labelledby="pestana-asistente">
+      <p class="ayuda">
+        Estudia desde Claude, ChatGPT u otro asistente compatible con MCP, con tu propia suscripción.
+        Tu asistente lee el material de tus clases y te toma el examen; la nota la sigue poniendo el
+        Tutor. Para generar las preguntas del examen usa la IA que conectaste en las otras pestañas.
+      </p>
+
+      @if (errorMcp()) {
+        <p class="error-campo" role="alert">{{ errorMcp() }}</p>
+      }
+
+      @if (mcp(); as m) {
+        <dl class="datos-mcp">
+          <dt>Dirección del servidor</dt>
+          <dd>
+            <code>{{ m.url }}</code>
+            <button type="button" class="enlace" (click)="copiar(m.url, 'url')">
+              {{ copiado() === 'url' ? 'Copiada' : 'Copiar' }}
+            </button>
+          </dd>
+
+          <dt>Tu token</dt>
+          <dd>
+            @if (tokenNuevo()) {
+              <code class="token">{{ tokenNuevo() }}</code>
+              <button type="button" class="enlace" (click)="copiar(tokenNuevo(), 'token')">
+                {{ copiado() === 'token' ? 'Copiado' : 'Copiar' }}
+              </button>
+              <p class="aviso-token">Cópialo ahora: no se vuelve a mostrar. Quien lo tenga puede ver tus clases y rendir tu examen.</p>
+            } @else if (m.token) {
+              Termina en <code>{{ m.token.ultimos4 }}</code>, creado el {{ m.token.creadoEn | date: 'd MMM, HH:mm' }}
+              @if (m.token.ultimoUsoEn) { · usado por última vez el {{ m.token.ultimoUsoEn | date: 'd MMM, HH:mm' }} }
+            } @else {
+              Todavía no tienes uno.
+            }
+          </dd>
+        </dl>
+
+        <div class="acciones">
+          <button type="button" class="principal" (click)="generarToken()">
+            {{ m.token ? 'Generar uno nuevo' : 'Generar token' }}
+          </button>
+          @if (m.token) {
+            <button type="button" class="quitar" (click)="revocarToken()">Revocar</button>
+          }
+        </div>
+        @if (m.token && !tokenNuevo()) {
+          <p class="ayuda">Generar uno nuevo invalida el anterior.</p>
+        }
+
+        <h3>Cómo conectarlo</h3>
+        <ol class="pasos">
+          <li>
+            <strong>Claude Code:</strong> en tu terminal,
+            <code class="comando">{{ comandoClaude() }}</code>
+            <button type="button" class="enlace" (click)="copiar(comandoClaude(), 'comando')">
+              {{ copiado() === 'comando' ? 'Copiado' : 'Copiar comando' }}
+            </button>
+          </li>
+          <li>
+            <strong>Claude Desktop, Cursor u otro cliente MCP:</strong> agrega un servidor HTTP con la
+            dirección de arriba y la cabecera <code>Authorization: Bearer</code> con tu token.
+          </li>
+          <li>
+            Luego pídele, por ejemplo: <em>«¿Qué clases tengo?»</em>, <em>«Explícame la clase 1 con el
+            material»</em> o <em>«Tómame el examen de la clase 1»</em>.
+          </li>
+        </ol>
+        <p class="ayuda">
+          Los conectores web de Claude.ai y ChatGPT piden otro tipo de inicio de sesión que todavía no
+          está disponible.
+        </p>
+      } @else if (!errorMcp()) {
+        <p class="ayuda">Cargando…</p>
+      }
+    </div>
+  }
+</section>

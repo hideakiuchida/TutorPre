@@ -11,7 +11,7 @@ export interface Agente {
   /** 'OAuth': se conecta iniciando sesión en el proveedor, sin pegar clave (RF-29). */
   conexion: 'Clave' | 'OAuth';
   conectado: boolean;
-  /** Modelo que responde con esta cuenta (p. ej. gemini-2.5-flash). */
+  /** Modelo que responde con esta cuenta (p. ej. gemini-3.8-flash). */
   modelo?: string;
 }
 
@@ -22,6 +22,13 @@ export interface Credencial {
   origen: 'Pegada' | 'OAuth';
   estado: 'Valida' | 'Invalida';
   creadaEn: string;
+  ultimoUsoEn: string | null;
+}
+
+/** Token MCP del alumno (RF-39): nunca trae el valor, solo cómo reconocerlo. */
+export interface TokenMcp {
+  ultimos4: string;
+  creadoEn: string;
   ultimoUsoEn: string | null;
 }
 

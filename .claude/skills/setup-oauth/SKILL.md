@@ -125,6 +125,15 @@ entorno tiene prioridad.
 4. En Chrome, `http://localhost:4200` → *Continuar con Google*. El inicio de sesión lo hace la
    persona. La primera vez sale *Soy alumno / Soy profesor*.
 
+## Lo que no se registra en ninguna consola
+
+- **Claves de API propias (RF-38)**: ChatGPT (OpenAI), Claude (Anthropic) y Gemini de AI Studio
+  no necesitan cliente OAuth. Cada alumno pega **su** clave en *Mi tutor → Con tu clave de API*;
+  la API la valida y la cifra. Tú no creas ni pegas claves de nadie.
+- **Servidor MCP (RF-39)**: `/mcp` usa un token personal que cada alumno genera en
+  *Mi tutor → Desde tu asistente*. No hay nada que registrar. Los conectores web de Claude.ai y
+  ChatGPT pedirían OAuth 2.1 con registro dinámico, que aún no existe (SDD §9.6).
+
 ## Problemas típicos
 
 | Síntoma | Causa |

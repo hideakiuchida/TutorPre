@@ -78,7 +78,7 @@ Medir los conocimientos previos del alumno, cerrar sus vacíos con un tutor que 
 | RF-26 | La credencial se guarda cifrada y nunca se devuelve: la web solo ve el proveedor, los últimos 4 caracteres y la fecha de conexión | Alta |
 | RF-27 | Sin cuenta conectada, el chat muestra un único botón para conectarla y no deja escribir | Alta |
 | RF-28 | Si el proveedor rechaza la credencial durante una conversación, se marca como inválida y se pide reconectarla | Media |
-| RF-29 | La conexión es solo por inicio de sesión en OpenRouter (OAuth con PKCE); la plataforma no acepta claves pegadas | Alta |
+| RF-29 | Los agentes de inicio de sesión (OpenRouter, Gemini con Google) se conectan solo por OAuth con PKCE y no aceptan claves pegadas. Los agentes de tipo *Clave* (RF-38) sí aceptan la clave de API del alumno: se comprueba su forma y con el proveedor antes de guardarla, se cifra, nunca se devuelve ni se registra, y la web solo muestra sus últimos 4 caracteres | Alta |
 | RF-30 | Si el proveedor corta por límite de uso (HTTP 429), el chat dice cuándo puede volver, sin marcar la credencial como inválida ni perder el avance | Media |
 | RF-31 | Todos los usuarios entran por una única página de inicio de sesión con la cuenta de la universidad (OAuth / OpenID Connect); el sistema reconoce su rol (Alumno, Docente, Administrador) y lo lleva a su pantalla | Alta |
 | RF-32 | Al entrar, al alumno que no tiene OpenRouter conectado se le conecta en el mismo paso: tras el inicio de sesión va directo a autorizar OpenRouter y vuelve al chat listo | Alta |
@@ -86,6 +86,8 @@ Medir los conocimientos previos del alumno, cerrar sus vacíos con un tutor que 
 | RF-34 | El profesor administra el contenido de **sus** cursos (su carpeta `course-content/<su correo>/`) y tiene su pantalla: estado del material, ajustes del examen y de la ampliación de cada clase y el reporte (RF-13, RF-16, RF-22). No ve ni toca los cursos de otro profesor | Alta |
 | RF-35 | El administrador elige el modelo de IA que usa el tutor y puede cambiarlo sin desplegar (RF-06, RF-17) | Media |
 | RF-37 | Cada usuario conecta **sus propias cuentas de IA** y elige con cuál conversar. Hoy: **Gemini con su cuenta de Google** (OAuth, sin claves) y **OpenRouter** (OAuth). ChatGPT y Claude no ofrecen OAuth para usar la suscripción del usuario desde otra app; su vía es OpenRouter con la clave de API del usuario enlazada en su cuenta de OpenRouter (fase 2) | Alta |
+| RF-38 | El alumno puede usar el modelo de **su propia cuenta de desarrollador** pegando su clave de API de **OpenAI** (ChatGPT), **Anthropic** (Claude) o **Google AI Studio** (Gemini). Cada uno es un agente de tipo *Clave* con su modelo, que fija el administrador (RF-35). Las suscripciones ChatGPT Plus o Claude Pro no incluyen claves de API | Alta |
+| RF-39 | **El Tutor como servidor MCP**: el alumno genera en la web un token personal y conecta su propio asistente (Claude Code, Claude Desktop u otro cliente MCP) a `/mcp`. Su asistente lista sus clases, lee y busca en el material con citas, y le toma el examen pregunta a pregunta con las mismas reglas del servidor: ventana, intentos, nota calculada por el servidor y la respuesta correcta oculta hasta finalizar. El token se muestra una sola vez, se guarda hasheado, solo vale en `/mcp` y se puede revocar | Media |
 | RF-36 | Al subir el material, la IA lo **condensa una sola vez**: reescribe cada página como apuntes compactos (definiciones, cifras, fórmulas y pasos, sin relleno), conservando su cita `[archivo, p. N]`, para que el tutor lea menos y responda más rápido. Se hace con la cuenta de OpenRouter del profesor; el profesor ve el original y los apuntes lado a lado y puede elegir el original por archivo. El examen se sigue generando con el original | Media |
 
 ### 2.2 Requisitos por rol, dependencias y orden de implementación
@@ -97,7 +99,7 @@ Medir los conocimientos previos del alumno, cerrar sus vacíos con un tutor que 
 | Todos | RF-31 inicio de sesión y rol |
 | Administrador | RF-33 corregir roles y matrículas · RF-35 modelo del tutor |
 | Docente (profesor) | RF-33 registrarse como profesor · RF-02 subir material a su carpeta · RF-36 conectar OpenRouter y revisar los apuntes · RF-01 clases y ventana del examen · RF-14 modo de feedback · RF-18 temporizador · RF-20 ampliación · RF-34 su pantalla · RF-13, RF-16, RF-22 reporte |
-| Alumno | RF-33 registrarse y elegir profesor · RF-32, RF-37 y RF-24–RF-27, RF-29 conectar Gemini u OpenRouter · RF-19 consulta · RF-11 repreguntar · RF-06, RF-07 rendir el examen · RF-10 revisar errores |
+| Alumno | RF-33 registrarse y elegir profesor · RF-32, RF-37, RF-38 y RF-24–RF-27, RF-29 conectar Gemini, OpenRouter o su clave de API · RF-39 estudiar desde su asistente (MCP) · RF-19 consulta · RF-11 repreguntar · RF-06, RF-07 rendir el examen · RF-10 revisar errores |
 | Sistema | RF-03 extraer texto · RF-04, RF-05 generar el examen · RF-08, RF-09 ventana, intentos y nota · RF-12, RF-15 límites del tutor · RF-21 nivel · RF-23 dificultad adaptativa · RF-17, RF-28, RF-30 resiliencia |
 
 **Dependencias.** Una flecha `A --> B` significa "B no funciona sin A":
@@ -137,7 +139,7 @@ Lo que casi todo necesita es saber **quién es el usuario y qué rol tiene** (RF
 | 7 | Seguimiento del docente | RF-21, RF-22, RF-16, RF-34 | Hecho; RF-34 aún sin ajustar ventana, intentos ni tiempo desde la pantalla (solo por API) |
 | 8 | Resiliencia y administración | RF-28, RF-30, RF-17, RF-35 | RF-28 y RF-30 hechos; RF-17 parcial (sin botón de reintento); RF-35 solo por API |
 | 9 | Mejora | RF-23 | Pendiente |
-| 11 | Cuentas de IA propias | RF-37 | Hecho: Gemini con OAuth de Google (PKCE, refresh token cifrado, selector de agente); falta la fase 2 (OpenRouter con claves propias de OpenAI y Anthropic, proyecto de Google propio) |
+| 11 | Cuentas de IA propias | RF-37, RF-38, RF-39 | Hecho: Gemini con OAuth de Google; claves propias de OpenAI, Anthropic y Google AI Studio; el Tutor como servidor MCP con token personal; *Mi tutor* con pestañas. Falta OAuth para los conectores web de Claude.ai y ChatGPT, y proyecto de Google propio |
 | 10 | Material condensado | RF-36 | Hecho: condensación por página con la cuenta del profesor, reintento automático si el modelo gratuito está saturado, comparación y elección del original en el panel. Falta medir la reducción real con el modelo (el 2026-09-30 el pool gratuito estaba saturado) |
 
 ### 2.3 No funcionales
@@ -356,7 +358,15 @@ La página solo ofrece OAuth: un botón *Continuar con Google* y otro *Continuar
 
 ### 5.1 Conexión del agente
 
-Hay dos formas de conectar, y el alumno puede tener ambas y elegir en el chat (RF-37): **Gemini con su cuenta de Google** (Flujo 5 de §5.9) y **OpenRouter**, que es la que describe esta sección. Con dos opciones, al entrar sin ninguna conectada no se le redirige: el panel *Conecta tu tutor* le muestra las dos.
+Hay tres formas de conectar, cada una en una pestaña de *Mi tutor* (§8), y el alumno puede tener varias cuentas y elegir con cuál conversar (RF-37):
+
+| Pestaña | Cómo | Agentes | Quién paga |
+| --- | --- | --- | --- |
+| Con tu cuenta | Inicia sesión en el proveedor (OAuth con PKCE) | OpenRouter (esta sección), Gemini con Google (Flujo 5 de §5.9) | Cupo gratuito de su cuenta |
+| Con tu clave de API | Pega su clave; se valida y se cifra (RF-38, Flujo 6) | ChatGPT (OpenAI), Claude (Anthropic), Gemini (AI Studio) | Su cuenta de desarrollador |
+| Desde tu asistente | Token personal para su cliente MCP (RF-39, Flujo 7) | Su propio asistente usa el Tutor como herramienta | Su suscripción del asistente; las preguntas del examen, la IA conectada en las otras pestañas |
+
+Con más de una opción, al entrar sin ninguna conectada no se le redirige: se abre *Mi tutor* y elige.
 
 Antes de conversar, el alumno conecta su cuenta de OpenRouter (RF-24). Es un solo clic y se hace una vez: sin cuenta conectada, el chat muestra el botón *Conectar con OpenRouter (gratis)* y no deja escribir (RF-27). No hay campo para pegar claves (RF-29): la clave la obtiene y la guarda la API, y el navegador solo transporta un código de un solo uso:
 
@@ -486,7 +496,7 @@ Una interfaz común aísla al resto del sistema del proveedor; el prompt de sist
 ```csharp
 public interface ILlmProvider
 {
-    string Id { get; }   // "openrouter"; otro gateway sería otra implementación
+    string Id { get; }   // "openrouter", "gemini", "openai", "anthropic", "gemini-clave"
     IAsyncEnumerable<LlmEvento> StreamAsync(LlmSolicitud solicitud, CancellationToken ct);
 }
 
@@ -546,6 +556,19 @@ Orquestación en `AgenteTutorService`, por cada mensaje del alumno:
 3. Reenvía cada `TextoParcial` al navegador por SSE en cuanto llega, también con la ampliación desactivada: `EmisorConCorte` retiene solo los últimos 64 caracteres, lo justo para contener la marca de ampliación aunque llegue partida, y si aparece deja de emitir y termina con el aviso estándar (sección 6.4). Ante una `LlamadaHerramienta` la ejecuta en el servidor, agrega el resultado y vuelve a llamar (máximo 6 vueltas por mensaje).
 4. Aplica los cortes de la sección 6.4 (ampliación no permitida, citas inválidas) antes de dar por buena la respuesta.
 5. Guarda mensajes, llamadas a herramientas, marca de ampliación y tokens en `MensajeChat` para auditoría y control de costos.
+
+
+Adaptadores por tipo de agente:
+
+| Agente | Conexión | Adaptador | Ruta del chat | Credencial |
+| --- | --- | --- | --- | --- |
+| `openrouter` | OAuth | `OpenRouterProvider` | `/api/v1/chat/completions` | Clave obtenida por OAuth, `Bearer` |
+| `gemini` | OAuth de Google | `GeminiProvider` | `streamGenerateContent` (formato propio) | Refresh token → acceso, `Bearer` |
+| `openai` | Clave | `OpenAiProvider` | `https://api.openai.com/v1/chat/completions` | Clave del alumno, `Bearer` |
+| `anthropic` | Clave | `OpenAiProvider` | `https://api.anthropic.com/v1/chat/completions` (compatibilidad OpenAI) | Clave del alumno, `Bearer` |
+| `gemini-clave` | Clave | `OpenAiProvider` | `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions` | Clave de AI Studio, `Bearer` |
+
+Los tres de tipo *Clave* comparten el adaptador en formato OpenAI; cada agente aporta su `RutaChat` y, si el proveedor lo admite, el `reasoning_effort` para apagar el razonamiento en el chat (OpenAI: `minimal`). La validación previa (RF-25) usa una llamada que no gasta cupo: `GET /v1/models` con `Bearer` (OpenAI), con `x-api-key` y `anthropic-version` (Anthropic), o `GET /v1beta/models` con `x-goog-api-key` (AI Studio).
 
 ### 5.9 Arquitectura con OpenRouter y flujos de extremo a extremo
 
@@ -607,11 +630,17 @@ flowchart LR
         BOV["BovedaCredenciales<br/>clave cifrada del alumno"]
         ORP["OpenRouterProvider"]
         GEP["GeminiProvider<br/>+ TokensGoogle"]
+        OAP["OpenAiProvider<br/>clave del alumno"]
+        MCP["Servidor MCP /mcp<br/>HerramientasMcp"]
         DB[("PostgreSQL<br/>pagina_contenido · conversaciones · intentos")]
     end
     subgraph Google
         GOA["OAuth de Google<br/>refresh token → acceso"]
-        GEM["API de Gemini<br/>gemini-2.5-flash"]
+        GEM["API de Gemini<br/>gemini-3.8-flash"]
+    end
+    subgraph Propios["Cuenta del alumno"]
+        OAI["OpenAI · Anthropic · AI Studio"]
+        ASIS["Su asistente<br/>Claude Code · Claude Desktop"]
     end
     subgraph OpenRouter
         OR["API /api/v1/chat/completions"]
@@ -645,6 +674,12 @@ flowchart LR
     OR -. "respaldo" .-> M3
     TUT --> DB
     GEN --> DB
+    TUT --> OAP
+    GEN --> OAP
+    OAP -- "HTTPS + clave del alumno" --> OAI
+    ASIS -- "MCP + token personal" --> MCP
+    MCP --> CTX
+    MCP --> TUT
 ```
 
 #### Flujo 1: el profesor sube material
@@ -865,6 +900,57 @@ sequenceDiagram
 
 Si el usuario revoca el acceso en su cuenta de Google, la renovación responde `invalid_grant`: la credencial se marca inválida y el chat pide reconectar (RF-28). Si la API de Gemini no está activada en el proyecto, el error es de la plataforma y la credencial del usuario sigue válida.
 
+#### Flujo 6: el alumno conecta su clave de API (RF-38)
+
+```mermaid
+sequenceDiagram
+    participant W as Web (Mi tutor, pestaña Con tu clave de API)
+    participant A as API
+    participant P as Proveedor (OpenAI, Anthropic o AI Studio)
+    participant B as Bóveda
+    W->>A: PUT /alumno/credenciales/openai { clave }
+    A->>A: el agente es de tipo Clave, prefijo esperado (sk-, sk-ant-, AIza) y largo
+    A->>P: GET /v1/models con la clave (no gasta cupo, RF-25)
+    alt 401 o 403
+        A-->>W: 400 clave_rechazada, no se guarda nada
+    else válida
+        A->>B: cifra con Data Protection por alumno, origen Pegada
+        A-->>W: agente, últimos 4, estado (nunca la clave)
+    end
+    Note over W: la web borra el campo en cuanto envía
+```
+
+En cada mensaje la API descifra la clave solo para la llamada saliente y usa `OpenAiProvider` con la ruta del proveedor (§5.8). Un 401 posterior la marca inválida y *Mi tutor* pide pegar una nueva (RF-28).
+
+#### Flujo 7: el alumno estudia desde su asistente (RF-39)
+
+```mermaid
+sequenceDiagram
+    participant W as Web (pestaña Desde tu asistente)
+    participant C as Asistente del alumno (cliente MCP)
+    participant M as API /mcp
+    participant E as EjecutorHerramientas + ServicioExamen
+    participant IA as IA conectada del alumno
+    W->>M: POST /alumno/token-mcp
+    M-->>W: tpc_mcp_… (una sola vez, se guarda el SHA-256)
+    Note over W,C: el alumno pega la URL y el token en su asistente
+    C->>M: initialize · tools/list (Bearer token)
+    C->>M: listar_clases · leer_material(clase)
+    M-->>C: material con citas [archivo, p. N]
+    C->>M: iniciar_examen(clase)
+    M->>IA: genera la primera pregunta con la cuenta del alumno
+    loop una pregunta a la vez
+        C->>M: obtener_siguiente_pregunta
+        M->>E: misma herramienta que el chat
+        E-->>C: enunciado y alternativas, sin la correcta
+        C->>M: registrar_respuesta(alternativa)
+    end
+    C->>M: finalizar_examen
+    E-->>C: nota sobre 20 calculada por el servidor y fallos
+```
+
+El asistente nunca recibe la clave de respuestas antes de finalizar ni puede escribir la nota: las herramientas son las del chat y pasan por el mismo `EjecutorHerramientas`, que comprueba el modo, la ventana y los intentos. El servidor MCP envía como instrucciones las reglas del tutor (§6.3): citar el material, marcar la ampliación y no dar pistas durante el examen. La sesión de la web no abre `/mcp`, y el token MCP no abre el resto de la API.
+
 ## 6. Módulo de contenido de clase
 
 Cada clase tiene su propia carpeta de contenido, y el agente recibe únicamente el contenido de esa clase, de modo que la IA solo explica con el material de esa sesión.
@@ -1023,9 +1109,12 @@ API versionada bajo `/api/v1`, autenticada con la sesión que emite la propia AP
 | PUT | /admin/usuarios | Admin | Alta o edición por correo, con rol y cursos |
 | POST | /admin/usuarios/lote | Admin | Alta por lista, todos al mismo curso |
 | GET | /alumno/novedades | Alumno | Flujo SSE: avisa cuando el docente cambia el material de un curso del alumno |
-| GET | /agentes | Alumno | Agente habilitado, cómo se conecta (`conexion: OAuth`) y si el alumno lo tiene conectado |
+| GET | /agentes | Alumno | Agentes habilitados con su modelo, cómo se conectan (`conexion`: `OAuth` o `Clave`), su consola y si el alumno los tiene conectados |
 | GET | /alumno/credenciales | Alumno | Su credencial: agente, últimos 4, origen, estado y fecha (nunca la clave) |
 | DELETE | /alumno/credenciales/{agenteId} | Alumno | Desconecta su cuenta |
+| PUT | /alumno/credenciales/{agenteId} | Alumno | Solo agentes de tipo *Clave* (RF-38): `{ "clave" }`, validada y cifrada; devuelve agente, últimos 4, origen `Pegada` y estado. En un agente OAuth responde 400 `conexion_por_oauth`; con otra forma, `clave_invalida`; si el proveedor la rechaza, `clave_rechazada` |
+| GET · POST · DELETE | /alumno/token-mcp | Alumno | Estado del token MCP (últimos 4, fechas) y URL del servidor; generar uno nuevo (revoca el anterior; el valor solo viene en esta respuesta); revocar (RF-39) |
+| POST | /mcp | Token MCP | Servidor MCP (HTTP transmitible, sin estado). Herramientas: `listar_clases`, `leer_material`, `buscar_en_material`, `iniciar_examen`, `obtener_siguiente_pregunta`, `registrar_respuesta`, `ver_progreso`, `finalizar_examen`, `ver_resultado`, `proponer_temas_a_reforzar` |
 | POST | /alumno/credenciales/openrouter/oauth/inicio | Alumno | Genera el `code_verifier` y devuelve la URL de autorización de OpenRouter (RF-29) |
 | POST | /alumno/credenciales/openrouter/oauth/canje | Alumno | Canjea `{ "code" }` por la clave, la valida y la guarda; devuelve agente, últimos 4, origen y estado |
 | GET | /admin/agentes | Admin | Agentes con su modelo y estado |
@@ -1099,14 +1188,14 @@ Todos entran por la misma página y cada rol tiene **una sola pantalla**: el alu
 | Entrada | Todos | Franja roja UPC; primero *Soy alumno* / *Soy profesor*, luego *Continuar con Google* / *Continuar con Microsoft (Outlook)*; lleva a cada rol a su pantalla |
 | Tu profesor | Alumno | Lista de profesores con sus cursos para elegir o cambiar; se abre desde *Cambiar* en la barra lateral del chat o si aún no tiene profesor |
 | Administración | Admin | Alta o edición de una persona (correo, nombre, rol, cursos), alta por lista y tabla de usuarios registrados |
-| Chat del tutor | Alumno | Lista lateral de clases (con estado del examen y cuenta regresiva) y el chat en streaming, **como una conversación: los mensajes del alumno a la izquierda y las respuestas del tutor a la derecha**, cada uno en su globo; debajo del globo del tutor, sus fuentes (resaltadas) y la ampliación (a lápiz). Las negritas de Markdown del tutor se muestran como negritas. En la cabecera: clase, modo (Consulta / Examen / Revisión) y, durante el examen, progreso y temporizador; con un solo agente no hay selector. En el cuerpo: mensajes, chips de fuente que abren el archivo en la página citada y bloques de ampliación con estilo diferenciado. Aviso cuando el docente actualiza el material (§6.1). Si no tiene la cuenta conectada, el chat muestra en su lugar el panel de conexión |
-| Conectar mi tutor | Alumno | Panel dentro del chat con un solo botón, *Conectar con OpenRouter (gratis)*, y una línea que explica que es gratis, que puede crear la cuenta con su Google y que no tiene que copiar ninguna clave. Ya conectado: últimos 4 y estado, con *Volver a entrar* y *Desconectar* |
+| Chat del tutor | Alumno | Lista lateral de clases (con estado del examen y cuenta regresiva) y el chat en streaming, **como una conversación: los mensajes del alumno a la izquierda y las respuestas del tutor a la derecha**, cada uno en su globo; debajo del globo del tutor, sus fuentes (resaltadas) y la ampliación (a lápiz). Las negritas de Markdown del tutor se muestran como negritas. En la cabecera: clase, modo (Consulta / Examen / Revisión), **«Mi tutor: Gemini (tu cuenta de Google)» con *Cambiar*** y, durante el examen, progreso y temporizador. En el cuerpo: mensajes, chips de fuente que abren el archivo en la página citada y bloques de ampliación con estilo diferenciado. Aviso cuando el docente actualiza el material (§6.1). Sin ninguna IA conectada, se abre *Mi tutor* |
+| Mi tutor | Alumno | Se abre encima del chat con *Cambiar*. Arriba, **«Conversas con»**: las IA conectadas como opciones, cada una con su modelo (bloqueado durante el examen). Debajo, tres pestañas: **Con tu cuenta** (Gemini y OpenRouter: *Entrar con…*, *Volver a entrar*, *Desconectar*), **Con tu clave de API** (ChatGPT, Claude y Gemini de AI Studio: campo de clave oculto, *Conectar*, enlace a la consola para crearla, «termina en XXXX» y *Desconectar*) y **Desde tu asistente** (URL del servidor MCP, *Generar token* que se muestra una sola vez con *Copiar*, *Revocar*, último uso y los pasos para Claude Code, Claude Desktop y otros clientes). Pestañas accesibles con el teclado (flechas) |
 | Panel del docente: material | Docente | Estado de extracción de lo que copió a la carpeta y tokens del contexto de clase, ventana del examen, interruptor de ampliación. Por archivo, qué lee el tutor (*Apuntes de la IA*, *Original*, *Condensando…*, o por qué no se condensó) y los tokens antes y después. *Comparar* muestra original y apuntes página por página; *Usar original* / *Usar apuntes* elige por archivo. Sin cuenta, *Conectar OpenRouter* (al volver se condensan todas sus clases); con cuenta, *Condensar de nuevo*. El panel se refresca solo mientras hay apuntes en camino. *Pendiente:* ajustar ventana, intentos, tiempo, preguntas por intento y modo de feedback desde la pantalla (hoy solo por API). No hay botón de publicar: las clases de la carpeta nacen con el examen publicado |
 | Panel del docente: reporte | Docente | Promedio, histograma de notas, distribución de niveles y nivel por alumno (editable), temas más fallados (porcentaje de respuestas erradas por tema), temas débiles del grupo, dudas que el material no cubrió y uso por agente |
 
 ### 8.1 Componentes Angular (librerías Nx)
 
-- `libs/alumno/feature-chat`: `ChatTutorPageComponent` (única pantalla del alumno), `ListaClasesComponent`, `CabeceraChatComponent` (modo, progreso y temporizador), `MensajeAgenteComponent`, `BloqueAmpliacionComponent`, `FuenteChipComponent`, `ConectarAgenteComponent`.
+- `libs/alumno/feature-chat`: `ChatTutorPageComponent` (única pantalla del alumno), `ListaClasesComponent`, `CabeceraChatComponent` (modo, progreso y temporizador), `MensajeAgenteComponent`, `BloqueAmpliacionComponent`, `FuenteChipComponent`, `ConfiguracionTutor` (*Mi tutor* con sus pestañas).
 - `libs/docente/feature-clase`: `EstadoContenidoComponent`, `AjustesClaseComponent`.
 - `libs/docente/feature-reporte`: `ReporteClaseComponent`, `NivelAlumnoComponent`.
 - `libs/acceso`: `EntradaPageComponent` y `SesionService` (guarda la sesión, agrega `Authorization: Bearer` y vuelve a la entrada ante un 401).
@@ -1133,6 +1222,8 @@ La web nunca ve ni guarda la clave: la ruta `/conectar/openrouter` toma el `code
 - Las credenciales son del alumno y solo suyas: se cifran en reposo, se descifran únicamente para la llamada saliente de *sus* conversaciones, y ni el docente ni el administrador pueden leerlas ni usarlas.
 - La API nunca devuelve una credencial: solo proveedor, últimos 4 caracteres, origen, estado y fecha de conexión.
 - OAuth con Google para Gemini (RF-37): PKCE con S256 y el mismo cliente web del inicio de sesión. Se piden solo los permisos `cloud-platform` y `generative-language.retriever`, que exige la API de Gemini y que Google marca como sensible; en modo *Testing* basta con que el usuario esté en *Test users*, y para abrirlo a todos hay que verificar la app. El refresh token se guarda cifrado en `credencial_agente` y nunca se devuelve. El token de acceso vive solo en memoria, con clave de caché que es un hash del refresh token, nunca el token en claro. Revocarlo en la cuenta de Google corta el acceso en la siguiente renovación.
+- Claves de API pegadas (RF-38): solo en agentes de tipo *Clave*; se comprueba el prefijo del proveedor y un largo máximo, se validan con una llamada que no gasta cupo antes de guardarlas, se cifran por alumno, nunca se devuelven ni se registran (ni en logs ni en mensajes de error), y la web vacía el campo al enviar.
+- Servidor MCP (RF-39): token personal `tpc_mcp_` con 256 bits aleatorios; se guarda solo su SHA-256 y sus últimos 4 caracteres, se muestra una vez, hay uno vivo por alumno y revocarlo corta el acceso al instante. Solo autentica en `/mcp` (esquema propio), y la sesión de la web no sirve ahí. Las herramientas trabajan solo con las clases de los cursos del alumno y con sus propios intentos, y pasan por el mismo ejecutor del chat: el asistente no puede ver la correcta antes de finalizar ni fijar la nota.
 - OAuth con OpenRouter: PKCE con S256, `code_verifier` de un solo uso que vive 10 minutos en el servidor y ligado al alumno autenticado, `callback_url` fija por entorno (nunca tomada de la petición), y canje hecho por la API, de modo que la clave no toca el navegador.
 - Las claves de infraestructura (base de datos, clave de sesión, secretos OAuth) van como variables del servicio en Railway (en Azure Key Vault o AWS Secrets Manager si se migra), nunca en el frontend ni en el repositorio; rotación trimestral. La cadena de conexión referencia las variables del PostgreSQL de Railway, así que nadie ve la contraseña.
 - Las claves de Data Protection que cifran las credenciales de los alumnos se guardan en un volumen (`ProteccionDatos:Carpeta`): si se perdieran, las credenciales guardadas quedarían ilegibles y cada alumno tendría que volver a conectar OpenRouter.
@@ -1153,7 +1244,9 @@ La web nunca ve ni guarda la clave: la ruta `/conectar/openrouter` toma el `code
 | Nivel | Cálculo del nivel por rangos de nota, corrección manual del docente, persistencia de temas débiles | xUnit |
 | Examen pregunta a pregunta | Al empezar solo se genera la primera y se prepara la siguiente, la siguiente se genera al pedirla sin repetir la anterior, fallo al generar una siguiente conserva el avance y se puede reintentar, nunca más de una adelantada ni más de las planeadas, nota sobre las planeadas | xUnit con el proveedor y el generador simulados |
 | Material condensado | Sin cuenta del profesor no se llama a la IA, apuntes por página con sus citas, apunte más largo descartado, página omitida conserva el original, elegir el original, saturación deja pendiente para reintentar, cupo agotado deja error, lotes para gastar pocas llamadas, JSON entre bloques de código, examen con el original, endpoints solo del profesor del curso | xUnit + pruebas de API con el proveedor simulado |
-| Credenciales | Cifrado en reposo, la API nunca devuelve la clave ni acepta una pegada, un alumno no alcanza la de otro, credencial inválida marcada y reconectable, 429 no la invalida | xUnit + pruebas de API |
+| Credenciales | Cifrado en reposo, la API nunca devuelve la clave, un agente OAuth no acepta una pegada, un alumno no alcanza la de otro, credencial inválida marcada y reconectable, 429 no la invalida | xUnit + pruebas de API |
+| Claves propias | Validación con la cabecera de cada proveedor sin gastar cupo, clave rechazada no se guarda, prefijo de otro proveedor rechazado, solo últimos 4 en la respuesta, ruta del chat y `reasoning_effort` por agente | xUnit + pruebas de API con HTTP simulado |
+| Servidor MCP | Token mostrado una vez y guardado hasheado, sin token / con la sesión de la web / inventado / revocado → 401, generar otro revoca el anterior, solo las clases propias, examen completo por MCP con la nota del servidor y sin la correcta en la pregunta | Pruebas de API con el cliente MCP oficial |
 | Acceso | Validación del `id_token` (emisor, audiencia, vencido, `nonce`, correo sin verificar), `state` repetido, primer acceso sin crear a nadie hasta elegir rol, alumno solo en los cursos de su profesor, profesor inválido, registro de un solo uso, nadie se elige administrador, registro cerrado (`no_registrado`), administrador por configuración, cada profesor solo sus cursos (403 al ajeno), cambio de profesor, sesión con rol correcto | xUnit + pruebas de API con el proveedor simulado |
 | OAuth OpenRouter | Canje con verificador correcto, código de otro alumno, código repetido o vencido, clave obtenida que el proveedor rechaza; OpenRouter simulado | xUnit + WireMock |
 | E2E | Entrar con cada rol, conectar la cuenta (RF-32), abrir el chat, consultar el tema, rendir examen por chat y revisar fallos | Playwright |
@@ -1205,7 +1298,7 @@ La web nunca ve ni guarda la clave: la ruta `/conectar/openrouter` toma el `code
 
 ### 9.6 Pendientes
 
-Estado a 2026-09-30, con el examen pregunta a pregunta, Gemini con Google y el material condensado. Por prioridad:
+Estado a 2026-09-30, con el examen pregunta a pregunta, Gemini con Google, las claves propias, el servidor MCP y el material condensado. Por prioridad:
 
 | # | Pendiente | Requisito | Detalle |
 | --- | --- | --- | --- |
@@ -1225,6 +1318,7 @@ Estado a 2026-09-30, con el examen pregunta a pregunta, Gemini con Google y el m
 | 14 | Carga, volumen y disponibilidad | RNF-03 a RNF-05 | Medir con k6 en un despliegue |
 | 15 | Medir la condensación con el modelo real | RF-36 | Primera prueba local: la infografía "Costo vs Gasto" pasó de 409 a 267 tokens (−35 %). Falta completar M1 (el pool gratuito estaba saturado, se reintenta solo) y revisar la fidelidad de los apuntes con el profesor |
 | 16 | Profesor sin cuenta de IA en producción | RF-36 | En producción el profesor tiene que entrar a su panel y conectar Gemini u OpenRouter; hasta entonces el tutor lee el original |
-| 17 | Cuentas de IA propias, fase 2 | RF-37 | Elegir modelo por usuario en OpenRouter con sus claves de OpenAI, Anthropic o Google enlazadas en su cuenta de OpenRouter (BYOK); proyecto de Google propio (`x-goog-user-project`) para cargar el uso de Gemini a la cuenta del alumno |
+| 17 | Cuentas de IA propias, fase 2 | RF-37, RF-39 | OAuth 2.1 con registro dinámico de clientes en `/mcp` para conectar el Tutor desde los conectores web de Claude.ai y ChatGPT (hoy solo con token en clientes que aceptan cabeceras); *sampling* de MCP para que el asistente del alumno genere las preguntas; proyecto de Google propio (`x-goog-user-project`) para cargar el uso de Gemini a la cuenta del alumno |
+| 20 | Probar las claves propias con cuentas reales | RF-38 | Verificado en local que OpenAI rechaza una clave inventada; falta una conversación y un examen con una clave real de cada proveedor (la pega la persona) |
 | 19 | Medir el examen pregunta a pregunta con el modelo real | RF-04 | Tiempo hasta la primera pregunta y cuántas veces el alumno espera porque la siguiente no llegó a prepararse; calidad y variedad de las preguntas generadas de a una |
 | 18 | Cuota de Gemini compartida | RF-37 | El plan gratuito del proyecto `tutor-pre-clase` lo comparten todos los alumnos conectados con Gemini; vigilar el 429 y, si crece, activar facturación o la fase 2. Para abrirlo más allá de 100 usuarios de prueba hay que verificar la app en Google |
