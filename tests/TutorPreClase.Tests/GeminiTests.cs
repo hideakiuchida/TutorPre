@@ -156,7 +156,7 @@ public class GeminiTests
 
         var pensamiento = JsonDocument.Parse(google.Recibidas.Last().Cuerpo).RootElement
             .GetProperty("generationConfig").GetProperty("thinkingConfig");
-        Assert.Equal("minimal", pensamiento.GetProperty("thinkingLevel").GetString());
+        Assert.Equal("low", pensamiento.GetProperty("thinkingLevel").GetString());
         Assert.False(pensamiento.TryGetProperty("thinkingBudget", out _));
     }
 

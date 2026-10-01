@@ -26,14 +26,15 @@ public sealed class GeminiProvider(
 
     /// <summary>
     /// Razonamiento según el nivel; null deja decidir al modelo. Gemini 3 usa
-    /// `thinkingLevel` (su mínimo es "minimal"); los modelos anteriores, `thinkingBudget`.
+    /// `thinkingLevel` con su mínimo "low": gemini-3.8-flash rechaza "minimal" con
+    /// un 400. Los modelos anteriores usan `thinkingBudget`.
     /// </summary>
     private static JsonObject? Razonamiento(string modelo, string? nivel)
     {
         if (nivel is not (NivelRazonamiento.Desactivado or NivelRazonamiento.Bajo)) return null;
 
         return modelo.StartsWith("gemini-3", StringComparison.OrdinalIgnoreCase)
-            ? new JsonObject { ["thinkingLevel"] = nivel == NivelRazonamiento.Desactivado ? "minimal" : "low" }
+            ? new JsonObject { ["thinkingLevel"] = "low" }
             : new JsonObject { ["thinkingBudget"] = nivel == NivelRazonamiento.Desactivado ? 0 : 512 };
     }
 
