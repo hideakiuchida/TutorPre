@@ -19,6 +19,25 @@ import {
 /** Marca de que ya se intentó conectar la IA automáticamente en esta sesión. */
 const AUTOMATICO = 'tutor.openrouter.automatico';
 
+/** El tutor que eligió en "Mi tutor": al volver a entrar sigue con el mismo. */
+const TUTOR_ELEGIDO = 'tutor.agente';
+
+function leerTutorElegido(): string | null {
+  try {
+    return localStorage.getItem(TUTOR_ELEGIDO);
+  } catch {
+    return null;
+  }
+}
+
+function guardarTutorElegido(agenteId: string): void {
+  try {
+    localStorage.setItem(TUTOR_ELEGIDO, agenteId);
+  } catch {
+    // Sin almacenamiento solo se pierde la preferencia al recargar.
+  }
+}
+
 /**
  * Única pantalla del alumno (SDD §8): lista de clases y el chat. No hay formulario de
  * examen ni botones de alternativas; todo entra como texto de la conversación.
@@ -190,7 +209,13 @@ export class ChatTutorPage {
       this.clases.set(clases);
       this.agentes.set(agentes);
       this.credenciales.set(credenciales);
-      this.agenteActivo.set(this.agentesConectados()[0]?.id ?? agentes[0]?.id ?? '');
+      const elegido = leerTutorElegido();
+      this.agenteActivo.set(
+        this.agentesConectados().find((a) => a.id === elegido)?.id ??
+          this.agentesConectados()[0]?.id ??
+          agentes[0]?.id ??
+          '',
+      );
 
       // Sin credencial, lo primero es conectarla: el chat no sirve de nada aún.
       this.configuracionAbierta.set(this.sinAgente());
@@ -318,6 +343,7 @@ export class ChatTutorPage {
     // Sin clase abierta todavía, la próxima conversación ya empieza con este tutor.
     if (this.conversacionId()) await this.api.cambiarAgente(this.conversacionId(), agenteId);
     this.agenteActivo.set(agenteId);
+    guardarTutorElegido(agenteId);
   }
 
   /**
