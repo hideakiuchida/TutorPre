@@ -96,6 +96,23 @@ public class GeneradorExamenTests
     }
 
     [Fact]
+    public async Task Si_el_razonamiento_deja_la_pregunta_a_medias_se_repite_sin_razonar()
+    {
+        // Lo que pasó en producción: el modelo gastó el tope pensando y cortó el JSON.
+        var proveedor = new ProveedorGuionado()
+            .Responde(new TextoParcial("""{"preguntas":[{"enunciado":"A medias"""), new Fin(100, 1000, CortadaPorTope: true))
+            .RespondeTexto(Json(Valida("Completa")));
+
+        var preguntas = await new GeneradorExamen().GenerarAsync(proveedor, "m", Material, 1);
+
+        Assert.Equal("Completa", Assert.Single(preguntas).Enunciado);
+        Assert.Equal(
+            [NivelRazonamiento.Bajo, NivelRazonamiento.Desactivado],
+            proveedor.Solicitudes.Select(s => s.Razonamiento));
+        Assert.True(proveedor.Solicitudes[0].MaxTokens >= 2000);
+    }
+
+    [Fact]
     public async Task Un_error_del_proveedor_viaja_con_el_fallo()
     {
         var proveedor = new ProveedorGuionado().Responde(new ErrorProveedor("429", true, LimiteDeUso: true));

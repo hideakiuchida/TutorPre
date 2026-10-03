@@ -40,6 +40,9 @@ public sealed class GeneradorExamen(bool barajar = true) : IGeneradorExamen
     /// <summary>Por debajo de esto no hay examen que valga la pena rendir.</summary>
     private const int MinimoUtil = 3;
 
+    /// <summary>Tokens de salida reservados para lo que el modelo piense antes de responder.</summary>
+    private const int HolguraRazonamiento = 1500;
+
     public async Task<IReadOnlyList<Pregunta>> GenerarAsync(
         ILlmProvider proveedor, string modelo, ContextoClase contexto, int cantidad,
         IReadOnlyCollection<string>? yaPreguntadas = null, CancellationToken ct = default)
@@ -53,33 +56,40 @@ public sealed class GeneradorExamen(bool barajar = true) : IGeneradorExamen
                       string.Join("\n- ", yaPreguntadas);
         }
 
-        var solicitud = new LlmSolicitud(
-            modelo,
-            Prompt(contexto, cantidad),
-            [new LlmMensaje(RolLlm.Usuario, pedido)],
-            [],
-            // Algo de variedad: cada alumno y cada intento reciben un examen distinto.
-            Temperatura: 0.7,
-            MaxTokens: 600 * cantidad + 400,
-            // Armar preguntas con una sola correcta y su justificación sí gana con algo de
-            // razonamiento; el alumno espera una vez, no en cada mensaje.
-            Razonamiento: NivelRazonamiento.Bajo);
+        // Con algo de razonamiento las preguntas salen mejor, pero ese razonamiento consume del
+        // mismo tope de salida: un modelo que piensa de más deja el JSON a medias. Si pasa, se
+        // repite una vez sin razonar, que es lo que garantiza que el alumno tenga su pregunta.
+        IReadOnlyList<Pregunta> preguntas = [];
 
-        var texto = new StringBuilder();
-
-        await foreach (var evento in proveedor.StreamAsync(solicitud, ct))
+        foreach (var razonamiento in new[] { NivelRazonamiento.Bajo, NivelRazonamiento.Desactivado })
         {
-            switch (evento)
-            {
-                case TextoParcial t:
-                    texto.Append(t.Texto);
-                    break;
-                case ErrorProveedor e:
-                    throw new GeneracionExamenException("El proveedor no pudo generar el examen.", e);
-            }
-        }
+            var solicitud = new LlmSolicitud(
+                modelo,
+                Prompt(contexto, cantidad),
+                [new LlmMensaje(RolLlm.Usuario, pedido)],
+                [],
+                // Algo de variedad: cada alumno y cada intento reciben un examen distinto.
+                Temperatura: 0.7,
+                MaxTokens: 600 * cantidad + 400 + HolguraRazonamiento,
+                Razonamiento: razonamiento);
 
-        var preguntas = Interpretar(texto.ToString(), cantidad);
+            var texto = new StringBuilder();
+
+            await foreach (var evento in proveedor.StreamAsync(solicitud, ct))
+            {
+                switch (evento)
+                {
+                    case TextoParcial t:
+                        texto.Append(t.Texto);
+                        break;
+                    case ErrorProveedor e:
+                        throw new GeneracionExamenException("El proveedor no pudo generar el examen.", e);
+                }
+            }
+
+            preguntas = Interpretar(texto.ToString(), cantidad);
+            if (preguntas.Count >= Math.Min(MinimoUtil, cantidad)) break;
+        }
 
         if (preguntas.Count < Math.Min(MinimoUtil, cantidad))
             throw new GeneracionExamenException("La IA no devolvió un examen válido. Vuelve a intentarlo.");
