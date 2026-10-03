@@ -155,6 +155,17 @@ public static partial class GuionExamen
         return sb.ToString();
     }
 
+    /// <summary>La nota tal como la calculó el servidor al cerrar el intento.</summary>
+    public static string Nota(string resultadoJson)
+    {
+        using var doc = JsonDocument.Parse(resultadoJson);
+        var raiz = doc.RootElement;
+
+        var nota = raiz.GetProperty("nota").GetDecimal().ToString("0.0", CultureInfo.InvariantCulture);
+        return $"**Examen terminado.** Tu nota es **{nota}** sobre 20: " +
+               $"{raiz.GetProperty("correctas").GetInt32()} de {raiz.GetProperty("total").GetInt32()} correctas.";
+    }
+
     public static bool Verdadero(string resultadoJson, string propiedad)
     {
         using var doc = JsonDocument.Parse(resultadoJson);

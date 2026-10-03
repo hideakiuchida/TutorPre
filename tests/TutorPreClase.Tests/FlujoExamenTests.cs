@@ -460,6 +460,7 @@ public class ExamenConfiableTests
 
         Assert.Equal(20.0m, banco.Db.Intentos.Single().Puntaje);
         Assert.Equal(ModoConversacion.Revision, banco.Db.Conversaciones.Single().Modo);
+        Assert.Contains("Tu nota es **20.0** sobre 20: 2 de 2 correctas.", Texto(eventos));
         Assert.Contains("Evaluación final", Texto(eventos));
 
         // La evaluación final no tiene citas: no se le pide sustento.
@@ -470,6 +471,24 @@ public class ExamenConfiableTests
         Assert.Contains("\"nota\":20", solicitud.Mensajes.Last().Texto);
         Assert.Contains("MODO: Revision", solicitud.PromptSistema);
         Assert.Contains(solicitud.Herramientas, h => h.Nombre == Herramientas.ProponerDiagnostico);
+    }
+
+    [Fact]
+    public async Task Si_el_tutor_falla_al_cerrar_el_alumno_ve_igual_su_nota_y_queda_guardada()
+    {
+        var (banco, conversacion) = await EnExamen();
+        using var _ = banco;
+        await FlujoExamenTests.Empezar(banco, conversacion);
+        await banco.EnviarAsync(conversacion, "A");
+
+        // Lo que pasó en producción: sin cupo justo al pedirle la evaluación final.
+        banco.Proveedor.Responde(new ErrorProveedor("429", true, LimiteDeUso: true));
+        var eventos = await banco.EnviarAsync(conversacion, "B");
+
+        Assert.Contains("Tu nota es **10.0** sobre 20: 1 de 2 correctas.", Texto(eventos));
+        Assert.Contains(eventos.OfType<EventoAviso>(), a => a.Codigo == "limite_de_uso");
+        Assert.Contains("Tu nota es **10.0**", banco.Db.Mensajes.Where(m => m.Rol == RolMensaje.Agente).ToList().Last().Texto);
+        Assert.Equal(NivelAlumnoValor.Inicial, banco.Db.Niveles.Single().Nivel);
     }
 
     [Fact]

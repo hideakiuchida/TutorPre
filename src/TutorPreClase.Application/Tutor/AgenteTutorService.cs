@@ -303,6 +303,21 @@ public sealed class AgenteTutorService(
                         yield return new EventoError(error.Mensaje, error.Reintentable);
                     }
 
+                    // Lo que el servidor ya le dijo al alumno en este turno (que registró su
+                    // respuesta, su nota) no se pierde porque el modelo falle después.
+                    if (textoFinal.Length > 0)
+                    {
+                        db.Mensajes.Add(new MensajeChat
+                        {
+                            ConversacionId = conversacion.Id,
+                            AgenteId = agente.Id,
+                            Rol = RolMensaje.Agente,
+                            Texto = textoFinal.ToString().TrimEnd(),
+                            CreadoEn = reloj.Ahora
+                        });
+                        await db.SaveChangesAsync(ct);
+                    }
+
                     yield break;
                 }
 
@@ -371,6 +386,7 @@ public sealed class AgenteTutorService(
             yield return new EventoHerramienta(resultado.Nombre, resultado.Ok ? "ok" : "error");
 
             var json = resultado.Json;
+            var jsonCierre = resultado.CierraExamen ? resultado.Json : null;
             var registradaAhora = false;
 
             if (llamada.Nombre == Herramientas.RegistrarRespuesta)
@@ -392,6 +408,7 @@ public sealed class AgenteTutorService(
                         conCierre["examen_finalizado"] = true;
                         conCierre["resultado"] = JsonNode.Parse(cierre.Json);
                         json = conCierre.ToJsonString();
+                        jsonCierre = cierre.Json;
                         resultado = resultado with { CierraExamen = cierre.CierraExamen };
                     }
                 }
@@ -417,6 +434,12 @@ public sealed class AgenteTutorService(
                 contextoClase = await contexto.ObtenerAsync(conversacion.ClaseId, ct);
                 prompt = Prompt();
                 emisor = new EmisorConCorte(retenerAmpliacion: !ampliacionPermitida);
+
+                // La nota la comunica el servidor: el alumno la ve aunque el tutor se quede
+                // sin cupo justo ahora. El tutor añade después su evaluación.
+                var nota = Parrafo(textoFinal, GuionExamen.Nota(jsonCierre!)) + "\n\n";
+                textoFinal.Append(nota);
+                yield return new EventoToken(nota);
                 continue;
             }
 
