@@ -90,22 +90,41 @@ public sealed class PreguntasDelIntento(
 
             var yaPreguntadas = existentes.Select(p => $"{p.Tema}: {p.Enunciado}").ToList();
 
-            IReadOnlyList<Pregunta> nuevas;
-            try
-            {
-                nuevas = await generador.GenerarAsync(
-                    proveedores.Obtener(agente.Id, clave), intento.Modelo, material, 1, yaPreguntadas, ct);
-            }
-            catch (GeneracionExamenException ex)
-            {
-                if (ex.Error?.CredencialRechazada == true)
-                    await credenciales.MarcarInvalidaAsync(intento.AlumnoId, agente.Id, ct);
+            IReadOnlyList<Pregunta>? nuevas = null;
+            ErrorProveedor? fallo = null;
 
-                log.LogWarning("No se pudo generar la pregunta {Numero} del intento {Intento}: {Detalle}",
-                    existentes.Count + 1, intentoId, ex.Error?.Mensaje ?? ex.Message);
+            // Primero la IA del intento. Si se quedó sin cupo o está saturada, el examen no se
+            // detiene con el reloj corriendo: se prueba con las otras IA que el alumno conectó.
+            foreach (var (candidato, modelo) in await CandidatosAsync(intento, agente, ct))
+            {
+                var claveCandidato = candidato.Id == agente.Id
+                    ? clave
+                    : await credenciales.ClaveParaAsync(intento.AlumnoId, candidato.Id, ct);
+                if (claveCandidato is null) continue;
 
-                return new GeneracionPregunta(false, Mensaje(ex.Error));
+                try
+                {
+                    nuevas = await generador.GenerarAsync(
+                        proveedores.Obtener(candidato.Id, claveCandidato), modelo, material, 1, yaPreguntadas, ct);
+                    break;
+                }
+                catch (GeneracionExamenException ex)
+                {
+                    if (ex.Error?.CredencialRechazada == true)
+                        await credenciales.MarcarInvalidaAsync(intento.AlumnoId, candidato.Id, ct);
+
+                    log.LogWarning("No se pudo generar la pregunta {Numero} del intento {Intento} con {Agente}: {Detalle}",
+                        existentes.Count + 1, intentoId, candidato.Id, ex.Error?.Mensaje ?? ex.Message);
+
+                    // El mensaje al alumno habla de la IA de su examen, no de los respaldos.
+                    fallo ??= ex.Error ?? new ErrorProveedor(ex.Message, true);
+
+                    // Solo el cupo o la saturación justifican cambiar de IA.
+                    if (ex.Error?.LimiteDeUso != true) break;
+                }
             }
+
+            if (nuevas is null) return new GeneracionPregunta(false, Mensaje(fallo));
 
             var pregunta = nuevas[0];
             pregunta.ExamenId = intento.ExamenId;
@@ -123,11 +142,28 @@ public sealed class PreguntasDelIntento(
         }
     }
 
+    /// <summary>La IA del intento con su modelo y, detrás, las demás conectadas con el suyo.</summary>
+    private async Task<List<(AgenteIA Agente, string Modelo)>> CandidatosAsync(
+        Intento intento, AgenteIA delIntento, CancellationToken ct)
+    {
+        var conectados = await credenciales.AgentesConectadosAsync(intento.AlumnoId, ct);
+
+        var otros = (await db.Agentes
+                .AsNoTracking()
+                .Where(a => a.Habilitado && a.Id != delIntento.Id)
+                .ToListAsync(ct))
+            .Where(a => conectados.Contains(a.Id) && proveedores.Existe(a.Id))
+            .OrderBy(a => a.Id, StringComparer.Ordinal)
+            .Select(a => (a, a.Modelo));
+
+        return [(delIntento, intento.Modelo), .. otros];
+    }
+
     private static string Mensaje(ErrorProveedor? error) => error switch
     {
         { CredencialRechazada: true } => "Tu cuenta de IA fue rechazada. Vuelve a conectarla para seguir con el examen.",
         { Saturado: true } => "El modelo está saturado ahora mismo. Pide la siguiente pregunta en unos segundos; tu avance está guardado.",
-        { LimiteDeUso: true } => "Se acabó el cupo de tu cuenta de IA. Tu avance está guardado; podrás seguir más tarde.",
+        { LimiteDeUso: true } => "Se acabó el cupo de tu cuenta de IA. Conecta otra IA en «Mi tutor» para seguir, o vuelve más tarde.",
         _ => "No se pudo preparar la siguiente pregunta. Pídela de nuevo; tu avance está guardado."
     };
 }

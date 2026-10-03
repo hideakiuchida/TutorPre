@@ -271,6 +271,11 @@ public sealed class GeneradorFijo : IGeneradorExamen
     /// <summary>Si se fija, la generacion falla con este error del proveedor.</summary>
     public ErrorProveedor? Falla { get; set; }
 
+    /// <summary>Falla solo con algunos modelos: para probar el respaldo con otra IA.</summary>
+    public Func<string, ErrorProveedor?>? FallaCon { get; set; }
+
+    public string? UltimoModelo { get; private set; }
+
     /// <summary>Lo que ya tenía el intento en la última llamada (generación pregunta a pregunta).</summary>
     public IReadOnlyCollection<string>? UltimasYaPreguntadas { get; private set; }
 
@@ -281,7 +286,9 @@ public sealed class GeneradorFijo : IGeneradorExamen
         Llamadas++;
         UltimoMaterial = contexto;
         UltimasYaPreguntadas = yaPreguntadas;
-        if (Falla is not null) throw new GeneracionExamenException("Fallo el proveedor.", Falla);
+        UltimoModelo = modelo;
+        if ((Falla ?? FallaCon?.Invoke(modelo)) is ErrorProveedor error)
+            throw new GeneracionExamenException("Fallo el proveedor.", error);
 
         // Pregunta a pregunta: devuelve las siguientes de la lista, según lo ya preguntado.
         var desde = yaPreguntadas?.Count ?? 0;

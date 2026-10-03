@@ -472,6 +472,31 @@ public class ExamenConfiableTests
         Assert.Contains(solicitud.Herramientas, h => h.Nombre == Herramientas.ProponerDiagnostico);
     }
 
+    [Fact]
+    public async Task Si_la_IA_del_examen_se_queda_sin_cupo_la_pregunta_sale_de_otra_IA_conectada()
+    {
+        var (banco, conversacion) = await EnExamen();
+        using var _ = banco;
+        banco.Db.Agentes.Add(new AgenteIA
+        {
+            Id = "openai", NombreVisible = "ChatGPT", Proveedor = "OpenAI", Modelo = "gpt-5-mini", Habilitado = true
+        });
+        banco.Db.SaveChanges();
+        await banco.Boveda.ConectarAsync(banco.AlumnoId, "openai", "sk-proj-de-prueba-0000-9999");
+        await FlujoExamenTests.Empezar(banco, conversacion);
+
+        // Solo la IA del intento está sin cupo.
+        banco.Generador.FallaCon = modelo => modelo == "qwen/qwen3.8-27b:free"
+            ? new ErrorProveedor("429", true, LimiteDeUso: true)
+            : null;
+
+        var texto = Texto(await banco.EnviarAsync(conversacion, "A"));
+
+        Assert.Contains("Pregunta 2 de 2", texto);
+        Assert.Equal("gpt-5-mini", banco.Generador.UltimoModelo);
+        Assert.Equal(EstadoCredencial.Valida, banco.Db.Credenciales.Single(c => c.AgenteId == "openrouter").Estado);
+    }
+
     [Theory]
     [InlineData("la de la salud económica y financiera", "C")]
     [InlineData("el estratégico", "B")]
