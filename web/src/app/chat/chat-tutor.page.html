@@ -100,7 +100,7 @@
         (cerrar)="configuracionAbierta.set(false)" />
     }
 
-    <ol class="mensajes" aria-live="polite">
+    <ol class="mensajes" aria-live="polite" #lista (scroll)="alDesplazar()">
       @for (mensaje of mensajes(); track $index) {
         @if (mensaje.rol === 'Alumno') {
           <li class="alumno">

@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { ConfiguracionTutor } from './configuracion-tutor';
@@ -118,6 +118,25 @@ export class ChatTutorPage {
 
   ventana(clase: ClaseResumen | null): ReturnType<typeof ventanaExamen> {
     return ventanaExamen(clase, this.ahora());
+  }
+
+  private readonly lista = viewChild<ElementRef<HTMLElement>>('lista');
+
+  /** El alumno está leyendo lo último: si sube a releer, el chat no lo arrastra de vuelta. */
+  private alFinal = true;
+
+  constructor() {
+    // Cada mensaje o trozo nuevo deja a la vista lo último, como en cualquier chat.
+    effect(() => {
+      this.mensajes();
+      const lista = this.lista()?.nativeElement;
+      if (lista && this.alFinal) requestAnimationFrame(() => (lista.scrollTop = lista.scrollHeight));
+    });
+  }
+
+  alDesplazar(): void {
+    const lista = this.lista()?.nativeElement;
+    if (lista) this.alFinal = lista.scrollHeight - lista.scrollTop - lista.clientHeight < 80;
   }
 
   readonly etiquetaModo = computed(() => {
@@ -339,6 +358,7 @@ export class ChatTutorPage {
     this.fijarProgreso(conversacion.progreso ?? null);
 
     const historial = await this.api.historial(conversacion.conversacionId);
+    this.alFinal = true;
 
     this.mensajes.set(
       historial.map((m) => {
@@ -412,6 +432,7 @@ export class ChatTutorPage {
     this.enviando.set(true);
     this.error.set('');
     this.novedad.set('');
+    this.alFinal = true;
 
     this.mensajes.update((ms) => [
       ...ms,
