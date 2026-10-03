@@ -15,8 +15,16 @@
         (click)="abrir(clase)">
         <span class="titulo">{{ clase.titulo }}</span>
         <span class="fecha">{{ clase.inicio | date: 'EEE d MMM, HH:mm' }}</span>
-        @if (clase.examen?.publicado) {
-          <span class="examen-disponible">Examen disponible</span>
+        @switch (ventana(clase)) {
+          @case ('disponible') {
+            <span class="examen-disponible">Examen disponible</span>
+          }
+          @case ('proximo') {
+            <span class="examen-fuera">Examen desde el {{ clase.examen?.abreEn | date: 'd MMM, HH:mm' }}</span>
+          }
+          @case ('cerrado') {
+            <span class="examen-fuera">Examen cerrado</span>
+          }
         }
       </button>
     } @empty {
@@ -46,7 +54,7 @@
         </p>
         <button class="enlace" (click)="salir()">Salir</button>
 
-        @if (!enExamen() && claseActiva()?.examen?.publicado && !sinAgente()) {
+        @if (!enExamen() && examenDisponible() && !sinAgente()) {
           <button class="principal" [disabled]="preparandoExamen() || enviando()" (click)="comenzarExamen()">
             {{ preparandoExamen() ? 'Preparando…' : 'Comenzar examen' }}
           </button>

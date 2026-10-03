@@ -14,6 +14,7 @@ import {
   Progreso,
   separarAmpliacion,
   tramos,
+  ventanaExamen,
 } from '../datos/tutor.modelos';
 
 /** Marca de que ya se intentó conectar la IA automáticamente en esta sesión. */
@@ -98,13 +99,26 @@ export class ChatTutorPage {
     return p ? Array.from({ length: p.total }, (_, i) => i < p.respondidas) : [];
   });
 
-  readonly tiempoRestante = computed(() => {
-    const segundos = this.progreso()?.segundosRestantes;
-    if (segundos === null || segundos === undefined) return null;
+  /** El reloj de la página: mueve el tiempo del examen y la ventana de cada clase. */
+  private readonly ahora = signal(Date.now());
 
-    const s = Math.max(0, segundos);
+  /** Cuándo se acaba el tiempo, según el último progreso que mandó el servidor. */
+  private readonly finDelTiempo = signal<number | null>(null);
+
+  readonly tiempoRestante = computed(() => {
+    const fin = this.finDelTiempo();
+    if (fin === null) return null;
+
+    const s = Math.max(0, Math.round((fin - this.ahora()) / 1000));
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   });
+
+  /** El examen de la clase abierta se puede empezar ahora. */
+  readonly examenDisponible = computed(() => this.ventana(this.claseActiva()) === 'disponible');
+
+  ventana(clase: ClaseResumen | null): ReturnType<typeof ventanaExamen> {
+    return ventanaExamen(clase, this.ahora());
+  }
 
   readonly etiquetaModo = computed(() => {
     switch (this.modo()) {
@@ -118,6 +132,9 @@ export class ChatTutorPage {
   });
 
   async ngOnInit(): Promise<void> {
+    const reloj = setInterval(() => this.ahora.set(Date.now()), 1_000);
+    this.destruccion.onDestroy(() => clearInterval(reloj));
+
     this.escucharNovedades();
     if (!this.usuarioId()) return;
     await this.completarOAuth();
@@ -217,8 +234,9 @@ export class ChatTutorPage {
           '',
       );
 
-      // Sin credencial, lo primero es conectarla: el chat no sirve de nada aún.
-      this.configuracionAbierta.set(this.sinAgente());
+      // Sin credencial, lo primero es conectarla: el chat no sirve de nada aún. Y si la
+      // conexión que acaba de intentar falló, el aviso está en ese panel: se abre para que lo vea.
+      this.configuracionAbierta.set(this.sinAgente() || !!this.errorCredencial());
 
       // RF-32: al entrar sin IA conectada se le lleva directo a autorizarla, una sola vez por
       // sesión: si cancela o falla, se queda el botón y no se le reenvía en bucle. Con más de
@@ -312,12 +330,13 @@ export class ChatTutorPage {
     this.claseActiva.set(clase);
     this.error.set('');
     this.novedad.set('');
-    this.progreso.set(null);
+    this.fijarProgreso(null);
 
     const conversacion = await this.api.abrirConversacion(clase.claseId, this.agenteActivo());
     this.conversacionId.set(conversacion.conversacionId);
     this.modo.set(conversacion.modo);
     this.agenteActivo.set(conversacion.agenteId);
+    this.fijarProgreso(conversacion.progreso ?? null);
 
     const historial = await this.api.historial(conversacion.conversacionId);
 
@@ -414,7 +433,24 @@ export class ChatTutorPage {
       this.enviando.set(false);
       this.actualizarUltimo((m) => ({ ...m, enCurso: false }));
       this.repartirAmpliacion();
+      this.quitarRespuestaVacia();
     }
+  }
+
+  /** Si el tutor no llegó a escribir nada (falló el proveedor), no queda un globo en blanco. */
+  private quitarRespuestaVacia(): void {
+    this.mensajes.update((ms) => {
+      const ultimo = ms[ms.length - 1];
+      const vacio = ultimo?.rol === 'Agente' && !ultimo.texto && !ultimo.ampliacion && !ultimo.aviso;
+      return vacio ? ms.slice(0, -1) : ms;
+    });
+  }
+
+  private fijarProgreso(progreso: Progreso | null): void {
+    this.progreso.set(progreso);
+
+    const segundos = progreso?.segundosRestantes;
+    this.finDelTiempo.set(segundos === null || segundos === undefined ? null : Date.now() + segundos * 1000);
   }
 
   private aplicar(evento: EventoTutor): void {
@@ -429,7 +465,7 @@ export class ChatTutorPage {
         break;
 
       case 'progreso':
-        this.progreso.set(evento.progreso);
+        this.fijarProgreso(evento.progreso);
         break;
 
       case 'fuentes':

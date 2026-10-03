@@ -175,15 +175,28 @@ public static class EndpointsAlumno
             AbrirConversacionPeticion peticion,
             HttpContext http,
             IAgenteTutorService tutor,
+            IServicioExamen examen,
             CancellationToken ct) =>
         {
             var conversacion = await tutor.AbrirConversacionAsync(claseId, http.User.Id(), peticion.AgenteId, ct);
+
+            // Si vuelve a entrar con el examen empezado, la hoja de respuestas y el tiempo
+            // aparecen de inmediato, sin esperar a su próximo mensaje.
+            var progreso = conversacion is { Modo: ModoConversacion.Evaluacion, IntentoId: Guid intentoId }
+                ? await examen.ProgresoAsync(intentoId, ct)
+                : null;
 
             return Results.Ok(new
             {
                 conversacionId = conversacion.Id,
                 modo = conversacion.Modo.ToString(),
-                agenteId = conversacion.AgenteId
+                agenteId = conversacion.AgenteId,
+                progreso = progreso is null ? null : new
+                {
+                    respondidas = progreso.Respondidas,
+                    total = progreso.Total,
+                    segundosRestantes = progreso.SegundosRestantes
+                }
             });
         });
 

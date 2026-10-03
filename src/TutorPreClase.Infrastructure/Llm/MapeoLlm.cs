@@ -80,6 +80,14 @@ internal static class MapeoLlm
     public static bool EsReintentable(HttpStatusCode codigo) =>
         codigo == HttpStatusCode.TooManyRequests || (int)codigo >= 500;
 
+    /// <summary>
+    /// Lo que lee el alumno cuando el proveedor falla: qué puede hacer, no el código HTTP
+    /// (ese queda en el log).
+    /// </summary>
+    public static string MensajeDeFallo(HttpStatusCode codigo) => EsReintentable(codigo)
+        ? "El tutor no pudo responder ahora mismo. Vuelve a enviar tu mensaje en unos segundos."
+        : "El tutor no pudo responder a ese mensaje. Si se repite, cambia de tutor en «Mi tutor» o avisa a tu docente.";
+
     public readonly record struct Envio(HttpResponseMessage? Respuesta, ErrorProveedor? Error);
 
     /// <summary>
@@ -115,7 +123,7 @@ internal static class MapeoLlm
         var limiteDeUso = respuesta.StatusCode == HttpStatusCode.TooManyRequests;
 
         return new ErrorProveedor(
-            $"El proveedor respondio {(int)respuesta.StatusCode}.",
+            MensajeDeFallo(respuesta.StatusCode),
             EsReintentable(respuesta.StatusCode),
             credencialRechazada,
             limiteDeUso,

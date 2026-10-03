@@ -1,40 +1,99 @@
 /*
- * "Mi tutor" se abre encima del chat como una hoja de configuración. Las pestañas son las
- * lengüetas de un separador de cuaderno: la elegida se une a la hoja, sin borde inferior.
+ * "Mi tutor" es una hoja que se abre encima del chat (SDD §8): arriba, con quién conversa;
+ * debajo, cómo conectar otra IA, en pestañas. Tiene su propio desplazamiento, así que la
+ * cabecera con "Volver al chat" siempre queda a la vista.
  */
 :host {
-  display: block;
-  flex: 0 1 auto;
-  min-height: 0;
-  max-height: 70vh;
-  overflow-y: auto;
-  border-bottom: 1px solid var(--pauta);
-  background: #fff;
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: start center;
+  padding: 4.5rem 1rem 1rem;
+  --conectado: #1d7a4a;
+}
+
+.fondo {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--tinta) 45%, transparent);
 }
 
 .configuracion {
-  max-width: 46rem;
-  padding: 1.25rem 2.5rem 1.5rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(46rem, 100%);
+  max-height: calc(100dvh - 5.5rem);
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 18px 48px rgb(27 42 65 / 28%);
+  overflow: hidden;
 }
 
 .encabezado {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+  padding: 1.1rem 1.5rem 0.9rem;
+  border-bottom: 1px solid var(--pauta);
+  border-top: 4px solid var(--tapa);
+}
+
+.cuerpo {
+  padding: 1.1rem 1.5rem 1.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 h2 {
-  margin: 0 0 0.75rem;
+  margin: 0;
   font-family: var(--serif);
   font-size: var(--t-titulo);
   font-weight: 600;
 }
 
-h3 {
-  margin: 0 0 0.35rem;
+.bajada {
+  margin: 0.15rem 0 0;
+  font-size: var(--t-pequeno);
+  color: var(--grafito);
+}
+
+.volver {
+  flex: 0 0 auto;
+  padding: 0.4rem 0.8rem;
+  border: 1.5px solid var(--pauta);
+  border-radius: 3px;
+  background: #fff;
+  color: var(--tinta);
+  font-weight: 600;
+}
+
+.volver:hover {
+  border-color: var(--tapa);
+  color: var(--tapa);
+}
+
+.seccion,
+.activo legend {
+  margin: 0 0 0.5rem;
+  padding: 0;
+  font-size: var(--t-pequeno);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--grafito);
+}
+
+h4 {
+  margin: 0;
   font-size: var(--t-base);
   font-weight: 700;
+}
+
+.subtitulo {
+  margin: 1.1rem 0 0.4rem;
 }
 
 .ayuda {
@@ -42,42 +101,50 @@ h3 {
   color: var(--grafito);
 }
 
+.bienvenida {
+  margin: 0 0 1.1rem;
+  padding: 0.75rem 0.9rem;
+  border-left: 3px solid var(--resaltador);
+  background: var(--papel);
+}
+
 .modelo {
-  margin-left: 0.35rem;
   padding: 0.05rem 0.35rem;
   border-radius: 2px;
   background: var(--pauta);
   font-size: var(--t-pequeno);
   font-weight: 400;
   color: var(--tinta);
+  overflow-wrap: anywhere;
 }
 
 /* ---------- Con quién conversa ---------- */
 
 .activo {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0 0 1.25rem;
+  margin: 0 0 1.4rem;
   padding: 0;
   border: 0;
 }
 
-.activo legend {
-  margin-bottom: 0.4rem;
-  padding: 0;
-  font-size: var(--t-pequeno);
-  color: var(--grafito);
+.opciones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.6rem;
 }
 
 .opcion {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.45rem 0.75rem;
+  gap: 0.65rem;
+  padding: 0.7rem 0.8rem;
   border: 1.5px solid var(--pauta);
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: pointer;
+  transition: border-color 0.12s, background-color 0.12s;
+}
+
+.opcion:hover {
+  border-color: var(--tapa-suave);
 }
 
 .opcion.elegida {
@@ -85,13 +152,40 @@ h3 {
   background: color-mix(in srgb, var(--tapa) 6%, #fff);
 }
 
+.opcion:focus-within {
+  outline: 2px solid var(--tapa);
+  outline-offset: 2px;
+}
+
 .opcion input {
+  flex: 0 0 auto;
+  width: 1.05rem;
+  height: 1.05rem;
   margin: 0;
   accent-color: var(--tapa);
 }
 
+.quien {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
 .opcion .nombre {
-  font-weight: 600;
+  font-weight: 700;
+}
+
+.en-uso {
+  flex: 0 0 auto;
+  padding: 0.05rem 0.45rem;
+  border-radius: 2px;
+  background: var(--tapa);
+  color: #fff;
+  font-size: var(--t-pequeno);
+  font-weight: 700;
 }
 
 .activo:disabled .opcion {
@@ -100,8 +194,7 @@ h3 {
 }
 
 .activo .ayuda {
-  flex-basis: 100%;
-  margin: 0;
+  margin: 0.6rem 0 0;
 }
 
 /* ---------- Pestañas ---------- */
@@ -109,33 +202,33 @@ h3 {
 .pestanas {
   display: flex;
   gap: 0.25rem;
-  border-bottom: 1.5px solid var(--pauta);
-  overflow-x: auto;
-  scrollbar-width: none;
+  padding: 0.25rem;
+  border-radius: 5px;
+  background: var(--pauta);
 }
 
 [role='tab'] {
-  flex: 0 0 auto;
-  margin-bottom: -1.5px;
-  padding: 0.5rem 0.9rem;
-  border: 1.5px solid transparent;
-  border-bottom: 0;
-  border-radius: 3px 3px 0 0;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.45rem 0.5rem;
+  border: 0;
+  border-radius: 3px;
   background: transparent;
   color: var(--grafito);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 [role='tab']:hover:not(:disabled) {
-  border-color: transparent;
   color: var(--tinta);
 }
 
 [role='tab'][aria-selected='true'] {
-  border-color: var(--pauta);
   background: #fff;
-  color: var(--tinta);
-  font-weight: 700;
-  box-shadow: inset 0 3px 0 var(--tapa);
+  color: var(--tapa);
+  box-shadow: 0 1px 2px rgb(27 42 65 / 18%);
 }
 
 .panel {
@@ -144,18 +237,56 @@ h3 {
 
 /* ---------- Proveedores ---------- */
 
-.proveedor {
-  padding: 0.9rem 0;
-  border-bottom: 1px dashed var(--pauta);
+.proveedores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.75rem;
 }
 
-.proveedor:last-child {
-  border-bottom: 0;
+.proveedores.una-columna {
+  grid-template-columns: 1fr;
+}
+
+.proveedor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem 0.95rem;
+  border: 1.5px solid var(--pauta);
+  border-radius: 4px;
+}
+
+.proveedor.conectado {
+  border-left: 4px solid var(--conectado);
+}
+
+.proveedor header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.5rem;
+}
+
+.proveedor .ayuda {
+  margin: 0;
 }
 
 .estado {
-  margin: 0 0 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
   font-weight: 600;
+  color: var(--conectado);
+}
+
+.estado::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .estado.invalida,
@@ -181,6 +312,24 @@ h3 {
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
+}
+
+.proveedor .acciones {
+  margin-top: auto;
+  padding-top: 0.25rem;
+}
+
+.secundario {
+  padding: 0.4rem 0.75rem;
+  border: 1.5px solid var(--tapa-suave);
+  border-radius: 3px;
+  background: #fff;
+  color: var(--tapa);
+  font-weight: 600;
+}
+
+.secundario:hover:not(:disabled) {
+  border-color: var(--tapa);
 }
 
 .clave label {
@@ -240,16 +389,34 @@ h3 {
 }
 
 @media (max-width: 760px) {
+  :host {
+    padding: 0;
+    place-items: stretch;
+  }
+
   .configuracion {
+    width: 100%;
+    max-height: 100dvh;
+    height: 100dvh;
+    border-radius: 0;
+  }
+
+  .encabezado {
+    padding: 0.9rem 1rem 0.75rem;
+  }
+
+  .cuerpo {
     padding: 1rem;
   }
 
-  :host {
-    max-height: 75vh;
-  }
-
   [role='tab'] {
-    padding: 0.45rem 0.6rem;
+    padding: 0.45rem 0.25rem;
     font-size: var(--t-pequeno);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opcion {
+    transition: none;
   }
 }

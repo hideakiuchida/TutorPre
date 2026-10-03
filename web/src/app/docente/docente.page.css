@@ -135,6 +135,47 @@ th {
   font-variant-numeric: tabular-nums;
 }
 
+/* La ficha de cada alumno: en pantallas angostas la tabla se desplaza, no se aprieta. */
+.tabla-alumnos {
+  margin-bottom: 1.25rem;
+  overflow-x: auto;
+}
+
+.tabla-alumnos table {
+  min-width: 34rem;
+}
+
+.nota {
+  font-weight: 700;
+}
+
+.cuando {
+  display: block;
+  font-size: var(--t-pequeno);
+  color: var(--grafito);
+}
+
+.nivel {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--pauta);
+  border-radius: 2px;
+  font-size: var(--t-pequeno);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.nivel[data-nivel='Inicial'] {
+  border-color: var(--lapicero);
+  color: var(--lapicero);
+}
+
+.nivel[data-nivel='Avanzado'] {
+  border-color: var(--tapa);
+  background: var(--tapa);
+  color: #fff;
+}
+
 .temas,
 .dudas {
   margin: 0;

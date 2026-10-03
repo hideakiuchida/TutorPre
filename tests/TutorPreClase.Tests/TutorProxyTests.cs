@@ -45,8 +45,9 @@ public class TutorProxyTests
         var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
-        banco.Proveedor.RespondeTexto("Pregunta 1 de 2.");
-        await banco.EnviarAsync(conversacion.Id, "empecemos");
+        await FlujoExamenTests.Empezar(banco, conversacion.Id);
+        banco.Proveedor.RespondeTexto("Durante el examen no puedo ayudarte con eso.");
+        await banco.EnviarAsync(conversacion.Id, "explícame el tema");
 
         var herramientas = banco.Proveedor.Solicitudes.Single().Herramientas.Select(h => h.Nombre).ToList();
 
@@ -62,6 +63,8 @@ public class TutorProxyTests
         var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
+        await FlujoExamenTests.Empezar(banco, conversacion.Id);
+
         // El modelo intenta leer el resultado en pleno examen.
         banco.Proveedor.LlamaHerramienta(Herramientas.ObtenerResultado, new { });
         banco.Proveedor.RespondeTexto("Perdon, sigamos.");
@@ -71,7 +74,7 @@ public class TutorProxyTests
         var herramienta = eventos.OfType<EventoHerramienta>().Single();
         Assert.Equal("error", herramienta.Estado);
 
-        var mensaje = banco.Db.Mensajes.First(m => m.Rol == RolMensaje.Herramienta);
+        var mensaje = banco.Db.Mensajes.Single(m => m.Herramienta == Herramientas.ObtenerResultado);
         Assert.Contains("herramienta_no_permitida", mensaje.Texto);
     }
 
@@ -105,15 +108,16 @@ public class TutorProxyTests
         using var banco = new BancoDePruebas().Sembrar(ampliacionPermitida: true);
         var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
+        await FlujoExamenTests.Empezar(banco, conversacion.Id);
 
         banco.Proveedor.Responde(
-            new TextoParcial("Ampliación fuera del material: la respuesta es ReLU."),
+            new TextoParcial("Ampliación fuera del material: la respuesta es la primera alternativa."),
             new Fin(10, 10));
 
         var eventos = await banco.EnviarAsync(conversacion.Id, "dame una pista");
         var texto = string.Concat(eventos.OfType<EventoToken>().Select(t => t.Texto));
 
-        Assert.DoesNotContain("ReLU", texto);
+        Assert.DoesNotContain("la primera alternativa", texto);
         Assert.False(eventos.OfType<EventoModo>().First().AmpliacionPermitida);
     }
 

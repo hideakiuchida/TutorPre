@@ -161,6 +161,11 @@ export class DocentePage implements OnDestroy {
     }
   }
 
+  /** "Basico" es el nombre del valor en la API; al profesor se le muestra con tilde. */
+  nombreNivel(nivel: string): string {
+    return nivel === 'Basico' ? 'Básico' : nivel;
+  }
+
   maximo(distribucion: Partial<Record<string, number>>): number {
     return Math.max(1, ...Object.values(distribucion).map((v) => v ?? 0));
   }

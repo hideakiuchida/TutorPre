@@ -414,16 +414,18 @@ Ya conectado:
 
 Con el examen listo, la conversación sigue igual:
 
-1. El agente saluda, explica las reglas (número de preguntas, tiempo, modo de feedback) y llama a `obtener_siguiente_pregunta`.
-2. Presenta el enunciado y las alternativas A–D tal como llegan del servidor, sin reformularlas ni dar pistas.
-3. El alumno responde en lenguaje natural ("creo que es la B", "ReLU"); el agente identifica la alternativa y, si hay ambigüedad, pide confirmación.
-4. Con la alternativa clara llama a `registrar_respuesta`; desde ese momento la respuesta es inmutable.
-5. Si el alumno pide la respuesta, pistas o una explicación durante el examen, el agente se niega con amabilidad y le recuerda que la revisión llega al terminar.
-6. No hay formularios ni botones de alternativas: la respuesta siempre entra como texto del chat, y el servidor la valida cuando el agente llama a la herramienta.
+1. El agente llama a `obtener_siguiente_pregunta` y **el servidor presenta la pregunta**: escribe en el chat el enunciado y las alternativas A–D tal como están guardados (`GuionExamen`). El modelo no las redacta ni las repite, así que no puede reformularlas ni inventar una.
+2. El alumno responde en lenguaje natural ("creo que es la B", "ReLU"); el agente identifica la alternativa y, si hay ambigüedad, pide confirmación. Con la alternativa clara llama a `registrar_respuesta`; desde ese momento la respuesta es inmutable.
+3. **Una letra sola no espera al modelo.** Si el mensaje es solo una alternativa ("B", "la c", "creo que es la A") y la pregunta está a la vista, la registra el servidor directamente: el progreso es inmediato (RNF-01) y no gasta cupo.
+4. Tras registrar, el servidor escribe "Registrada." y entrega la siguiente pregunta. Con feedback *Inmediato*, antes el agente explica la corrección que devuelve la herramienta.
+5. **El servidor cierra el examen** al registrar la última respuesta: califica, pasa el chat a Revisión y le entrega el resultado al agente para la evaluación final (§5.4). El agente solo puede llamar a `finalizar_examen` con preguntas pendientes si el alumno pidió terminar o se acabó el tiempo.
+6. Si el alumno pide la respuesta, pistas o una explicación durante el examen, el agente se niega en una línea. Con feedback *AlFinal* el material no viaja en el prompt del examen: no tiene de dónde citar una pista.
+7. No hay formularios ni botones de alternativas: la respuesta siempre entra como texto del chat.
+8. **Lo que dice el modelo se comprueba antes de mostrarlo** (§6.4): durante el examen su texto no se emite en vivo. Si afirma que registró sin haber llamado a la herramienta, presenta una pregunta por su cuenta o cita el material antes de registrar, se descarta y se le pide de nuevo; si insiste, responde el servidor ("escribe la letra de la alternativa…") y no se registra nada.
 
 ### 5.3 Calificación
 
-Al llamar a `finalizar_examen` (o al vencer el tiempo) el servidor calcula la nota; el agente solo la comunica, nunca la calcula. El total son las **preguntas planeadas** del intento, no solo las generadas: si el alumno termina antes, las que faltaban cuentan como no acertadas. La IA no califica: comparar la alternativa elegida con la correcta es exacto, no se puede negociar con el modelo y no gasta cupo.
+Al registrar la última respuesta (o si el alumno pide terminar antes, o vence el tiempo) el servidor cierra el intento y calcula la nota; el agente solo la comunica, nunca la calcula. El total son las **preguntas planeadas** del intento, no solo las generadas: si el alumno termina antes, las que faltaban cuentan como no acertadas. La IA no califica: comparar la alternativa elegida con la correcta es exacto, no se puede negociar con el modelo y no gasta cupo.
 
 ```latex
 \text{nota} = \operatorname{round}\left(20 \times \frac{\text{correctas}}{\text{total}},\ 1\right)
@@ -1032,12 +1034,16 @@ MODO: {modo}   ESTADO DEL INTENTO: {estado}   MODO DE FEEDBACK: {modo_feedback}
 AMPLIACIÓN PERMITIDA: {ampliacion_permitida}
 
 Durante el examen (modo = Evaluacion):
-- Usa obtener_siguiente_pregunta y presenta enunciado y alternativas A–D sin cambiarlos.
+- Las preguntas las muestra el servidor, no tú. Llama a obtener_siguiente_pregunta y el
+  servidor se la presenta al alumno: nunca escribas, repitas ni numeres enunciados o alternativas.
 - Interpreta la respuesta del alumno; si es ambigua, pide confirmación antes de registrar.
-- Registra cada respuesta con registrar_respuesta. Nunca des la respuesta, pistas ni opiniones
-  sobre si una alternativa es correcta antes de registrarla.
-- En modo AlFinal, tras registrar di solo "Registrada" y sigue con la siguiente pregunta.
-- Cuando no queden preguntas, llama a finalizar_examen.
+- Registra cada respuesta con registrar_respuesta. Nunca digas que una respuesta quedó
+  registrada si no llamaste a la herramienta en este mismo turno.
+- Mientras haya una pregunta sin responder no des la respuesta, pistas ni opiniones, y no
+  cites, resumas ni recuerdes el material: si el alumno pide ayuda, dile que no puedes darla.
+- Tras registrar, el servidor muestra la siguiente pregunta; cuando no quedan, cierra el
+  examen y te entrega el resultado.
+- finalizar_examen es solo para cuando el alumno pide terminar antes o se acabó el tiempo.
 
 Durante la revisión (modo = Revision, o tras cada respuesta en modo Inmediato):
 - Comunica la nota tal como la devuelve el servidor; nunca la recalcules.
@@ -1071,8 +1077,10 @@ Las variables entre llaves las completa `AgenteTutorService` en cada llamada. El
 ### 6.4 Salvaguardas
 
 - La clave de respuestas nunca está en el contexto del agente mientras el intento está en curso: la seguridad del examen no depende de que el modelo obedezca el prompt.
-- El contexto de clase sí viaja en todos los estados, pero es el mismo material que el alumno ya puede consultar: no contiene la clave de respuestas ni la justificación del docente.
+- El contexto de clase viaja en Consulta y en Revisión. Durante el examen con feedback *AlFinal* no: las preguntas las entrega el servidor y el tutor no tiene de dónde sacar una pista (RF-15). Con feedback *Inmediato* sí, para explicar cada corrección.
 - `registrar_respuesta` valida en el servidor que la pregunta pertenezca al intento, que no esté ya respondida y que el tiempo no haya vencido.
+- **El examen no depende de que el modelo use bien las herramientas.** La pregunta la escribe el servidor desde la base; "Registrada." solo aparece si la respuesta se guardó; el cierre lo hace el servidor al registrar la última. El texto del modelo durante el examen se retiene y se comprueba: si dice que registró sin llamar a la herramienta, presenta una pregunta o alternativas por su cuenta, o cita el material con una pregunta pendiente, se descarta, se le recuerda la regla y se vuelve a pedir (hasta 2 veces); después responde el servidor. `finalizar_examen` con preguntas pendientes se rechaza salvo que el alumno lo pida o haya vencido el tiempo.
+- Con Gemini 3, cada `functionCall` vuelve al modelo con la `thoughtSignature` que trajo: sin ella la API responde 400 y ninguna herramienta funcionaría.
 - El texto del contenido y del alumno va siempre dentro de etiquetas delimitadas y se trata como dato, no como instrucción.
 - Cuando el agente declara que el material no cubre una duda, `registrar_duda_sin_cobertura` la guarda en `DudaSinCobertura`; el servidor valida que la duda pertenezca a la conversación en curso.
 - La ampliación está bloqueada por servidor, no solo por prompt: en modo Evaluación y en clases con `ampliacion_permitida = false`, el bloque "Ampliación fuera del material" se detecta y la respuesta se corta antes de llegar al alumno.
@@ -1166,7 +1174,10 @@ event: progreso
 data: {"respondidas": 4, "total": 10, "segundosRestantes": 540}
 
 event: token
-data: {"texto": "Registrada. Pregunta 5 de 10: "}
+data: {"texto": "Registrada."}
+
+event: token
+data: {"texto": "\n\n**Pregunta 5 de 10**\n\n…"}
 
 event: fuentes
 data: [{"archivo": "Clase03_RedesProfundas.pdf", "pagina": 12, "valida": true}]
@@ -1191,6 +1202,7 @@ Todos entran por la misma página y cada rol tiene **una sola pantalla**: el alu
 | Chat del tutor | Alumno | Lista lateral de clases (con estado del examen y cuenta regresiva) y el chat en streaming, **como una conversación: los mensajes del alumno a la izquierda y las respuestas del tutor a la derecha**, cada uno en su globo; debajo del globo del tutor, sus fuentes (resaltadas) y la ampliación (a lápiz). Las negritas de Markdown del tutor se muestran como negritas. En la cabecera: clase, modo (Consulta / Examen / Revisión), **«Mi tutor: Gemini (tu cuenta de Google)» con *Cambiar*** y, durante el examen, progreso y temporizador. En el cuerpo: mensajes, chips de fuente que abren el archivo en la página citada y bloques de ampliación con estilo diferenciado. Aviso cuando el docente actualiza el material (§6.1). Sin ninguna IA conectada, se abre *Mi tutor* |
 | Mi tutor | Alumno | Se abre encima del chat con *Cambiar*. Arriba, **«Conversas con»**: las IA conectadas como opciones, cada una con su modelo (bloqueado durante el examen). Debajo, tres pestañas: **Con tu cuenta** (Gemini y OpenRouter: *Entrar con…*, *Volver a entrar*, *Desconectar*), **Con tu clave de API** (ChatGPT, Claude y Gemini de AI Studio: campo de clave oculto, *Conectar*, enlace a la consola para crearla, «termina en XXXX» y *Desconectar*) y **Desde tu asistente** (URL del servidor MCP, *Generar token* que se muestra una sola vez con *Copiar*, *Revocar*, último uso y los pasos para Claude Code, Claude Desktop y otros clientes). Pestañas accesibles con el teclado (flechas) |
 | Panel del docente: material | Docente | Estado de extracción de lo que copió a la carpeta y tokens del contexto de clase, ventana del examen, interruptor de ampliación. Por archivo, qué lee el tutor (*Apuntes de la IA*, *Original*, *Condensando…*, o por qué no se condensó) y los tokens antes y después. *Comparar* muestra original y apuntes página por página; *Usar original* / *Usar apuntes* elige por archivo. Sin cuenta, *Conectar OpenRouter* (al volver se condensan todas sus clases); con cuenta, *Condensar de nuevo*. El panel se refresca solo mientras hay apuntes en camino. *Pendiente:* ajustar ventana, intentos, tiempo, preguntas por intento y modo de feedback desde la pantalla (hoy solo por API). No hay botón de publicar: las clases de la carpeta nacen con el examen publicado |
+| Panel del docente: alumno por alumno | Docente | Bajo *Cómo va el grupo*, una fila por alumno que rindió: la nota vigente (la misma con la que el servidor fijó su nivel), el nivel (con la marca *corregido por ti* si el docente lo cambió), aciertos del último intento, número de intentos y los temas a reforzar que propuso el tutor. Nadie carga estos datos: el servidor califica y fija el nivel al registrar la última respuesta (RF-09, RF-21, RF-22) |
 | Panel del docente: reporte | Docente | Promedio, histograma de notas, distribución de niveles y nivel por alumno (editable), temas más fallados (porcentaje de respuestas erradas por tema), temas débiles del grupo, dudas que el material no cubrió y uso por agente |
 
 ### 8.1 Componentes Angular (librerías Nx)

@@ -15,6 +15,7 @@ type Pestana = 'cuenta' | 'clave' | 'asistente';
   imports: [DatePipe],
   templateUrl: './configuracion-tutor.html',
   styleUrl: './configuracion-tutor.css',
+  host: { '(document:keydown.escape)': 'cerrarSiPuede()' },
 })
 export class ConfiguracionTutor {
   private readonly api = inject(TutorStreamService);
@@ -57,6 +58,11 @@ export class ConfiguracionTutor {
 
   credencialDe(agenteId: string): Credencial | undefined {
     return this.credenciales().find((c) => c.agenteId === agenteId);
+  }
+
+  /** Sin ninguna IA conectada no hay chat al que volver: la hoja se queda abierta (RF-27). */
+  cerrarSiPuede(): void {
+    if (this.conectados().length > 0) this.cerrar.emit();
   }
 
   abrirPestana(id: Pestana): void {

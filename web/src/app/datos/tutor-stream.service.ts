@@ -83,7 +83,13 @@ export class TutorStreamService {
 
   abrirConversacion(claseId: string, agenteId: string) {
     return firstValueFrom(
-      this.http.post<{ conversacionId: string; modo: ModoChat; agenteId: string }>(
+      this.http.post<{
+        conversacionId: string;
+        modo: ModoChat;
+        agenteId: string;
+        /** Solo con el examen en curso: para pintar la hoja de respuestas al volver a entrar. */
+        progreso: Progreso | null;
+      }>(
         `${API}/clases/${claseId}/conversacion`,
         { agenteId },
       ),

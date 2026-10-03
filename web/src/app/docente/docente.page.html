@@ -157,6 +157,46 @@
                 }
               </div>
 
+              @if (r.niveles.length) {
+                <h3>Alumno por alumno</h3>
+                <p class="ayuda">
+                  La nota la calcula el servidor al terminar el examen y con ella fija el nivel. Los temas a
+                  reforzar los propone el tutor al revisar los errores con cada alumno.
+                </p>
+                <div class="tabla-alumnos">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Alumno</th><th class="num">Nota</th><th>Nivel</th><th class="num">Aciertos</th>
+                        <th class="num">Intentos</th><th>Temas a reforzar</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (a of r.niveles; track a.alumnoId) {
+                        <tr>
+                          <td>
+                            {{ a.nombre }}
+                            @if (a.rendidoEn) {
+                              <span class="cuando">{{ a.rendidoEn | date: 'd MMM, HH:mm' }}</span>
+                            }
+                          </td>
+                          <td class="num nota">{{ a.nota === null ? '—' : (a.nota | number: '1.1-1') }}</td>
+                          <td>
+                            <span class="nivel" [attr.data-nivel]="a.nivel">{{ nombreNivel(a.nivel) }}</span>
+                            @if (a.origen === 'Docente') {
+                              <span class="cuando">corregido por ti</span>
+                            }
+                          </td>
+                          <td class="num">{{ a.intentos ? a.correctas + ' de ' + a.preguntas : '—' }}</td>
+                          <td class="num">{{ a.intentos }}</td>
+                          <td>{{ a.temasDebiles.length ? a.temasDebiles.join(' · ') : '—' }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+
               @if (r.temasMasFallados.length) {
                 <h3>Temas más fallados</h3>
                 <ul class="temas">

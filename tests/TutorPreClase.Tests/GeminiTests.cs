@@ -190,6 +190,49 @@ public class GeminiTests
     }
 
     [Fact]
+    public async Task La_firma_de_razonamiento_de_una_llamada_vuelve_tal_cual_en_la_vuelta_siguiente()
+    {
+        // Gemini 3 responde 400 ("missing a thought_signature") si la llamada vuelve sin su firma.
+        var google = new GoogleSimulado
+        {
+            Gemini = _ => GoogleSimulado.Sse(
+                """{"candidates":[{"content":{"parts":[{"functionCall":{"name":"registrar_duda_sin_cobertura","args":{"texto":"WACC"}},"thoughtSignature":"firma-opaca=="}]}}]}""")
+        };
+
+        var llamada = (await Conversar(Proveedor(google), Hola)).OfType<LlamadaHerramienta>().Single();
+        Assert.Equal("firma-opaca==", llamada.Firma);
+
+        await Conversar(Proveedor(google), Hola with
+        {
+            Mensajes =
+            [
+                new LlmMensaje(RolLlm.Usuario, "¿qué es el WACC?"),
+                new LlmMensaje(RolLlm.Asistente, null, llamada.Id, llamada.Nombre,
+                    HerramientaArgumentos: llamada.Argumentos, HerramientaFirma: llamada.Firma),
+                new LlmMensaje(RolLlm.Herramienta, null, llamada.Id, llamada.Nombre, """{"registrada":true}""")
+            ]
+        });
+
+        var parte = JsonDocument.Parse(google.Recibidas.Last().Cuerpo).RootElement.GetProperty("contents")[1].GetProperty("parts")[0];
+        Assert.Equal("registrar_duda_sin_cobertura", parte.GetProperty("functionCall").GetProperty("name").GetString());
+        Assert.Equal("firma-opaca==", parte.GetProperty("thoughtSignature").GetString());
+    }
+
+    [Fact]
+    public async Task Un_503_es_saturacion_del_modelo_y_no_muestra_el_codigo_al_alumno()
+    {
+        var google = new GoogleSimulado
+        {
+            Gemini = _ => GoogleSimulado.Json(new { error = new { code = 503, status = "UNAVAILABLE" } }, HttpStatusCode.ServiceUnavailable)
+        };
+
+        var error = (await Conversar(Proveedor(google), Hola)).OfType<ErrorProveedor>().Single();
+
+        Assert.True(error is { LimiteDeUso: true, Saturado: true, CredencialRechazada: false });
+        Assert.DoesNotContain("503", error.Mensaje);
+    }
+
+    [Fact]
     public async Task La_API_desactivada_no_invalida_la_credencial_del_usuario()
     {
         var google = new GoogleSimulado

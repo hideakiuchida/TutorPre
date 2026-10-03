@@ -39,6 +39,17 @@ export interface ClaseResumen {
   examen: { publicado: boolean; abreEn: string; cierraEn: string } | null;
 }
 
+/** Si el examen de la clase se puede rendir ahora (RF-08): la ventana la fija el docente. */
+export type VentanaExamen = 'disponible' | 'proximo' | 'cerrado';
+
+export function ventanaExamen(clase: ClaseResumen | null | undefined, ahora: number): VentanaExamen | null {
+  const examen = clase?.examen;
+  if (!examen?.publicado) return null;
+
+  if (ahora < Date.parse(examen.abreEn)) return 'proximo';
+  return ahora > Date.parse(examen.cierraEn) ? 'cerrado' : 'disponible';
+}
+
 export interface Fuente {
   archivo: string;
   pagina: number;

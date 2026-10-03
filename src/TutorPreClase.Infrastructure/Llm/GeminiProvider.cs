@@ -147,9 +147,13 @@ public sealed class GeminiProvider(
                         ? args.Clone()
                         : MapeoLlm.ObjetoVacio;
 
-                    // Gemini no numera las llamadas: el id lo pone el servidor.
+                    // Gemini no numera las llamadas: el id lo pone el servidor. La firma del
+                    // razonamiento viaja en la misma parte y hay que devolverla tal cual.
+                    var firma = MapeoLlm.Texto(parte, "thoughtSignature");
+
                     yield return new LlamadaHerramienta(
-                        $"gemini_{Guid.NewGuid():N}", MapeoLlm.Texto(llamada, "name"), argumentos);
+                        $"gemini_{Guid.NewGuid():N}", MapeoLlm.Texto(llamada, "name"), argumentos,
+                        firma.Length > 0 ? firma : null);
                 }
             }
         }
@@ -184,11 +188,15 @@ public sealed class GeminiProvider(
         }
 
         if (respuesta.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-            return new ErrorProveedor($"Google respondio {(int)respuesta.StatusCode}.", false, CredencialRechazada: true);
+            return new ErrorProveedor("Google rechazó el acceso a tu cuenta.", false, CredencialRechazada: true);
+
+        // 503 / UNAVAILABLE: el modelo está saturado para todos; no es el cupo del alumno.
+        if (respuesta.StatusCode == HttpStatusCode.ServiceUnavailable)
+            return new ErrorProveedor(MapeoLlm.MensajeDeFallo(respuesta.StatusCode), true, LimiteDeUso: true, Saturado: true);
 
         var limite = respuesta.StatusCode == HttpStatusCode.TooManyRequests;
         return new ErrorProveedor(
-            $"Google respondio {(int)respuesta.StatusCode}.",
+            MapeoLlm.MensajeDeFallo(respuesta.StatusCode),
             MapeoLlm.EsReintentable(respuesta.StatusCode),
             LimiteDeUso: limite,
             ReintentarEn: limite ? MapeoLlm.ReintentarEn(respuesta) : null);
@@ -254,14 +262,19 @@ public sealed class GeminiProvider(
                     if (!string.IsNullOrWhiteSpace(m.Texto)) Agregar("model", new JsonObject { ["text"] = m.Texto });
                     if (m.HerramientaNombre is not null)
                     {
-                        Agregar("model", new JsonObject
+                        var llamada = new JsonObject
                         {
                             ["functionCall"] = new JsonObject
                             {
                                 ["name"] = m.HerramientaNombre,
                                 ["args"] = JsonNode.Parse((m.HerramientaArgumentos ?? MapeoLlm.ObjetoVacio).GetRawText())
                             }
-                        });
+                        };
+
+                        // Gemini 3 rechaza con 400 una llamada del turno en curso sin su firma.
+                        if (m.HerramientaFirma is not null) llamada["thoughtSignature"] = m.HerramientaFirma;
+
+                        Agregar("model", llamada);
                     }
                     break;
 

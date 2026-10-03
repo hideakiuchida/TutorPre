@@ -36,13 +36,28 @@ export interface PaginaComparada {
   tokensCondensado: number;
 }
 
+/** La ficha de un alumno en la clase: nota, nivel y lo que el tutor le marcó para reforzar. */
+export interface AlumnoEnClase {
+  alumnoId: string;
+  nombre: string;
+  nivel: 'Inicial' | 'Basico' | 'Intermedio' | 'Avanzado';
+  /** 'Docente' si el profesor corrigió el nivel a mano. */
+  origen: string;
+  temasDebiles: string[];
+  nota: number | null;
+  intentos: number;
+  correctas: number;
+  preguntas: number;
+  rendidoEn: string | null;
+}
+
 export interface ReporteClase {
   clase: string;
   alumnos: number;
   promedioNota: number;
   distribucionNotas: Partial<Record<string, number>>;
   distribucionNiveles: Record<string, number>;
-  niveles: { alumnoId: string; nombre: string; nivel: string; temasDebiles: string[] }[];
+  niveles: AlumnoEnClase[];
   temasMasFallados: { tema: string; fallos: number; respondidas: number; porcentajeFallo: number }[];
   dudasFueraDelMaterial: { texto: string; tema: string | null; conAmpliacion: boolean; creadoEn: string }[];
 }

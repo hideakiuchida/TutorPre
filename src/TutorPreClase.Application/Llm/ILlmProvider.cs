@@ -33,13 +33,15 @@ public sealed record LlmMensaje(
     string? HerramientaId = null,
     string? HerramientaNombre = null,
     string? HerramientaResultado = null,
-    JsonElement? HerramientaArgumentos = null);
+    JsonElement? HerramientaArgumentos = null,
+    // Firma opaca que algunos proveedores (Gemini 3) exigen de vuelta junto a la llamada.
+    string? HerramientaFirma = null);
 
 public sealed record DefinicionHerramienta(string Nombre, string Descripcion, JsonElement EsquemaEntrada);
 
 public abstract record LlmEvento;
 public sealed record TextoParcial(string Texto) : LlmEvento;
-public sealed record LlamadaHerramienta(string Id, string Nombre, JsonElement Argumentos) : LlmEvento;
+public sealed record LlamadaHerramienta(string Id, string Nombre, JsonElement Argumentos, string? Firma = null) : LlmEvento;
 /// <summary>`CortadaPorTope`: la respuesta llegó al máximo (el pedido o el del modelo) y quedó incompleta.</summary>
 public sealed record Fin(int TokensEntrada, int TokensSalida, bool CortadaPorTope = false) : LlmEvento;
 /// <summary>

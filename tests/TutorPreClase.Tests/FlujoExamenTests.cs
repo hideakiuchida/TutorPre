@@ -15,16 +15,15 @@ public class FlujoExamenTests
         var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
-        // Pregunta a pregunta: la segunda se genera cuando el tutor la pide.
+        // Pregunta a pregunta: tras cada respuesta el servidor entrega la siguiente.
         // El alumno responde bien la primera y mal la segunda.
-        await Responder(banco, conversacion.Id, Pregunta(banco, 1), "A", "creo que es la A");
-        await PedirSiguiente(banco, conversacion.Id);
-        await Responder(banco, conversacion.Id, Pregunta(banco, 2), "B", "la B");
+        await Empezar(banco, conversacion.Id);
+        await banco.EnviarAsync(conversacion.Id, "creo que es la A");
 
-        banco.Proveedor.LlamaHerramienta(Herramientas.FinalizarExamen, new { });
+        // Con la última respuesta el servidor cierra el examen; el tutor solo lo comenta.
         banco.Proveedor.RespondeTexto("Obtuviste 10.0. Revisemos el fallo [Clase03.pdf, p. 11].");
 
-        var eventos = await banco.EnviarAsync(conversacion.Id, "ya terminé");
+        var eventos = await banco.EnviarAsync(conversacion.Id, "la B");
 
         var intento = banco.Db.Intentos.Single();
         Assert.Equal(EstadoIntento.EnRevision, intento.Estado);
@@ -48,8 +47,8 @@ public class FlujoExamenTests
         var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
-        var pregunta = banco.Db.Preguntas.OrderBy(p => p.Orden).First();
-        await Responder(banco, conversacion.Id, pregunta.Id, "A", "la A");
+        await Empezar(banco, conversacion.Id);
+        await banco.EnviarAsync(conversacion.Id, "la A");
 
         var resultado = ResultadoHerramientaJson(banco, Herramientas.RegistrarRespuesta);
 
@@ -65,11 +64,17 @@ public class FlujoExamenTests
         var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
-        var pregunta = banco.Db.Preguntas.OrderBy(p => p.Orden).First();
-        await Responder(banco, conversacion.Id, pregunta.Id, "B", "la B");
+        await Empezar(banco, conversacion.Id);
+
+        // Con feedback inmediato el tutor comenta la corrección antes de la siguiente pregunta.
+        banco.Proveedor.RespondeTexto("No es esa: revisa la explicación.");
+        var eventos = await banco.EnviarAsync(conversacion.Id, "la B");
 
         var resultado = ResultadoHerramientaJson(banco, Herramientas.RegistrarRespuesta);
+        var texto = string.Concat(eventos.OfType<EventoToken>().Select(t => t.Texto));
 
+        Assert.Contains("No es esa", texto);
+        Assert.Contains("Pregunta 2 de 2", texto);
         Assert.False(resultado.GetProperty("es_correcta").GetBoolean());
         Assert.Equal("Esta en el material de la clase.", resultado.GetProperty("justificacion").GetString());
     }
@@ -81,9 +86,7 @@ public class FlujoExamenTests
         var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
-        banco.Proveedor.LlamaHerramienta(Herramientas.ObtenerSiguientePregunta, new { });
-        banco.Proveedor.RespondeTexto("Pregunta 1 de 2…");
-        await banco.EnviarAsync(conversacion.Id, "vamos");
+        await Empezar(banco, conversacion.Id);
 
         var json = ResultadoHerramientaJson(banco, Herramientas.ObtenerSiguientePregunta).GetRawText();
 
@@ -99,9 +102,19 @@ public class FlujoExamenTests
         var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
+        await Empezar(banco, conversacion.Id);
         var pregunta = banco.Db.Preguntas.OrderBy(p => p.Orden).First();
-        await Responder(banco, conversacion.Id, pregunta.Id, "A", "la A");
-        await Responder(banco, conversacion.Id, pregunta.Id, "B", "mejor la B");
+        await banco.EnviarAsync(conversacion.Id, "la A");
+
+        // El tutor intenta cambiar la respuesta ya registrada.
+        banco.Proveedor.LlamaHerramienta(Herramientas.RegistrarRespuesta, new
+        {
+            pregunta_id = pregunta.Id.ToString(),
+            alternativa = "B",
+            texto_original = "mejor cambia la primera a la B"
+        });
+        banco.Proveedor.RespondeTexto("Esa respuesta ya no se puede cambiar.");
+        await banco.EnviarAsync(conversacion.Id, "mejor cambia la primera a la B");
 
         var resultado = UltimoResultadoHerramienta(banco, Herramientas.RegistrarRespuesta);
         Assert.Contains("PreguntaYaRespondida", resultado);
@@ -139,13 +152,11 @@ public class FlujoExamenTests
         var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
-        await Responder(banco, conversacion.Id, Pregunta(banco, 1), "A", "A");
-        await PedirSiguiente(banco, conversacion.Id);
-        await Responder(banco, conversacion.Id, Pregunta(banco, 2), "A", "A");
+        await Empezar(banco, conversacion.Id);
+        await banco.EnviarAsync(conversacion.Id, "A");
 
-        banco.Proveedor.LlamaHerramienta(Herramientas.FinalizarExamen, new { });
         banco.Proveedor.RespondeTexto("Excelente.");
-        await banco.EnviarAsync(conversacion.Id, "listo");
+        await banco.EnviarAsync(conversacion.Id, "A");
 
         var nivelTrasExamen = banco.Db.Niveles.Single().Nivel;
 
@@ -178,17 +189,18 @@ public class FlujoExamenTests
     }
 
     [Fact]
-    public async Task La_siguiente_pregunta_se_genera_al_pedirla_sin_repetir_la_anterior()
+    public async Task Tras_registrar_el_servidor_entrega_la_siguiente_sin_repetir_la_anterior()
     {
         using var banco = new BancoDePruebas().Sembrar();
         var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
+        await Empezar(banco, conversacion.Id);
+        Assert.Single(banco.Db.Preguntas); // la segunda aún no existe
 
-        await Responder(banco, conversacion.Id, Pregunta(banco, 1), "A", "la A");
-        var progreso = await banco.Examen.ProgresoAsync(banco.Db.Intentos.Single().Id);
-        Assert.Equal((1, 2), (progreso.Respondidas, progreso.Total)); // la segunda aún no existe
+        var eventos = await banco.EnviarAsync(conversacion.Id, "la A");
 
-        await PedirSiguiente(banco, conversacion.Id);
+        var progreso = eventos.OfType<EventoProgreso>().Last();
+        Assert.Equal((1, 2), (progreso.Respondidas, progreso.Total));
 
         var resultado = JsonDocument.Parse(UltimoResultadoHerramienta(banco, Herramientas.ObtenerSiguientePregunta)).RootElement;
         Assert.Equal(2, resultado.GetProperty("numero").GetInt32());
@@ -202,19 +214,27 @@ public class FlujoExamenTests
         using var banco = new BancoDePruebas().Sembrar();
         var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
-        await Responder(banco, conversacion.Id, Pregunta(banco, 1), "A", "la A");
+        await Empezar(banco, conversacion.Id);
 
         banco.Generador.Falla = new ErrorProveedor("429", true, LimiteDeUso: true, Saturado: true);
-        await PedirSiguiente(banco, conversacion.Id);
+        var eventos = await banco.EnviarAsync(conversacion.Id, "la A");
 
         var error = JsonDocument.Parse(UltimoResultadoHerramienta(banco, Herramientas.ObtenerSiguientePregunta)).RootElement;
         Assert.Equal("pregunta_no_generada", error.GetProperty("error").GetString());
         Assert.Contains("saturado", error.GetProperty("mensaje").GetString());
         Assert.Single(banco.Db.Respuestas);
 
+        // El alumno se entera y sabe cómo seguir.
+        var texto = string.Concat(eventos.OfType<EventoToken>().Select(t => t.Texto));
+        Assert.Contains("Registrada.", texto);
+        Assert.Contains("No pude preparar la siguiente pregunta", texto);
+
+        // Al reintentar, la pregunta la entrega el servidor: no depende del modelo.
         banco.Generador.Falla = null;
-        await PedirSiguiente(banco, conversacion.Id);
+        var reintento = await banco.EnviarAsync(conversacion.Id, "siguiente");
         Assert.Equal(2, banco.Db.Preguntas.Count());
+        Assert.Contains("Pregunta 2 de 2", string.Concat(reintento.OfType<EventoToken>().Select(t => t.Texto)));
+        Assert.Empty(banco.Proveedor.Solicitudes);
     }
 
     [Fact]
@@ -224,8 +244,9 @@ public class FlujoExamenTests
         var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
-        // Responde bien la única generada y termina antes: la que faltaba cuenta como no acertada.
-        await Responder(banco, conversacion.Id, Pregunta(banco, 1), "A", "la A");
+        // Responde bien la primera y termina antes: la que faltaba cuenta como no acertada.
+        await Empezar(banco, conversacion.Id);
+        await banco.EnviarAsync(conversacion.Id, "la A");
         var resultado = await banco.Examen.FinalizarAsync(banco.Db.Intentos.Single().Id);
 
         Assert.Equal((1, 2, 10.0m), (resultado.Correctas, resultado.Total, resultado.Nota));
@@ -246,29 +267,9 @@ public class FlujoExamenTests
         Assert.Equal(2, banco.Generador.Llamadas);
     }
 
-    private static Guid Pregunta(BancoDePruebas banco, int orden) =>
-        banco.Db.Preguntas.Single(p => p.Orden == orden).Id;
-
-    private static async Task PedirSiguiente(BancoDePruebas banco, Guid conversacionId)
-    {
-        banco.Proveedor.LlamaHerramienta(Herramientas.ObtenerSiguientePregunta, new { });
-        banco.Proveedor.RespondeTexto("Siguiente pregunta.");
-        await banco.EnviarAsync(conversacionId, "siguiente");
-    }
-
-    private static async Task Responder(
-        BancoDePruebas banco, Guid conversacionId, Guid preguntaId, string letra, string texto)
-    {
-        banco.Proveedor.LlamaHerramienta(Herramientas.RegistrarRespuesta, new
-        {
-            pregunta_id = preguntaId.ToString(),
-            alternativa = letra,
-            texto_original = texto
-        });
-        banco.Proveedor.RespondeTexto("Registrada.");
-
-        await banco.EnviarAsync(conversacionId, texto);
-    }
+    /// <summary>Al empezar, el servidor presenta la primera pregunta sin esperar al modelo.</summary>
+    internal static Task<List<EventoTutor>> Empezar(BancoDePruebas banco, Guid conversacionId) =>
+        banco.EnviarAsync(conversacionId, "Estoy listo para empezar el examen.");
 
     private static JsonElement ResultadoHerramientaJson(BancoDePruebas banco, string herramienta) =>
         JsonDocument.Parse(banco.Db.Mensajes
@@ -282,4 +283,241 @@ public class FlujoExamenTests
             .OrderBy(m => m.CreadoEn)
             .ToList()
             .Last().Texto;
+}
+
+/// <summary>
+/// El examen es confiable con cualquier modelo (SDD §6.4): lo que se registra, lo que se
+/// pregunta y cuándo se cierra lo decide el servidor, no el texto del modelo.
+/// </summary>
+public class ExamenConfiableTests
+{
+    private static async Task<(BancoDePruebas Banco, Guid Conversacion)> EnExamen(ModoFeedback feedback = ModoFeedback.AlFinal)
+    {
+        var banco = new BancoDePruebas().Sembrar(feedback: feedback);
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        await banco.Tutor.IniciarExamenAsync(conversacion.Id);
+        return (banco, conversacion.Id);
+    }
+
+    private static string Texto(IEnumerable<EventoTutor> eventos) =>
+        string.Concat(eventos.OfType<EventoToken>().Select(t => t.Texto));
+
+    [Fact]
+    public async Task La_pregunta_la_presenta_el_servidor_tal_como_esta_guardada()
+    {
+        var (banco, conversacion) = await EnExamen();
+        using var _ = banco;
+
+        var eventos = await FlujoExamenTests.Empezar(banco, conversacion);
+        var texto = Texto(eventos);
+
+        Assert.Contains("**Pregunta 1 de 2**", texto);
+        Assert.Contains("Que funcion evita el desvanecimiento del gradiente?", texto);
+        Assert.Contains("- **A)** ReLU", texto);
+        Assert.Contains("- **D)** Ninguna", texto);
+
+        // No hace falta el modelo para mostrarla: un modelo saturado no deja al alumno sin pregunta.
+        Assert.Empty(banco.Proveedor.Solicitudes);
+        Assert.Contains("Que funcion evita", banco.Db.Mensajes.Single(m => m.Rol == RolMensaje.Agente).Texto);
+    }
+
+    [Fact]
+    public async Task Una_letra_sola_la_registra_el_servidor_sin_esperar_al_modelo()
+    {
+        var (banco, conversacion) = await EnExamen();
+        using var _ = banco;
+        await FlujoExamenTests.Empezar(banco, conversacion);
+        var llamadasAntes = banco.Proveedor.Solicitudes.Count;
+
+        var eventos = await banco.EnviarAsync(conversacion, "creo que es la B");
+
+        Assert.Equal(llamadasAntes, banco.Proveedor.Solicitudes.Count);
+        Assert.False(banco.Db.Respuestas.Single().EsCorrecta);
+        Assert.Equal("creo que es la B", banco.Db.Respuestas.Single().TextoOriginalAlumno);
+
+        var texto = Texto(eventos);
+        Assert.StartsWith("Registrada.", texto);
+        Assert.Contains("**Pregunta 2 de 2**", texto);
+        Assert.Contains("Que problema tiene la sigmoide", texto);
+
+        // La hoja de respuestas llega al abrir el turno y se actualiza al registrar.
+        var progresos = eventos.OfType<EventoProgreso>().Select(p => p.Respondidas).ToList();
+        Assert.Equal(0, progresos.First());
+        Assert.Equal(1, progresos.Last());
+    }
+
+    [Fact]
+    public async Task Un_modelo_que_dice_Registrada_sin_registrar_no_llega_al_alumno()
+    {
+        var (banco, conversacion) = await EnExamen();
+        using var _ = banco;
+        await FlujoExamenTests.Empezar(banco, conversacion);
+
+        // Lo que pasó en producción: "Registrada" y una pregunta inventada, sin herramienta.
+        banco.Proveedor.RespondeTexto("Registrada. Aquí va la siguiente:\n\nPregunta 2 de 2:\n\nUna pregunta inventada\n- A) x\n- B) y");
+        banco.Proveedor.LlamaHerramienta(Herramientas.RegistrarRespuesta, new { alternativa = "A", texto_original = "la que no deja morir el gradiente" });
+
+        var eventos = await banco.EnviarAsync(conversacion, "la que no deja morir el gradiente");
+        var texto = Texto(eventos);
+
+        Assert.DoesNotContain("inventada", texto);
+        Assert.True(banco.Db.Respuestas.Single().EsCorrecta);
+        Assert.Contains("Que problema tiene la sigmoide", texto);
+        Assert.DoesNotContain("inventada", banco.Db.Mensajes.Where(m => m.Rol == RolMensaje.Agente).ToList().Last().Texto);
+
+        // Al modelo se le recordó usar las herramientas antes de volver a preguntarle.
+        Assert.Contains("registrar_respuesta", banco.Proveedor.Solicitudes.Last().Mensajes.Last().Texto);
+    }
+
+    [Fact]
+    public async Task Si_el_modelo_insiste_el_servidor_responde_por_el_y_no_registra_nada()
+    {
+        var (banco, conversacion) = await EnExamen();
+        using var _ = banco;
+        await FlujoExamenTests.Empezar(banco, conversacion);
+
+        for (var i = 0; i < 3; i++) banco.Proveedor.RespondeTexto("Registrada. Sigamos.");
+
+        var texto = Texto(await banco.EnviarAsync(conversacion, "la que no deja morir el gradiente"));
+
+        Assert.Equal(GuionExamen.SoloLaLetra, texto);
+        Assert.Empty(banco.Db.Respuestas);
+    }
+
+    [Fact]
+    public async Task Una_pista_que_cita_el_material_no_llega_al_alumno()
+    {
+        var (banco, conversacion) = await EnExamen();
+        using var _ = banco;
+        await FlujoExamenTests.Empezar(banco, conversacion);
+
+        for (var i = 0; i < 3; i++)
+            banco.Proveedor.RespondeTexto("No puedo darte pistas, pero el material dice que mantiene gradiente 1 [Clase03.pdf, p. 12].");
+
+        var eventos = await banco.EnviarAsync(conversacion, "dame una pista");
+        var texto = Texto(eventos);
+
+        Assert.DoesNotContain("gradiente 1", texto);
+        Assert.Empty(eventos.OfType<EventoFuentes>());
+        Assert.Empty(banco.Db.Respuestas);
+    }
+
+    [Fact]
+    public async Task Con_feedback_al_final_el_material_no_viaja_en_el_prompt_del_examen()
+    {
+        var (banco, conversacion) = await EnExamen();
+        using var _ = banco;
+
+        await FlujoExamenTests.Empezar(banco, conversacion);
+        banco.Proveedor.RespondeTexto("Durante el examen no puedo ayudarte con eso.");
+        await banco.EnviarAsync(conversacion, "explícame el tema");
+
+        Assert.DoesNotContain("ReLU mantiene gradiente 1", banco.Proveedor.Solicitudes.Single().PromptSistema);
+    }
+
+    [Fact]
+    public async Task El_modelo_no_puede_cerrar_el_examen_con_preguntas_pendientes()
+    {
+        var (banco, conversacion) = await EnExamen();
+        using var _ = banco;
+        await FlujoExamenTests.Empezar(banco, conversacion);
+
+        banco.Proveedor.LlamaHerramienta(Herramientas.FinalizarExamen, new { });
+        banco.Proveedor.RespondeTexto("Sigamos con el examen.");
+        var eventos = await banco.EnviarAsync(conversacion, "no estoy seguro");
+
+        Assert.Equal("error", eventos.OfType<EventoHerramienta>().Single().Estado);
+        Assert.Contains("quedan_preguntas", banco.Db.Mensajes.Single(m => m.Herramienta == Herramientas.FinalizarExamen).Texto);
+        Assert.Equal(EstadoIntento.EnCurso, banco.Db.Intentos.Single().Estado);
+        Assert.Equal(ModoConversacion.Evaluacion, banco.Db.Conversaciones.Single().Modo);
+    }
+
+    [Fact]
+    public async Task Si_el_alumno_pide_terminar_antes_el_examen_se_cierra()
+    {
+        var (banco, conversacion) = await EnExamen();
+        using var _ = banco;
+        await FlujoExamenTests.Empezar(banco, conversacion);
+
+        banco.Proveedor.LlamaHerramienta(Herramientas.FinalizarExamen, new { });
+        banco.Proveedor.RespondeTexto("Tu nota es 0.");
+        var eventos = await banco.EnviarAsync(conversacion, "quiero terminar el examen ya");
+
+        Assert.Equal(EstadoIntento.EnRevision, banco.Db.Intentos.Single().Estado);
+        Assert.Contains(eventos.OfType<EventoModo>(), e => e.Modo == ModoConversacion.Revision);
+    }
+
+    [Fact]
+    public async Task Con_la_ultima_respuesta_el_servidor_cierra_el_examen_y_el_tutor_recibe_el_resultado()
+    {
+        var (banco, conversacion) = await EnExamen();
+        using var _ = banco;
+        await FlujoExamenTests.Empezar(banco, conversacion);
+        await banco.EnviarAsync(conversacion, "A");
+
+        banco.Proveedor.RespondeTexto("Evaluación final: tu nota es 20.");
+        var eventos = await banco.EnviarAsync(conversacion, "A");
+
+        Assert.Equal(20.0m, banco.Db.Intentos.Single().Puntaje);
+        Assert.Equal(ModoConversacion.Revision, banco.Db.Conversaciones.Single().Modo);
+        Assert.Contains("Evaluación final", Texto(eventos));
+
+        // La evaluación final no tiene citas: no se le pide sustento.
+        Assert.DoesNotContain(eventos.OfType<EventoAviso>(), a => a.Codigo == "sin_sustento");
+
+        // El tutor escribe la evaluación con la nota del servidor y con las reglas de revisión.
+        var solicitud = banco.Proveedor.Solicitudes.Last();
+        Assert.Contains("\"nota\":20", solicitud.Mensajes.Last().Texto);
+        Assert.Contains("MODO: Revision", solicitud.PromptSistema);
+        Assert.Contains(solicitud.Herramientas, h => h.Nombre == Herramientas.ProponerDiagnostico);
+    }
+
+    [Theory]
+    [InlineData("la de la salud económica y financiera", "C")]
+    [InlineData("el estratégico", "B")]
+    [InlineData("Creo que es el tiempo de operación", "A")]
+    [InlineData("¿qué es la salud financiera?", null)]      // una duda no es una respuesta
+    [InlineData("no es la salud financiera", null)]
+    [InlineData("la salud financiera o el estratégico", null)]
+    [InlineData("indicador", null)]                          // está en más de una
+    [InlineData("la rentabilidad", null)]                    // no está en ninguna
+    [InlineData("el", null)]
+    public void El_texto_de_una_unica_alternativa_tambien_se_registra_directo(string mensaje, string? letra)
+    {
+        (string, string)[] alternativas =
+        [
+            ("A", "Indicador de eficiencia: el tiempo de operación de cada proceso"),
+            ("B", "Indicador estratégico, porque guía los logros a largo plazo"),
+            ("C", "La salud económica y financiera empresarial"),
+            ("D", "Indicador de satisfacción del personal")
+        ];
+
+        Assert.Equal(letra, GuionExamen.LetraPorContenido(mensaje, alternativas));
+    }
+
+    [Fact]
+    public async Task Una_respuesta_con_el_texto_de_la_alternativa_no_depende_del_modelo()
+    {
+        var (banco, conversacion) = await EnExamen();
+        using var _ = banco;
+        await FlujoExamenTests.Empezar(banco, conversacion);
+
+        var eventos = await banco.EnviarAsync(conversacion, "yo diría que ReLU");
+
+        Assert.Empty(banco.Proveedor.Solicitudes);
+        Assert.True(banco.Db.Respuestas.Single().EsCorrecta);
+        Assert.StartsWith("Registrada.", Texto(eventos));
+    }
+
+    [Theory]
+    [InlineData("B", "B")]
+    [InlineData("la c", "C")]
+    [InlineData("creo que es la A", "A")]
+    [InlineData("me quedo con la alternativa d.", "D")]
+    [InlineData("(b)", "B")]
+    [InlineData("el estratégico", null)]
+    [InlineData("no sé, dame una pista", null)]
+    [InlineData("la A o la B", null)]
+    public void Solo_una_letra_sin_nada_que_interpretar_se_registra_directo(string mensaje, string? letra) =>
+        Assert.Equal(letra, GuionExamen.LetraDirecta(mensaje));
 }

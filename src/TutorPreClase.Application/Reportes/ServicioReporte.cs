@@ -2,10 +2,25 @@ using Microsoft.EntityFrameworkCore;
 using TutorPreClase.Application.Abstracciones;
 using TutorPreClase.Application.Nivel;
 using TutorPreClase.Domain.Entidades;
+using TutorPreClase.Domain.Reglas;
 
 namespace TutorPreClase.Application.Reportes;
 
-public sealed record NivelDeAlumno(Guid AlumnoId, string Nombre, string Nivel, IReadOnlyList<string> TemasDebiles, string Origen);
+/// <summary>
+/// La ficha de cada alumno en la clase (RF-22): la nota con la que se fijó su nivel, cuántas
+/// veces rindió, cuándo fue la última y los temas que el tutor le marcó para reforzar.
+/// </summary>
+public sealed record NivelDeAlumno(
+    Guid AlumnoId,
+    string Nombre,
+    string Nivel,
+    IReadOnlyList<string> TemasDebiles,
+    string Origen,
+    decimal? Nota = null,
+    int Intentos = 0,
+    int Correctas = 0,
+    int Preguntas = 0,
+    DateTimeOffset? RendidoEn = null);
 
 /// <summary>
 /// Cada alumno rinde preguntas propias generadas por la IA (RF-04), asi que lo comparable
@@ -67,12 +82,24 @@ public sealed class ServicioReporte(IAppDbContext db) : IServicioReporte
             .ToDictionaryAsync(u => u.Id, u => u.Nombre, ct);
 
         var nivelesDto = niveles
-            .Select(n => new NivelDeAlumno(
-                n.AlumnoId,
-                nombres.GetValueOrDefault(n.AlumnoId, "(sin nombre)"),
-                n.Nivel.ToString(),
-                NivelService.Deserializar(n.TemasDebiles),
-                n.Origen.ToString()))
+            .Select(n =>
+            {
+                var suyos = intentos.Where(i => i.AlumnoId == n.AlumnoId).ToList();
+                var ultimo = suyos.OrderByDescending(i => i.Envio ?? i.Inicio).FirstOrDefault();
+
+                return new NivelDeAlumno(
+                    n.AlumnoId,
+                    nombres.GetValueOrDefault(n.AlumnoId, "(sin nombre)"),
+                    n.Nivel.ToString(),
+                    NivelService.Deserializar(n.TemasDebiles),
+                    n.Origen.ToString(),
+                    // La misma nota con la que el servidor fijó el nivel.
+                    Nota: suyos.Count == 0 ? null : ClasificacionNivel.NotaVigente(suyos),
+                    Intentos: suyos.Count,
+                    Correctas: ultimo?.Respuestas.Count(r => r.EsCorrecta) ?? 0,
+                    Preguntas: ultimo?.PreguntasPlaneadas ?? 0,
+                    RendidoEn: ultimo?.Envio);
+            })
             .OrderBy(n => n.Nombre)
             .ToList();
 

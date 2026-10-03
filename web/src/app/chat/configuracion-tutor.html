@@ -1,35 +1,50 @@
-<section class="configuracion" aria-labelledby="titulo-mi-tutor">
+<div class="fondo" (click)="cerrarSiPuede()"></div>
+
+<section class="configuracion" role="dialog" aria-modal="true" aria-labelledby="titulo-mi-tutor">
   <header class="encabezado">
-    <h2 id="titulo-mi-tutor">Mi tutor</h2>
+    <div>
+      <h2 id="titulo-mi-tutor">Mi tutor</h2>
+      <p class="bajada">La IA con la que estudias. La conectas con tu propia cuenta: el uso es tuyo.</p>
+    </div>
     @if (conectados().length > 0) {
-      <button type="button" class="enlace" (click)="cerrar.emit()">Volver al chat</button>
+      <button type="button" class="volver" (click)="cerrar.emit()">Volver al chat</button>
     }
   </header>
 
+  <div class="cuerpo">
   @if (conectados().length > 0) {
     <fieldset class="activo" [disabled]="enExamen()">
       <legend>Conversas con</legend>
-      @for (agente of conectados(); track agente.id) {
-        <label class="opcion" [class.elegida]="agente.id === agenteActivo()">
-          <input
-            type="radio"
-            name="tutor-activo"
-            [value]="agente.id"
-            [checked]="agente.id === agenteActivo()"
-            (change)="elegir.emit(agente.id)" />
-          <span class="nombre">{{ agente.nombre }}</span>
-          @if (agente.modelo) {
-            <code class="modelo">{{ agente.modelo }}</code>
-          }
-        </label>
-      }
+      <div class="opciones">
+        @for (agente of conectados(); track agente.id) {
+          <label class="opcion" [class.elegida]="agente.id === agenteActivo()">
+            <input
+              type="radio"
+              name="tutor-activo"
+              [value]="agente.id"
+              [checked]="agente.id === agenteActivo()"
+              (change)="elegir.emit(agente.id)" />
+            <span class="quien">
+              <span class="nombre">{{ agente.nombre }}</span>
+              @if (agente.modelo) {
+                <code class="modelo">{{ agente.modelo }}</code>
+              }
+            </span>
+            @if (agente.id === agenteActivo()) {
+              <span class="en-uso">En uso</span>
+            }
+          </label>
+        }
+      </div>
       @if (enExamen()) {
         <p class="ayuda">Durante el examen sigues con el mismo tutor; puedes cambiarlo al terminar.</p>
       }
     </fieldset>
   } @else {
-    <p class="ayuda">Conecta una IA para empezar. Elige la forma que te quede mejor.</p>
+    <p class="bienvenida">Conecta una IA para empezar. Elige la forma que te quede mejor.</p>
   }
+
+  <h3 class="seccion">{{ conectados().length > 0 ? 'Conectar otra IA' : 'Cómo quieres conectarla' }}</h3>
 
   <div class="pestanas" role="tablist" aria-label="Formas de conectar tu tutor" (keydown)="moverPestana($event)">
     @for (p of pestanas; track p.id) {
@@ -58,9 +73,13 @@
         OpenRouter es gratis y puedes crear la cuenta con tu Google.
       </p>
 
+      <div class="proveedores">
       @for (agente of porCuenta(); track agente.id) {
-        <article class="proveedor">
-          <h3>{{ agente.nombre }} @if (agente.modelo) {<code class="modelo">{{ agente.modelo }}</code>}</h3>
+        <article class="proveedor" [class.conectado]="credencialDe(agente.id)?.estado === 'Valida'">
+          <header>
+            <h4>{{ agente.nombre }}</h4>
+            @if (agente.modelo) {<code class="modelo">{{ agente.modelo }}</code>}
+          </header>
 
           @if (credencialDe(agente.id); as credencial) {
             <p class="estado" [class.invalida]="credencial.estado === 'Invalida'">
@@ -75,15 +94,20 @@
           }
 
           <div class="acciones">
-            <button type="button" class="principal" [disabled]="conectando()" (click)="entrar.emit(agente.id)">
-              {{ credencialDe(agente.id) ? 'Volver a entrar' : 'Entrar con ' + agente.nombre }}
-            </button>
             @if (credencialDe(agente.id)) {
+              <button type="button" class="secundario" [disabled]="conectando()" (click)="entrar.emit(agente.id)">
+                Volver a entrar
+              </button>
               <button type="button" class="quitar" (click)="desconectar.emit(agente.id)">Desconectar</button>
+            } @else {
+              <button type="button" class="principal" [disabled]="conectando()" (click)="entrar.emit(agente.id)">
+                Entrar con {{ agente.nombre }}
+              </button>
             }
           </div>
         </article>
       }
+      </div>
     </div>
   }
 
@@ -96,9 +120,13 @@
         Las suscripciones de ChatGPT Plus o Claude Pro no incluyen claves de API.
       </p>
 
+      <div class="proveedores una-columna">
       @for (agente of porClave(); track agente.id) {
-        <article class="proveedor">
-          <h3>{{ agente.nombre }} @if (agente.modelo) {<code class="modelo">{{ agente.modelo }}</code>}</h3>
+        <article class="proveedor" [class.conectado]="credencialDe(agente.id)?.estado === 'Valida'">
+          <header>
+            <h4>{{ agente.nombre }}</h4>
+            @if (agente.modelo) {<code class="modelo">{{ agente.modelo }}</code>}
+          </header>
 
           @if (credencialDe(agente.id); as credencial) {
             <p class="estado" [class.invalida]="credencial.estado === 'Invalida'">
@@ -140,6 +168,7 @@
           </form>
         </article>
       }
+      </div>
     </div>
   }
 
@@ -195,7 +224,7 @@
           <p class="ayuda">Generar uno nuevo invalida el anterior.</p>
         }
 
-        <h3>Cómo conectarlo</h3>
+        <h4 class="subtitulo">Cómo conectarlo</h4>
         <ol class="pasos">
           <li>
             <strong>Claude Code:</strong> en tu terminal,
@@ -222,4 +251,5 @@
       }
     </div>
   }
+  </div>
 </section>

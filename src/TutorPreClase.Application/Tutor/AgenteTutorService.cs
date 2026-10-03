@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using TutorPreClase.Application.Abstracciones;
@@ -38,6 +39,7 @@ public sealed class AgenteTutorService(
 {
     private const int MaxVueltasHerramienta = 6;
     private const int MensajesDeHistorial = 20;
+    private const int MaxCorreccionesExamen = 2;
 
     public async Task<Conversacion> AbrirConversacionAsync(
         Guid claseId, Guid alumnoId, string agenteId, CancellationToken ct = default)
@@ -134,6 +136,10 @@ public sealed class AgenteTutorService(
         var ampliacionPermitida = AmpliacionPermitida(conversacion.Modo, clase);
         yield return new EventoModo(conversacion.Modo, ampliacionPermitida);
 
+        // La hoja de respuestas no espera al modelo (RNF-01): también al volver a entrar.
+        if (conversacion is { Modo: ModoConversacion.Evaluacion, IntentoId: Guid enCurso })
+            yield return await ProgresoAsync(enCurso, ct);
+
         db.Mensajes.Add(new MensajeChat
         {
             ConversacionId = conversacion.Id,
@@ -156,26 +162,35 @@ public sealed class AgenteTutorService(
         }
 
         var historial = await HistorialAsync(conversacion.Id, ct);
+        var feedback = await ModoFeedbackAsync(conversacion.ClaseId, ct);
 
-        // En el examen va el material completo; al conversar, si la clase es grande, solo
-        // las páginas relacionadas con lo que pregunta el alumno (SDD §6.2).
-        var contextoClase = conversacion.Modo == ModoConversacion.Evaluacion
-            ? await contexto.ObtenerAsync(conversacion.ClaseId, ct)
-            : await contexto.ObtenerParaPreguntaAsync(conversacion.ClaseId, Consulta(historial), ct);
+        // Al conversar, si la clase es grande, solo las páginas relacionadas con lo que pregunta
+        // el alumno (SDD §6.2). En el examen el material no viaja: las preguntas las entrega el
+        // servidor y así el tutor no tiene de dónde sacar una pista (RF-15). Solo con feedback
+        // inmediato lo necesita, para explicar cada corrección.
+        var contextoClase = conversacion.Modo switch
+        {
+            ModoConversacion.Evaluacion when feedback == ModoFeedback.Inmediato =>
+                await contexto.ObtenerAsync(conversacion.ClaseId, ct),
+            ModoConversacion.Evaluacion => ContextoClase.Vacio,
+            _ => await contexto.ObtenerParaPreguntaAsync(conversacion.ClaseId, Consulta(historial), ct)
+        };
         var proveedor = proveedores.Obtener(agente.Id, clave);
 
         var intento = conversacion.IntentoId is Guid id
             ? await db.Intentos.FirstOrDefaultAsync(i => i.Id == id, ct)
             : null;
 
-        var prompt = PromptTutor.Construir(new DatosPrompt(
+        string Prompt() => PromptTutor.Construir(new DatosPrompt(
             curso.Nombre,
             clase.Titulo,
             conversacion.Modo,
             intento?.Estado,
-            await ModoFeedbackAsync(conversacion.ClaseId, ct),
+            feedback,
             ampliacionPermitida,
             contextoClase.Texto));
+
+        var prompt = Prompt();
 
         var textoFinal = new StringBuilder();
         var tokensEntrada = 0;
@@ -187,111 +202,267 @@ public sealed class AgenteTutorService(
         // la cola donde podria empezar la marca: lo que viene detras nunca llega (SDD §6.4).
         var emisor = new EmisorConCorte(retenerAmpliacion: !ampliacionPermitida);
 
-        for (var vuelta = 0; vuelta < MaxVueltasHerramienta; vuelta++)
+        // Lo que pasó con el examen en este turno: lo decide el servidor, no el texto del modelo.
+        var intentoRegistrar = false;
+        var registroOk = false;
+        var preguntaMostrada = false;
+        var cerroExamen = false;
+        var dudaRegistrada = false;
+        var correcciones = 0;
+
+        // Lo que el servidor resuelve en el examen sin esperar al modelo (RNF-01), aunque esté
+        // saturado: presentar la pregunta que toca si el alumno no la tiene delante (al empezar,
+        // o si la anterior no se pudo generar) y registrar una respuesta inequívoca, sea la letra
+        // sola o el texto de una única alternativa. Lo demás lo interpreta el tutor.
+        LlamadaHerramienta? delServidor = null;
+        var soloPresentar = false;
+
+        if (conversacion is { Modo: ModoConversacion.Evaluacion, IntentoId: Guid conPregunta })
         {
-            var solicitud = new LlmSolicitud(
-                agente.Modelo,
-                prompt,
-                historial,
-                Herramientas.Para(conversacion.Modo));
+            var aLaVista = await PreguntaALaVistaAsync(conPregunta, historial, ct);
+            soloPresentar = aLaVista is null && !GuionExamen.PideTerminar(mensaje);
 
-            var textoVuelta = new StringBuilder();
-            LlamadaHerramienta? llamada = null;
-            ErrorProveedor? error = null;
+            var letra = aLaVista is null ? null
+                : GuionExamen.LetraDirecta(mensaje)
+                  ?? GuionExamen.LetraPorContenido(mensaje, aLaVista.Alternativas.Select(a => (a.Letra, a.Texto)));
 
-            await foreach (var evento in proveedor.StreamAsync(solicitud, ct))
+            if (letra is not null)
             {
-                switch (evento)
-                {
-                    case TextoParcial t:
-                        textoVuelta.Append(t.Texto);
-                        var visible = emisor.Agregar(t.Texto);
-                        if (visible.Length > 0) yield return new EventoToken(visible);
-                        break;
-
-                    case LlamadaHerramienta l:
-                        llamada = l;
-                        break;
-
-                    case Fin f:
-                        tokensEntrada += f.TokensEntrada;
-                        tokensSalida += f.TokensSalida;
-                        cortadaPorTope |= f.CortadaPorTope;
-                        break;
-
-                    case ErrorProveedor e:
-                        error = e;
-                        break;
-                }
+                delServidor = new LlamadaHerramienta(
+                    $"servidor_{Guid.NewGuid():N}",
+                    Herramientas.RegistrarRespuesta,
+                    JsonSerializer.SerializeToElement(new { alternativa = letra, texto_original = mensaje }));
             }
+        }
 
-            if (error is not null)
+        for (var vuelta = 0; vuelta < MaxVueltasHerramienta && !soloPresentar; vuelta++)
+        {
+            var enExamen = conversacion.Modo == ModoConversacion.Evaluacion;
+            var textoVuelta = new StringBuilder();
+            var llamada = delServidor;
+            var esDelServidor = delServidor is not null;
+            delServidor = null;
+
+            if (!esDelServidor)
             {
-                log.LogWarning("Proveedor {Agente} fallo: {Mensaje}", agente.Id, error.Mensaje);
+                var solicitud = new LlmSolicitud(
+                    agente.Modelo,
+                    prompt,
+                    historial,
+                    Herramientas.Para(conversacion.Modo));
 
-                if (error.CredencialRechazada)
+                ErrorProveedor? error = null;
+
+                await foreach (var evento in proveedor.StreamAsync(solicitud, ct))
                 {
-                    await credenciales.MarcarInvalidaAsync(conversacion.AlumnoId, agente.Id, ct);
-                    yield return new EventoAviso("credencial_rechazada",
-                        $"{agente.NombreVisible} rechazó tu credencial. Vuelve a conectarla para seguir.");
+                    switch (evento)
+                    {
+                        case TextoParcial t:
+                            textoVuelta.Append(t.Texto);
+
+                            // En el examen el texto se retiene hasta comprobarlo.
+                            if (enExamen) break;
+
+                            var visible = emisor.Agregar(t.Texto);
+                            if (visible.Length > 0) yield return new EventoToken(visible);
+                            break;
+
+                        case LlamadaHerramienta l:
+                            llamada = l;
+                            break;
+
+                        case Fin f:
+                            tokensEntrada += f.TokensEntrada;
+                            tokensSalida += f.TokensSalida;
+                            cortadaPorTope |= f.CortadaPorTope;
+                            break;
+
+                        case ErrorProveedor e:
+                            error = e;
+                            break;
+                    }
                 }
-                else if (error.LimiteDeUso)
+
+                if (error is not null)
                 {
-                    // La credencial sigue siendo buena: solo se acabo el cupo (RF-30).
-                    yield return new EventoAviso("limite_de_uso", MensajeLimite(agente.NombreVisible, error, "Tu avance está guardado."));
+                    log.LogWarning("Proveedor {Agente} fallo: {Mensaje}", agente.Id, error.Mensaje);
+
+                    if (error.CredencialRechazada)
+                    {
+                        await credenciales.MarcarInvalidaAsync(conversacion.AlumnoId, agente.Id, ct);
+                        yield return new EventoAviso("credencial_rechazada",
+                            $"{agente.NombreVisible} rechazó tu credencial. Vuelve a conectarla para seguir.");
+                    }
+                    else if (error.LimiteDeUso)
+                    {
+                        // La credencial sigue siendo buena: solo se acabo el cupo (RF-30).
+                        yield return new EventoAviso("limite_de_uso", MensajeLimite(agente.NombreVisible, error, "Tu avance está guardado."));
+                    }
+                    else
+                    {
+                        yield return new EventoError(error.Mensaje, error.Reintentable);
+                    }
+
+                    yield break;
+                }
+
+                if (enExamen)
+                {
+                    var textoExamen = textoVuelta.ToString().Trim();
+                    var esRegistro = llamada?.Nombre == Herramientas.RegistrarRespuesta;
+                    var falta = GuionExamen.Falta(textoExamen, intentoRegistrar || esRegistro);
+
+                    if (llamada is null && falta is not null)
+                    {
+                        log.LogWarning("Examen {Conversacion}: se descarta la respuesta del modelo ({Motivo})",
+                            conversacion.Id, falta);
+
+                        if (correcciones++ < MaxCorreccionesExamen)
+                        {
+                            if (textoExamen.Length > 0) historial = [.. historial, new LlmMensaje(RolLlm.Asistente, textoExamen)];
+                            historial = [.. historial, new LlmMensaje(RolLlm.Usuario, GuionExamen.RecordatorioHerramientas)];
+                            continue;
+                        }
+
+                        // El modelo no usa las herramientas: el servidor responde por él.
+                        textoExamen = registroOk ? GuionExamen.Registrada : GuionExamen.SoloLaLetra;
+                        falta = null;
+                    }
+
+                    // Junto a registrar_respuesta el texto sobra: lo que pasó lo dice el servidor.
+                    if (falta is null && !esRegistro && textoExamen.Length > 0)
+                    {
+                        var bloque = Parrafo(textoFinal, Salvaguardas.CortarAmpliacion(textoExamen));
+                        textoFinal.Append(bloque);
+                        yield return new EventoToken(bloque);
+                    }
                 }
                 else
                 {
-                    yield return new EventoError(error.Mensaje, error.Reintentable);
+                    textoFinal.Append(textoVuelta);
                 }
 
-                yield break;
+                if (llamada is null) break;
+
+                historial = [.. historial, new LlmMensaje(
+                    RolLlm.Asistente,
+                    textoVuelta.ToString(),
+                    llamada.Id,
+                    llamada.Nombre,
+                    HerramientaArgumentos: llamada.Argumentos,
+                    HerramientaFirma: llamada.Firma)];
             }
 
-            textoFinal.Append(textoVuelta);
-
-            if (llamada is null) break;
-
-            historial = [.. historial, new LlmMensaje(
-                RolLlm.Asistente,
-                textoVuelta.ToString(),
-                llamada.Id,
-                llamada.Nombre,
-                HerramientaArgumentos: llamada.Argumentos)];
-
-            var resultado = await ejecutor.EjecutarAsync(conversacion, llamada.Nombre, llamada.Argumentos, ct);
-
-            db.Mensajes.Add(new MensajeChat
-            {
-                ConversacionId = conversacion.Id,
-                AgenteId = agente.Id,
-                Rol = RolMensaje.Herramienta,
-                Texto = resultado.Json,
-                Herramienta = resultado.Nombre,
-                CreadoEn = reloj.Ahora
-            });
-            await db.SaveChangesAsync(ct);
+            // Cerrar con preguntas pendientes solo si lo pide el alumno o se acabó el tiempo:
+            // que el modelo lo decida por su cuenta le costaría la nota.
+            var resultado =
+                llamada!.Nombre == Herramientas.FinalizarExamen && enExamen && intento is not null &&
+                !GuionExamen.PideTerminar(mensaje) && await QuedanPreguntasConTiempoAsync(intento, ct)
+                    ? await GuardarAsync(conversacion, agente, new ResultadoHerramienta(
+                        llamada.Nombre,
+                        JsonSerializer.Serialize(new
+                        {
+                            error = "quedan_preguntas",
+                            mensaje = "Aún quedan preguntas y el alumno no pidió terminar. Sigue con obtener_siguiente_pregunta."
+                        }),
+                        Ok: false), ct)
+                    : await EjecutarYGuardarAsync(conversacion, agente, llamada.Nombre, llamada.Argumentos, ct);
 
             yield return new EventoHerramienta(resultado.Nombre, resultado.Ok ? "ok" : "error");
 
-            historial = [.. historial, new LlmMensaje(
-                RolLlm.Herramienta,
-                null,
-                llamada.Id,
-                llamada.Nombre,
-                resultado.Json)];
+            var json = resultado.Json;
+            var registradaAhora = false;
+
+            if (llamada.Nombre == Herramientas.RegistrarRespuesta)
+            {
+                intentoRegistrar = true;
+                registradaAhora = resultado.Ok && GuionExamen.Verdadero(json, "registrada");
+                registroOk |= registradaAhora;
+
+                // Sin nada más que responder, el examen lo cierra el servidor (RF-09).
+                if (registradaAhora && !GuionExamen.Verdadero(json, "quedan_preguntas"))
+                {
+                    var cierre = await EjecutarYGuardarAsync(
+                        conversacion, agente, Herramientas.FinalizarExamen, JsonSerializer.SerializeToElement(new { }), ct);
+                    yield return new EventoHerramienta(cierre.Nombre, cierre.Ok ? "ok" : "error");
+
+                    if (cierre.Ok)
+                    {
+                        var conCierre = JsonNode.Parse(json)!.AsObject();
+                        conCierre["examen_finalizado"] = true;
+                        conCierre["resultado"] = JsonNode.Parse(cierre.Json);
+                        json = conCierre.ToJsonString();
+                        resultado = resultado with { CierraExamen = cierre.CierraExamen };
+                    }
+                }
+            }
+
+            dudaRegistrada |= llamada.Nombre == Herramientas.RegistrarDudaSinCobertura && resultado.Ok;
+
+            historial = esDelServidor
+                ? [.. historial, new LlmMensaje(RolLlm.Usuario,
+                    $"(Nota del servidor: la respuesta del alumno ya se registró con registrar_respuesta. Resultado: {json})")]
+                : [.. historial, new LlmMensaje(RolLlm.Herramienta, null, llamada.Id, llamada.Nombre, json)];
 
             if (conversacion.IntentoId is Guid intentoId && conversacion.Modo == ModoConversacion.Evaluacion)
-            {
-                var progreso = await examen.ProgresoAsync(intentoId, ct);
-                yield return new EventoProgreso(progreso.Respondidas, progreso.Total, progreso.SegundosRestantes);
-            }
+                yield return await ProgresoAsync(intentoId, ct);
 
             if (resultado.CierraExamen)
             {
+                // El chat pasa a Revisión: otras reglas, el material vuelve y ya se puede citar.
+                cerroExamen = true;
                 ampliacionPermitida = AmpliacionPermitida(conversacion.Modo, clase);
                 yield return new EventoModo(conversacion.Modo, ampliacionPermitida);
+
+                contextoClase = await contexto.ObtenerAsync(conversacion.ClaseId, ct);
+                prompt = Prompt();
+                emisor = new EmisorConCorte(retenerAmpliacion: !ampliacionPermitida);
+                continue;
             }
+
+            if (conversacion.Modo != ModoConversacion.Evaluacion) continue;
+
+            // La pregunta la escribe el servidor tal como está guardada: el modelo no la repite.
+            if (llamada.Nombre == Herramientas.ObtenerSiguientePregunta && resultado.Ok &&
+                GuionExamen.Pregunta(json) is string pregunta)
+            {
+                var bloque = Parrafo(textoFinal, pregunta);
+                textoFinal.Append(bloque);
+                yield return new EventoToken(bloque);
+                preguntaMostrada = true;
+                break;
+            }
+
+            // Con el feedback al final no hay nada que comentar: se pasa a la siguiente.
+            if (registradaAhora && feedback == ModoFeedback.AlFinal)
+            {
+                var bloque = Parrafo(textoFinal, GuionExamen.Registrada);
+                textoFinal.Append(bloque);
+                yield return new EventoToken(bloque);
+                break;
+            }
+        }
+
+        // Sigue el examen y el alumno no tiene delante la pregunta que toca: se la da el servidor.
+        if (conversacion is { Modo: ModoConversacion.Evaluacion, IntentoId: Guid pendienteDe } && !preguntaMostrada &&
+            (registroOk || await PreguntaALaVistaAsync(pendienteDe, historial, ct) is null))
+        {
+            var siguiente = await EjecutarYGuardarAsync(
+                conversacion, agente, Herramientas.ObtenerSiguientePregunta, JsonSerializer.SerializeToElement(new { }), ct);
+
+            var contenido = siguiente.Ok
+                ? GuionExamen.Pregunta(siguiente.Json)
+                : $"No pude preparar la siguiente pregunta: {GuionExamen.MensajeDeError(siguiente.Json)} " +
+                  "Escribe «siguiente» para volver a intentarlo; tu avance está guardado.";
+
+            if (contenido is not null)
+            {
+                var bloque = Parrafo(textoFinal, contenido);
+                textoFinal.Append(bloque);
+                yield return new EventoToken(bloque);
+            }
+
+            yield return await ProgresoAsync(pendienteDe, ct);
         }
 
         var texto = textoFinal.ToString();
@@ -321,7 +492,9 @@ public sealed class AgenteTutorService(
         var citas = Salvaguardas.ExtraerCitas(texto, contextoClase.PaginasDeLaClase);
         if (citas.Count > 0) yield return new EventoFuentes(citas);
 
+        // La evaluación final y el "no está en el material" no tienen nada que citar.
         if (conversacion.Modo == ModoConversacion.Revision &&
+            !cerroExamen && !dudaRegistrada &&
             texto.Length > 0 &&
             !Salvaguardas.RespuestaSustentada(texto, citas))
         {
@@ -344,6 +517,60 @@ public sealed class AgenteTutorService(
         await db.SaveChangesAsync(ct);
 
         yield return new EventoFin(agente.Id, huboAmpliacion, tokensEntrada, tokensSalida);
+    }
+
+    /// <summary>Separa lo que escribe el servidor de lo que ya había en la respuesta.</summary>
+    private static string Parrafo(StringBuilder previo, string texto) =>
+        previo.Length == 0 ? texto : $"\n\n{texto}";
+
+    private async Task<EventoProgreso> ProgresoAsync(Guid intentoId, CancellationToken ct)
+    {
+        var progreso = await examen.ProgresoAsync(intentoId, ct);
+        return new EventoProgreso(progreso.Respondidas, progreso.Total, progreso.SegundosRestantes);
+    }
+
+    private async Task<ResultadoHerramienta> EjecutarYGuardarAsync(
+        Conversacion conversacion, AgenteIA agente, string nombre, JsonElement argumentos, CancellationToken ct) =>
+        await GuardarAsync(conversacion, agente, await ejecutor.EjecutarAsync(conversacion, nombre, argumentos, ct), ct);
+
+    private async Task<ResultadoHerramienta> GuardarAsync(
+        Conversacion conversacion, AgenteIA agente, ResultadoHerramienta resultado, CancellationToken ct)
+    {
+        db.Mensajes.Add(new MensajeChat
+        {
+            ConversacionId = conversacion.Id,
+            AgenteId = agente.Id,
+            Rol = RolMensaje.Herramienta,
+            Texto = resultado.Json,
+            Herramienta = resultado.Nombre,
+            CreadoEn = reloj.Ahora
+        });
+        await db.SaveChangesAsync(ct);
+
+        return resultado;
+    }
+
+    /// <summary>
+    /// La pregunta que toca responder, si ya está escrita en el chat. Si no (aún no se generó,
+    /// o el alumno acaba de entrar), una respuesta suelta no se puede atribuir a ninguna.
+    /// </summary>
+    private async Task<PreguntaDto?> PreguntaALaVistaAsync(Guid intentoId, IReadOnlyList<LlmMensaje> historial, CancellationToken ct)
+    {
+        var pendiente = await examen.SiguientePreguntaAsync(intentoId, ct);
+
+        return pendiente is not null && historial.Any(m =>
+            m.Rol == RolLlm.Asistente && m.Texto?.Contains(pendiente.Enunciado, StringComparison.Ordinal) == true)
+            ? pendiente
+            : null;
+    }
+
+    private async Task<bool> QuedanPreguntasConTiempoAsync(Intento intento, CancellationToken ct)
+    {
+        var progreso = await examen.ProgresoAsync(intento.Id, ct);
+        if (progreso.Respondidas >= progreso.Total) return false;
+
+        var examenClase = await db.Examenes.AsNoTracking().FirstAsync(e => e.Id == intento.ExamenId, ct);
+        return !ReglasExamen.TiempoVencido(examenClase, intento, reloj.Ahora);
     }
 
     /// <summary>
@@ -431,7 +658,7 @@ public sealed class AgenteTutorService(
     private string MensajeLimite(string agente, ErrorProveedor error, string avance)
     {
         if (error.Saturado)
-            return "El modelo gratuito está saturado en este momento (le pasa a todos los que lo usan, " +
+            return "El modelo está saturado en este momento (le pasa a todos los que lo usan, " +
                    $"no es tu cupo). Vuelve a intentarlo en unos segundos. {avance}";
 
         var cuando = error.ReintentarEn is DateTimeOffset momento && momento > reloj.Ahora

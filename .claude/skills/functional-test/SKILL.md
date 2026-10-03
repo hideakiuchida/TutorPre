@@ -123,6 +123,7 @@ con `POST /api/v1/acceso/desarrollo {"usuarioId":…}` y guárdala en la pestañ
 
 | Requisito | Cómo verificarlo |
 | --- | --- |
+| RF-08 | En la lista de clases, la etiqueta dice *Examen disponible* solo dentro de la ventana; fuera, *Examen cerrado* o *Examen desde el …*, y no aparece el botón *Comenzar examen* |
 | RF-31 | La entrada (franja roja UPC) pide primero *Soy alumno* / *Soy profesor*; luego *Entras como … Cambiar* y los botones *Continuar con Google* / *Continuar con Microsoft (Outlook)*. `GET /acceso/proveedores` dice cuál está `configurado`; el que no, avisa al pulsarlo |
 | RF-31 | *Continuar con Google* lleva a `accounts.google.com` con `code_challenge_method=S256` y `redirect_uri=http://localhost:4200/entrar/google`. La persona elige su cuenta y vuelve: entra con el perfil elegido |
 | RF-31 | `POST /acceso/google/inicio {"perfil":"Admin"}` → `rol_invalido`; `POST /acceso/microsoft/canje` con `code`/`state` inventados → error y ninguna sesión |
@@ -140,13 +141,13 @@ con `POST /api/v1/acceso/desarrollo {"usuarioId":…}` y guárdala en la pestañ
 | Requisito | Cómo verificarlo |
 | --- | --- |
 | RF-27 | Al entrar sin cuenta conectada, se abre **Mi tutor** encima del chat y el campo de mensaje está deshabilitado |
-| §8 | La cabecera dice **«Mi tutor: <agente>»** con *Cambiar* (sin combo); *Cambiar* abre *Mi tutor* encima del chat con «Conversas con» (cada IA con su modelo) y tres pestañas: *Con tu cuenta*, *Con tu clave de API*, *Desde tu asistente*. Las flechas del teclado cambian de pestaña. A ~400 px la cabecera cabe en una línea y las pestañas también. En examen, «Conversas con» queda deshabilitado |
+| §8 | La cabecera dice **«Mi tutor: <agente>»** con *Cambiar* (sin combo); *Cambiar* abre *Mi tutor* como una hoja encima del chat (se cierra con *Volver al chat*, Esc o pulsando fuera; sin ninguna IA conectada no se cierra) con «Conversas con» (cada IA con su modelo, la elegida marcada *En uso*) y tres pestañas: *Con tu cuenta*, *Con tu clave de API*, *Desde tu asistente*. Las flechas del teclado cambian de pestaña. A ~400 px la cabecera cabe en una línea y las pestañas también. En examen, «Conversas con» queda deshabilitado |
 | RF-29 | `PUT /alumno/credenciales/openrouter` con una clave → 400 `conexion_por_oauth` y no guarda nada |
 | RF-38 | Pestaña *Con tu clave de API*: en ChatGPT pega una clave **inventada** con la forma correcta (`sk-proj-…-0000`) → *Conectar* → aviso *rechazó esa credencial* (lo rechaza OpenAI real), el campo queda vacío y `GET /alumno/credenciales` no la tiene. En Claude pega una `sk-proj-…` → aviso *debería empezar por "sk-ant-"* sin llamar al proveedor. Enter en el campo también conecta |
 | RF-38 | Con una clave real que **pega la persona**: queda «Conectada: la clave termina en XXXX», aparece en «Conversas con» con su modelo y el chat responde con ese proveedor |
 | RF-39 | Pestaña *Desde tu asistente*: *Generar token* muestra `tpc_mcp_…` una sola vez con *Copiar*, la URL `…/mcp` y el comando de Claude Code; al recargar solo se ve «Termina en XXXX». *Revocar* lo invalida |
 | RF-39 | Con el token (en local, el de prueba): `initialize` y `tools/call listar_clases` a `/mcp` responden 200 con las clases del alumno; sin token, con la sesión de la web o con el token revocado → 401. En producción, la persona conecta Claude Code con el comando y le pide «¿qué clases tengo?» y «tómame el examen de M1»: cita el material, una pregunta a la vez, y la nota coincide con `GET /intentos/{id}/resultado` |
-| RF-29 | `/conectar/openrouter?code=inventado` sin haber iniciado → aviso *"venció o ya se usó"*, la URL queda en `/` y nada guardado |
+| RF-29 | `/conectar/openrouter?code=inventado` sin haber iniciado → se abre *Mi tutor* con el aviso *"venció o ya se usó"* (también con otra cuenta ya conectada), la URL queda en `/` y nada guardado |
 | RF-24 | *Conectar con OpenRouter (gratis)* lleva a `openrouter.ai` con `code_challenge_method=S256` y `callback_url` a `/conectar/openrouter`. La persona inicia sesión y autoriza → vuelve, el panel se cierra y el chat queda listo; **Desconectar** lo revierte |
 | RF-25 | Un código inventado canjeado por la API responde `oauth_rechazado` (lo rechaza OpenRouter real) y no se guarda |
 | RF-26 / RNF-10 | `GET /api/v1/alumno/credenciales` devuelve solo `agenteId`, `ultimos4`, `origen` (`OAuth`), `estado` y fechas. **Si aparece la clave completa, párate y repórtalo: es un fallo grave** |
@@ -174,6 +175,7 @@ curl -s -H "X-Usuario-Id: $(python -c 'import uuid;print(uuid.uuid4())')" \
 | --- | --- |
 | RF-19 | En M1: `¿qué diferencia hay entre costo y gasto?` obtiene respuesta del tema |
 | RF-11 | Esa respuesta cita la infografía *Costo vs Gasto* (resaltada en el texto y en las fuentes debajo del globo del tutor) |
+| RF-37 | Repite la pregunta del WACC **con Gemini**: usa una herramienta, así que comprueba que la firma de razonamiento vuelve bien (antes daba *400*). Si Google está saturado (503), el aviso dice *saturado* y no muestra el código |
 | RF-12 / RF-20 | `¿qué es el WACC?` (no está en el material de M1). Con la ampliación **apagada, que es lo que viene por defecto**: responde *"Esto no está en el material de la clase; pregúntalo en la sesión."* y no sale nada a lápiz |
 | RF-19 | `dame una receta de ceviche` → declina y reconduce al curso |
 | RNF-02 | El primer token aparece en menos de ~3 s, también con la ampliación apagada (el texto se ve mientras se escribe). Si tarda más de 2 s aparece *Pensando…*. En el log de la API, cada llamada deja `LLM openrouter <modelo>: primer token … ms, total … ms, entrada …, razonamiento …`; con el razonamiento desactivado, `razonamiento` debe ser 0 |
@@ -183,14 +185,15 @@ curl -s -H "X-Usuario-Id: $(python -c 'import uuid;print(uuid.uuid4())')" \
 | Requisito | Cómo verificarlo |
 | --- | --- |
 | RF-04 | **Comenzar examen**: sale *"Preparando tu examen con el material de la clase…"* y en pocos segundos arranca con la **primera** pregunta **sobre el material de M1** (no inventada ni de otro tema). La cabecera dice *Pregunta 1 de 6* aunque las demás aún no existan: se generan **pregunta a pregunta** mientras responde, sin repetir tema (SDD §5.2) |
-| RF-04 | Tras cada respuesta, la siguiente llega casi al instante (se preparó en segundo plano). Si el modelo está saturado, el tutor lo dice en una línea y vuelve a pedirla cuando el alumno lo indica; las respuestas ya registradas se conservan |
+| RF-04 | Tras cada respuesta, la siguiente llega casi al instante (se preparó en segundo plano) y la escribe **el servidor**, con el formato fijo `Pregunta N de 6` + alternativas A–D. Si no se pudo generar, sale *"No pude preparar la siguiente pregunta… Escribe «siguiente»"*; las respuestas ya registradas se conservan |
 | RF-05 | Cada pregunta trae 4 alternativas; la correcta no cae siempre en la misma letra. Tras el examen, `GET /intentos/$INT/resultado` muestra justificaciones que citan `[archivo, p. N]` |
 | RF-04 | Un segundo intento trae preguntas distintas a las del primero |
 | RF-06 | La cabecera pasa a *Examen en curso* y el intento guarda el modelo (`openrouter` en `usoPorAgente` del reporte) |
-| RF-15 | Pide una pista o la respuesta: se niega y no filtra la correcta |
-| RF-07 | Responde en lenguaje natural (`creo que es la A`): el progreso avanza y presenta la siguiente |
-| RF-18 | Con `minutosLimite`, la cabecera muestra el tiempo restante |
-| RF-09 | Al responder la última, comunica la **nota sobre 20**, calculada por el servidor sobre las 6 planeadas; `GET /api/v1/intentos/$INT/resultado` da la misma nota |
+| RF-15 | Pide una pista o la respuesta: se niega en una línea, **sin citar ni recordar el material**, y no filtra la correcta |
+| RF-07 | Responde con una letra (`creo que es la A`): la registra el servidor al instante, sin llamar al modelo. Responde con el contenido (`el indicador financiero`): el tutor la interpreta y la registra. En ambos casos sale *Registrada.* y **la barra avanza una casilla por respuesta**: si el tutor dice que registró y la barra no se mueve, es un fallo grave |
+| RF-18 | Con `minutosLimite`, la cabecera muestra el tiempo restante y **el reloj corre solo**, segundo a segundo. Al recargar la página en pleno examen, la barra y el reloj reaparecen sin escribir nada |
+| RF-09 | Al responder la última, **el servidor cierra el examen** y el tutor comunica la **nota sobre 20**, calculada sobre las 6 planeadas; la nota coincide con las respuestas dadas y con `GET /api/v1/intentos/$INT/resultado` |
+| §6.4 | Di `termina el examen` con preguntas pendientes: se cierra. Sin pedirlo, el examen no se cierra antes de la sexta respuesta |
 | §5.4 | Al terminar, el tutor abre con una **evaluación final** breve: la nota, lo que dominó, los temas a reforzar y una recomendación; luego ofrece repasar los fallos. En el reporte del docente, esos temas aparecen en `temasDebiles` del alumno |
 | RNF-01 | El progreso se actualiza al instante, sin esperar al modelo |
 | RF-08 | Tras agotar los 3 intentos, iniciar otro responde `SinIntentosDisponibles` |
@@ -209,7 +212,7 @@ curl -s -H "X-Usuario-Id: $(python -c 'import uuid;print(uuid.uuid4())')" \
 | Requisito | Cómo verificarlo |
 | --- | --- |
 | RF-21 | El reporte trae el nivel del alumno acorde a su nota (0–10,9 Inicial · 11–14,9 Básico · 15–17,9 Intermedio · 18–20 Avanzado) |
-| RF-22 | El reporte trae `distribucionNiveles`, nivel por alumno y `temasDebilesDelGrupo` |
+| RF-22 | El reporte trae `distribucionNiveles`, nivel por alumno y `temasDebilesDelGrupo`. En el panel del profesor, *Alumno por alumno* muestra de cada uno la nota, el nivel, los aciertos, los intentos y los temas a reforzar; la nota y el nivel aparecen solos al terminar el examen, sin que nadie los cargue |
 | RF-16 | El reporte trae `promedioNota`, `distribucionNotas`, `temasMasFallados` y `usoPorAgente` |
 | RF-21 | `PUT /clases/$CLA/niveles/$ALU` con `{"nivel":"Avanzado"}` responde `"origen":"Docente"` y el cálculo no lo pisa |
 | RF-20 | `PUT /clases/$CLA/ampliacion` con `{"permitida":true}`; recarga el chat y repite `¿qué es el WACC?`: ahora lo dice y amplía **a lápiz debajo de la respuesta** ("Fuera del material"). Vuelve a `{"permitida":false}` al terminar: apagada, el corte lo hace el servidor, no el prompt |
