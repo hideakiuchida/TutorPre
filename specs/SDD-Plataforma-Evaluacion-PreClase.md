@@ -402,7 +402,7 @@ Ya conectado:
 
 ### 5.2 Examen conversacional
 
-**Cada alumno rinde un examen propio, generado por la IA** (RF-04). Toda clase de la carpeta tiene su examen publicado (6 preguntas, 20 minutos, 3 intentos, abierto hasta que empieza la clase); lo que no existe de antemano son las preguntas:
+**Cada alumno rinde un examen propio, generado por la IA** (RF-04). Toda clase de la carpeta tiene su examen publicado (6 preguntas, 20 minutos, 3 intentos, **sin fecha límite**: la fecha de la clase se conserva, pero no cierra el examen; el docente puede fijar un cierre con `PUT /clases/{id}/examen`); lo que no existe de antemano son las preguntas:
 
 1. Al pulsar *Comenzar examen*, el servidor comprueba ventana e intentos (RF-08) y que la clase tenga material.
 2. **Pregunta a pregunta.** Con la cuenta de IA del alumno (Gemini u OpenRouter), pide a la IA **solo la primera pregunta**, de opción múltiple y basada únicamente en el material original de la clase: de comprensión y aplicación, con alternativas incorrectas plausibles y una justificación que cite `[archivo, p. N]`. Así el alumno empieza en segundos, en lugar de esperar a que la IA arme las seis. Es una llamada aparte del chat: la clave de respuestas nunca entra en la conversación del tutor (§6.4).

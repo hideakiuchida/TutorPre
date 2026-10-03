@@ -126,7 +126,11 @@
           <h2 id="t-examen">Examen y tutor</h2>
           @if (clase.examen; as e) {
             <p>
-              Abierto del {{ e.abreEn | date: 'd MMM, HH:mm' }} al {{ e.cierraEn | date: 'd MMM, HH:mm' }}.
+              @if (e.cierraEn) {
+                Abierto del {{ e.abreEn | date: 'd MMM, HH:mm' }} al {{ e.cierraEn | date: 'd MMM, HH:mm' }}.
+              } @else {
+                Abierto desde el {{ e.abreEn | date: 'd MMM, HH:mm' }}, sin fecha límite.
+              }
               La IA genera un examen distinto para cada alumno a partir del material.
             </p>
           }

@@ -11,7 +11,7 @@ namespace TutorPreClase.Api.Endpoints;
 
 public sealed record CrearClasePeticion(string Titulo, DateTimeOffset Inicio, int Orden);
 public sealed record ConfigurarExamenPeticion(
-    DateTimeOffset AbreEn, DateTimeOffset CierraEn, int MaxIntentos, int? MinutosLimite, string ModoFeedback,
+    DateTimeOffset AbreEn, DateTimeOffset? CierraEn, int MaxIntentos, int? MinutosLimite, string ModoFeedback,
     int? PreguntasPorIntento = null);
 public sealed record AmpliacionPeticion(bool Permitida);
 public sealed record CorregirNivelPeticion(string Nivel);

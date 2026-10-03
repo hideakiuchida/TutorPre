@@ -6,7 +6,8 @@ public class Examen
     public Guid ClaseId { get; set; }
     public Clase? Clase { get; set; }
     public DateTimeOffset AbreEn { get; set; }
-    public DateTimeOffset CierraEn { get; set; }
+    /// <summary>Hasta cuándo se puede rendir; null: sin fecha límite.</summary>
+    public DateTimeOffset? CierraEn { get; set; }
     public int MaxIntentos { get; set; } = 3;
     public int? MinutosLimite { get; set; }
     public ModoFeedback ModoFeedback { get; set; } = ModoFeedback.AlFinal;

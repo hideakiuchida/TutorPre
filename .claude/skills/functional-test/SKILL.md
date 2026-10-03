@@ -123,7 +123,7 @@ con `POST /api/v1/acceso/desarrollo {"usuarioId":…}` y guárdala en la pestañ
 
 | Requisito | Cómo verificarlo |
 | --- | --- |
-| RF-08 | En la lista de clases, la etiqueta dice *Examen disponible* solo dentro de la ventana; fuera, *Examen cerrado* o *Examen desde el …*, y no aparece el botón *Comenzar examen* |
+| RF-08 | Los exámenes de la carpeta **no tienen fecha límite** (`cierraEn: null`): una clase ya pasada sigue con *Examen disponible* y se puede rendir. Solo si el docente fija un cierre por `PUT …/examen` y ya pasó, la etiqueta dice *Examen cerrado* y no aparece *Comenzar examen* |
 | RF-31 | La entrada (franja roja UPC) pide primero *Soy alumno* / *Soy profesor*; luego *Entras como … Cambiar* y los botones *Continuar con Google* / *Continuar con Microsoft (Outlook)*. `GET /acceso/proveedores` dice cuál está `configurado`; el que no, avisa al pulsarlo |
 | RF-31 | *Continuar con Google* lleva a `accounts.google.com` con `code_challenge_method=S256` y `redirect_uri=http://localhost:4200/entrar/google`. La persona elige su cuenta y vuelve: entra con el perfil elegido |
 | RF-31 | `POST /acceso/google/inicio {"perfil":"Admin"}` → `rol_invalido`; `POST /acceso/microsoft/canje` con `code`/`state` inventados → error y ninguna sesión |

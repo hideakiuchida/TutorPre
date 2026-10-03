@@ -36,7 +36,8 @@ export interface ClaseResumen {
   claseId: string;
   titulo: string;
   inicio: string;
-  examen: { publicado: boolean; abreEn: string; cierraEn: string } | null;
+  /** `cierraEn` null: el examen no tiene fecha límite. */
+  examen: { publicado: boolean; abreEn: string; cierraEn: string | null } | null;
 }
 
 /** Si el examen de la clase se puede rendir ahora (RF-08): la ventana la fija el docente. */
@@ -47,7 +48,7 @@ export function ventanaExamen(clase: ClaseResumen | null | undefined, ahora: num
   if (!examen?.publicado) return null;
 
   if (ahora < Date.parse(examen.abreEn)) return 'proximo';
-  return ahora > Date.parse(examen.cierraEn) ? 'cerrado' : 'disponible';
+  return examen.cierraEn && ahora > Date.parse(examen.cierraEn) ? 'cerrado' : 'disponible';
 }
 
 export interface Fuente {

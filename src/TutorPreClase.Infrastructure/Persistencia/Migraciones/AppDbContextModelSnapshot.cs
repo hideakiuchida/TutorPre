@@ -341,7 +341,7 @@ namespace TutorPreClase.Infrastructure.Persistencia.Migraciones
                     b.Property<DateTimeOffset>("AbreEn")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTimeOffset>("CierraEn")
+                    b.Property<DateTimeOffset?>("CierraEn")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("ClaseId")

@@ -164,11 +164,11 @@ public sealed class SincronizadorCarpetaTests : IDisposable
         // Mañana a las 19:00 de Lima (UTC-5), aunque el servidor corra en UTC.
         Assert.Equal(new DateTimeOffset(2026, 9, 29, 19, 0, 0, TimeSpan.FromHours(-5)), clase.Inicio);
 
-        // Y su examen pre-clase, publicado hasta que empieza la clase, sin preguntas: las
+        // Y su examen pre-clase, publicado y sin fecha límite, sin preguntas: las
         // genera la IA para cada alumno (RF-04).
         var examen = Assert.Single(_banco.Db.Examenes);
         Assert.True(examen.Publicado);
-        Assert.Equal(clase.Inicio, examen.CierraEn);
+        Assert.Null(examen.CierraEn);
         Assert.Empty(_banco.Db.Preguntas);
 
         var archivo = Assert.Single(_banco.Db.Archivos);

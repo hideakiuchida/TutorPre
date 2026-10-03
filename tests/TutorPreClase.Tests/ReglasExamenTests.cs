@@ -30,6 +30,23 @@ public class ReglasExamenTests
     }
 
     [Fact]
+    public void Sin_fecha_de_cierre_el_examen_sigue_abierto_despues_de_la_clase()
+    {
+        var examen = new Examen
+        {
+            Publicado = true, AbreEn = Ahora.AddDays(-30), CierraEn = null, MaxIntentos = 3, MinutosLimite = 20
+        };
+        var intento = new Intento { Estado = EstadoIntento.EnCurso, Inicio = Ahora.AddMinutes(-5) };
+
+        Assert.True(ReglasExamen.PuedeIniciar(examen, [], Ahora.AddYears(1)).Permitido);
+        Assert.False(ReglasExamen.TiempoVencido(examen, intento, Ahora));
+        Assert.Equal(15 * 60, ReglasExamen.SegundosRestantes(examen, intento, Ahora));
+
+        // El tiempo por intento sigue contando.
+        Assert.True(ReglasExamen.TiempoVencido(examen, intento, Ahora.AddMinutes(16)));
+    }
+
+    [Fact]
     public void Rechaza_fuera_de_la_ventana()
         => Assert.Equal(MotivoRechazo.FueraDeVentana,
             ReglasExamen.PuedeIniciar(ExamenAbierto(), [], Ahora.AddHours(5)).Motivo);

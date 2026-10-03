@@ -27,7 +27,7 @@ public static class ReglasExamen
     public static Validacion PuedeIniciar(Examen examen, IReadOnlyCollection<Intento> intentosPrevios, DateTimeOffset ahora)
     {
         if (!examen.Publicado) return Validacion.No(MotivoRechazo.NoPublicado);
-        if (ahora < examen.AbreEn || ahora > examen.CierraEn) return Validacion.No(MotivoRechazo.FueraDeVentana);
+        if (ahora < examen.AbreEn || Cerrado(examen, ahora)) return Validacion.No(MotivoRechazo.FueraDeVentana);
         if (intentosPrevios.Any(i => i.Estado == EstadoIntento.EnCurso)) return Validacion.No(MotivoRechazo.IntentoEnCurso);
         if (intentosPrevios.Count >= examen.MaxIntentos) return Validacion.No(MotivoRechazo.SinIntentosDisponibles);
         return Validacion.Ok;
@@ -45,9 +45,13 @@ public static class ReglasExamen
         return Validacion.Ok;
     }
 
+    /// <summary>Un examen sin fecha de cierre no se cierra nunca: solo lo limitan los intentos.</summary>
+    private static bool Cerrado(Examen examen, DateTimeOffset ahora) =>
+        examen.CierraEn is DateTimeOffset cierre && ahora > cierre;
+
     public static bool TiempoVencido(Examen examen, Intento intento, DateTimeOffset ahora)
     {
-        if (ahora > examen.CierraEn) return true;
+        if (Cerrado(examen, ahora)) return true;
         if (examen.MinutosLimite is not int minutos) return false;
         return ahora > intento.Inicio.AddMinutes(minutos);
     }
@@ -56,7 +60,7 @@ public static class ReglasExamen
     {
         if (examen.MinutosLimite is not int minutos) return null;
         var fin = intento.Inicio.AddMinutes(minutos);
-        if (fin > examen.CierraEn) fin = examen.CierraEn;
+        if (examen.CierraEn is DateTimeOffset cierre && fin > cierre) fin = cierre;
         var restante = (int)(fin - ahora).TotalSeconds;
         return restante < 0 ? 0 : restante;
     }
