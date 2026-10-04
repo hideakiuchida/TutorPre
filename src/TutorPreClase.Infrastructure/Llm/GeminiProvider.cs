@@ -199,7 +199,19 @@ public sealed class GeminiProvider(
             MapeoLlm.MensajeDeFallo(respuesta.StatusCode),
             MapeoLlm.EsReintentable(respuesta.StatusCode),
             LimiteDeUso: limite,
-            ReintentarEn: limite ? MapeoLlm.ReintentarEn(respuesta) : null);
+            ReintentarEn: limite ? MapeoLlm.ReintentarEn(respuesta) ?? ReintentarSegunDetalle(detalle) : null);
+    }
+
+    /// <summary>
+    /// Google no manda `Retry-After`: dice cuándo volver en el cuerpo, como
+    /// `"retryDelay": "5594s"` (RetryInfo). Con eso el alumno sabe cuánto falta.
+    /// </summary>
+    internal static DateTimeOffset? ReintentarSegunDetalle(string detalle)
+    {
+        var espera = System.Text.RegularExpressions.Regex.Match(detalle, """
+            "retryDelay"\s*:\s*"(\d+)(?:\.\d+)?s"
+            """.Trim());
+        return espera.Success ? DateTimeOffset.UtcNow.AddSeconds(double.Parse(espera.Groups[1].Value)) : null;
     }
 
     internal object Cuerpo(LlmSolicitud s)

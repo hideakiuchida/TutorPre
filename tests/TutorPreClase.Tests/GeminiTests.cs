@@ -219,6 +219,25 @@ public class GeminiTests
     }
 
     [Fact]
+    public async Task El_cupo_agotado_de_Gemini_dice_cuando_se_puede_volver()
+    {
+        // Respuesta real al agotar las solicitudes gratuitas del día.
+        const string cuerpo = """
+            {"error":{"code":429,"message":"You exceeded your current quota. Please retry in 1h33m14s.","status":"RESOURCE_EXHAUSTED",
+             "details":[{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"5594s"}]}}
+            """;
+        var google = new GoogleSimulado
+        {
+            Gemini = _ => new HttpResponseMessage(HttpStatusCode.TooManyRequests) { Content = new StringContent(cuerpo) }
+        };
+
+        var error = (await Conversar(Proveedor(google), Hola)).OfType<ErrorProveedor>().Single();
+
+        Assert.True(error.LimiteDeUso);
+        Assert.InRange((error.ReintentarEn!.Value - DateTimeOffset.UtcNow).TotalMinutes, 92, 94);
+    }
+
+    [Fact]
     public async Task Un_503_es_saturacion_del_modelo_y_no_muestra_el_codigo_al_alumno()
     {
         var google = new GoogleSimulado
