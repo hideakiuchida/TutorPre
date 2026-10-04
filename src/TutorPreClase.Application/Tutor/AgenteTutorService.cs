@@ -660,15 +660,20 @@ public sealed class AgenteTutorService(
         {
             return await generador.GenerarAsync(proveedor, agente.Modelo, material, cantidad, ct: ct);
         }
+        catch (GeneracionExamenException ex) when (ex.Error?.LimiteDeUso == true)
+        {
+            // La IA elegida está saturada o sin cupo: antes de pedirle al alumno que espere, se
+            // prueba con las otras que tiene conectadas, como con las preguntas siguientes.
+            if (await GenerarConOtraAsync(agente, alumnoId, material, cantidad, ct) is { } preguntas)
+                return preguntas;
+
+            throw new ExamenException("limite_de_uso", MensajeLimite(agente.NombreVisible, ex.Error, "No se gastó ningún intento."));
+        }
         catch (GeneracionExamenException ex) when (ex.Error?.CredencialRechazada == true)
         {
             await credenciales.MarcarInvalidaAsync(alumnoId, agente.Id, ct);
             throw new ExamenException("credencial_rechazada",
                 $"{agente.NombreVisible} rechazó tu credencial. Vuelve a conectarla para seguir.");
-        }
-        catch (GeneracionExamenException ex) when (ex.Error?.LimiteDeUso == true)
-        {
-            throw new ExamenException("limite_de_uso", MensajeLimite(agente.NombreVisible, ex.Error, "No se gastó ningún intento."));
         }
         catch (GeneracionExamenException ex)
         {
@@ -676,6 +681,33 @@ public sealed class AgenteTutorService(
             throw new ExamenException("examen_no_generado",
                 "No se pudo preparar tu examen. No se gastó ningún intento: vuelve a intentarlo.");
         }
+    }
+
+    /// <summary>La primera pregunta con otra IA conectada del alumno, o null si ninguna pudo.</summary>
+    private async Task<IReadOnlyList<Pregunta>?> GenerarConOtraAsync(
+        AgenteIA elegido, Guid alumnoId, ContextoClase material, int cantidad, CancellationToken ct)
+    {
+        var conectados = await credenciales.AgentesConectadosAsync(alumnoId, ct);
+
+        var otros = (await db.Agentes.AsNoTracking().Where(a => a.Habilitado && a.Id != elegido.Id).ToListAsync(ct))
+            .Where(a => conectados.Contains(a.Id) && proveedores.Existe(a.Id))
+            .OrderBy(a => a.Id, StringComparer.Ordinal);
+
+        foreach (var otro in otros)
+        {
+            if (await credenciales.ClaveParaAsync(alumnoId, otro.Id, ct) is not string clave) continue;
+
+            try
+            {
+                return await generador.GenerarAsync(proveedores.Obtener(otro.Id, clave), otro.Modelo, material, cantidad, ct: ct);
+            }
+            catch (GeneracionExamenException ex)
+            {
+                log.LogWarning("Tampoco se pudo generar el examen con {Agente}: {Detalle}", otro.Id, ex.Error?.Mensaje ?? ex.Message);
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

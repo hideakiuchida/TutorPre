@@ -169,6 +169,26 @@ public class ExamenPorAlumnoTests
     }
 
     [Fact]
+    public async Task Si_la_IA_elegida_no_tiene_cupo_el_examen_empieza_con_otra_conectada()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        banco.Db.Agentes.Add(new AgenteIA { Id = "gemini", NombreVisible = "Gemini", Proveedor = "Google", Modelo = "gemini-3.8-flash", Habilitado = true });
+        banco.Db.SaveChanges();
+        await banco.Boveda.ConectarAsync(banco.AlumnoId, "gemini", "1//renovacion-de-prueba-0000");
+
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        banco.Generador.FallaCon = modelo => modelo == "qwen/qwen3.8-27b:free"
+            ? new ErrorProveedor("429", true, LimiteDeUso: true, Saturado: true)
+            : null;
+
+        await banco.Tutor.IniciarExamenAsync(conversacion.Id);
+
+        Assert.Equal("gemini-3.8-flash", banco.Generador.UltimoModelo);
+        Assert.Single(banco.Db.Preguntas);
+        Assert.Equal(ModoConversacion.Evaluacion, banco.Db.Conversaciones.Single().Modo);
+    }
+
+    [Fact]
     public async Task Si_el_proveedor_rechaza_la_clave_se_marca_invalida()
     {
         using var banco = new BancoDePruebas().Sembrar();
