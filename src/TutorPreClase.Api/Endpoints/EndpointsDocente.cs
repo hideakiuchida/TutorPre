@@ -14,6 +14,7 @@ public sealed record ConfigurarExamenPeticion(
     DateTimeOffset AbreEn, DateTimeOffset? CierraEn, int MaxIntentos, int? MinutosLimite, string ModoFeedback,
     int? PreguntasPorIntento = null);
 public sealed record AmpliacionPeticion(bool Permitida);
+public sealed record TemasDebilesPeticion(IReadOnlyList<string>? Temas);
 public sealed record CorregirNivelPeticion(string Nivel);
 public sealed record CondensarPeticion(bool Forzar = false);
 public sealed record UsarOriginalPeticion(bool UsarOriginal);
@@ -258,6 +259,17 @@ public static class EndpointsDocente
             var registro = await nivel.CorregirAsync(alumnoId, claseId, valor, ct);
 
             return Results.Ok(new { nivel = registro.Nivel.ToString(), origen = registro.Origen.ToString() });
+        });
+
+        // Los temas a reforzar los propone el tutor; el docente puede dejar solo los que valen.
+        grupo.MapPut("/clases/{claseId:guid}/niveles/{alumnoId:guid}/temas", async (
+            Guid claseId, Guid alumnoId, TemasDebilesPeticion peticion, INivelService nivel, IAppDbContext db, CancellationToken ct) =>
+        {
+            if (!await db.Niveles.AnyAsync(n => n.ClaseId == claseId && n.AlumnoId == alumnoId, ct))
+                return Results.NotFound();
+
+            var temas = await nivel.FijarTemasDebilesAsync(alumnoId, claseId, peticion.Temas ?? [], ct);
+            return Results.Ok(new { temasDebiles = temas });
         });
     }
 

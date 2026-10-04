@@ -181,6 +181,34 @@ th {
   color: #fff;
 }
 
+.temas-alumno {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.temas-alumno li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.1rem 0;
+}
+
+.quitar-tema {
+  flex: 0 0 auto;
+  padding: 0 0.35rem;
+  border: 0;
+  background: transparent;
+  color: var(--grafito);
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.quitar-tema:hover {
+  color: var(--lapicero);
+}
+
 .temas,
 .dudas {
   margin: 0;

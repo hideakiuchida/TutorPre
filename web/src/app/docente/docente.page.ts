@@ -98,6 +98,25 @@ export class DocentePage implements OnDestroy {
     }
   }
 
+  /** Quita un tema a reforzar que el docente no considera válido para ese alumno. */
+  async quitarTema(alumnoId: string, tema: string): Promise<void> {
+    const clase = this.activa();
+    const reporte = this.reporte();
+    const alumno = reporte?.niveles.find((n) => n.alumnoId === alumnoId);
+    if (!clase || !reporte || !alumno) return;
+
+    const { temasDebiles } = await this.docente.fijarTemas(
+      clase.claseId,
+      alumnoId,
+      alumno.temasDebiles.filter((t) => t !== tema),
+    );
+
+    this.reporte.set({
+      ...reporte,
+      niveles: reporte.niveles.map((n) => (n.alumnoId === alumnoId ? { ...n, temasDebiles } : n)),
+    });
+  }
+
   async alternarAmpliacion(permitida: boolean): Promise<void> {
     const clase = this.activa();
     const contenido = this.contenido();

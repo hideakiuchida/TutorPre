@@ -175,6 +175,40 @@ public class FlujoExamenTests
     }
 
     [Fact]
+    public async Task Un_examen_nuevo_empieza_su_diagnostico_de_cero_y_el_docente_puede_ajustarlo()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+
+        // Primer intento, con su diagnóstico.
+        await banco.Tutor.IniciarExamenAsync(conversacion.Id);
+        await Empezar(banco, conversacion.Id);
+        await banco.EnviarAsync(conversacion.Id, "B");
+        banco.Proveedor.LlamaHerramienta(Herramientas.ProponerDiagnostico, new { temas_debiles = new[] { "Tema del primer intento" } });
+        banco.Proveedor.RespondeTexto("Evaluación final.");
+        await banco.EnviarAsync(conversacion.Id, "B");
+        Assert.Contains("Tema del primer intento", banco.Db.Niveles.Single().TemasDebiles);
+
+        // Segundo intento: sus temas reemplazan a los del primero.
+        banco.Reloj.Ahora = banco.Reloj.Ahora.AddMinutes(30);
+        await banco.Tutor.IniciarExamenAsync(conversacion.Id);
+        await Empezar(banco, conversacion.Id);
+        await banco.EnviarAsync(conversacion.Id, "A");
+        banco.Proveedor.LlamaHerramienta(Herramientas.ProponerDiagnostico, new { temas_debiles = new[] { "Tema del segundo", "Otro tema" } });
+        banco.Proveedor.RespondeTexto("Evaluación final.");
+        await banco.EnviarAsync(conversacion.Id, "B");
+
+        Assert.Equal(["Tema del segundo", "Otro tema"], TutorPreClase.Application.Nivel.NivelService.Deserializar(banco.Db.Niveles.Single().TemasDebiles));
+
+        // El docente deja solo el que vale; el nivel no cambia.
+        var nivelAntes = banco.Db.Niveles.Single().Nivel;
+        var temas = await banco.Nivel.FijarTemasDebilesAsync(banco.AlumnoId, banco.ClaseId, [" Otro tema ", ""]);
+
+        Assert.Equal(["Otro tema"], temas);
+        Assert.Equal(nivelAntes, banco.Db.Niveles.Single().Nivel);
+    }
+
+    [Fact]
     public async Task Una_duda_repetida_sale_una_sola_vez_en_el_reporte()
     {
         using var banco = new BancoDePruebas().Sembrar();

@@ -167,8 +167,8 @@
                 <h3>Alumno por alumno</h3>
                 <p class="ayuda">
                   La nota la calcula el servidor al terminar el examen y con ella fija el nivel; si el alumno
-                  rindió más de una vez, vale su mejor intento. Los temas a reforzar los propone el tutor al
-                  revisar los errores con cada alumno.
+                  rindió más de una vez, vale su mejor intento. Los temas a reforzar los propone el tutor tras
+                  el último examen de cada alumno; puedes quitar los que no correspondan.
                 </p>
                 <div class="tabla-desplazable tabla-alumnos">
                   <table>
@@ -196,7 +196,21 @@
                           </td>
                           <td class="num">{{ a.intentos ? a.correctas + ' de ' + a.preguntas : '—' }}</td>
                           <td class="num">{{ a.intentos }}</td>
-                          <td>{{ a.temasDebiles.length ? a.temasDebiles.join(' · ') : '—' }}</td>
+                          <td>
+                            @if (a.temasDebiles.length) {
+                              <ul class="temas-alumno">
+                                @for (tema of a.temasDebiles; track tema) {
+                                  <li>
+                                    <span>{{ tema }}</span>
+                                    <button type="button" class="quitar-tema" (click)="quitarTema(a.alumnoId, tema)"
+                                            [attr.aria-label]="'Quitar el tema ' + tema" title="Quitar este tema">×</button>
+                                  </li>
+                                }
+                              </ul>
+                            } @else {
+                              —
+                            }
+                          </td>
                         </tr>
                       }
                     </tbody>

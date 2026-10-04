@@ -158,7 +158,7 @@ public sealed class ServicioExamen(IAppDbContext db, IRelojSistema reloj, INivel
             intento.Envio = reloj.Ahora;
 
             await db.SaveChangesAsync(ct);
-            await nivel.RecalcularAsync(intento.AlumnoId, examen.ClaseId, ct);
+            await nivel.RecalcularAsync(intento.AlumnoId, examen.ClaseId, nuevoIntento: true, ct);
         }
 
         return Armar(examen, intento);

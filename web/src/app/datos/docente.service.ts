@@ -75,6 +75,13 @@ export class DocenteService {
     return firstValueFrom(this.http.get<ReporteClase>(`${API}/clases/${claseId}/reporte`));
   }
 
+  /** Deja los temas a reforzar de un alumno como el docente decida. */
+  fijarTemas(claseId: string, alumnoId: string, temas: string[]) {
+    return firstValueFrom(
+      this.http.put<{ temasDebiles: string[] }>(`${API}/clases/${claseId}/niveles/${alumnoId}/temas`, { temas }),
+    );
+  }
+
   /** Pide a la IA los apuntes que faltan, o todos de nuevo con `forzar`. */
   condensar(claseId: string, forzar = false) {
     return firstValueFrom(this.http.post<{ encolados: number }>(`${API}/clases/${claseId}/condensar`, { forzar }));
