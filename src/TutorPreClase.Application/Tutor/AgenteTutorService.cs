@@ -37,6 +37,8 @@ public sealed class AgenteTutorService(
     IRelojSistema reloj,
     ILogger<AgenteTutorService> log) : IAgenteTutorService
 {
+    private static readonly JsonSerializerOptions JsonWeb = new(JsonSerializerDefaults.Web);
+
     private const int MaxVueltasHerramienta = 6;
     private const int MensajesDeHistorial = 20;
     private const int MaxCorreccionesExamen = 2;
@@ -531,7 +533,8 @@ public sealed class AgenteTutorService(
             AgenteId = agente.Id,
             Rol = RolMensaje.Agente,
             Texto = texto,
-            Fuentes = citas.Count > 0 ? JsonSerializer.Serialize(citas) : null,
+            // Con los mismos nombres que el evento `fuentes`: la web las lee igual al recargar.
+            Fuentes = citas.Count > 0 ? JsonSerializer.Serialize(citas, JsonWeb) : null,
             UsaAmpliacion = huboAmpliacion,
             TokensEntrada = tokensEntrada,
             TokensSalida = tokensSalida,

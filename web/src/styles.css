@@ -267,6 +267,7 @@ input:focus {
 
 .mi-tutor .etiqueta {
   color: var(--upc-suave);
+  white-space: nowrap;
 }
 
 .mi-tutor strong {

@@ -171,6 +171,11 @@ if (app.Environment.IsDevelopment())
             .Replace("CREATE UNIQUE INDEX ", "CREATE UNIQUE INDEX IF NOT EXISTS ")
             .Replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ");
         await db.Database.ExecuteSqlRawAsync(script);
+
+        // Tampoco cambia columnas: el cierre del examen pasó a ser opcional (sin fecha
+        // límite), y los exámenes locales que ya existían quedan como los de producción.
+        if (await EsquemaSqlite.HacerOpcionalAsync(db, "examen", "CierraEn"))
+            await db.Database.ExecuteSqlRawAsync("UPDATE examen SET \"CierraEn\" = NULL");
     }
 
     await DatosIniciales.SembrarAsync(db);

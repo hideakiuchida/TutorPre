@@ -156,6 +156,12 @@ public class TutorProxyTests
         Assert.Equal(2, citas.Count);
         Assert.True(citas[0].Valida);
         Assert.False(citas[1].Valida);
+
+        // Guardadas con los nombres que lee la web al recargar el chat.
+        var guardadas = banco.Db.Mensajes.Single(m => m.Rol == RolMensaje.Agente).Fuentes!;
+        Assert.Contains("\"archivo\":\"Clase03.pdf\"", guardadas);
+        Assert.Contains("\"pagina\":12", guardadas);
+        Assert.Contains("\"valida\":true", guardadas);
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using TutorPreClase.Domain.Entidades;
 using TutorPreClase.Domain.Reglas;
 
@@ -108,4 +109,32 @@ public class ReglasExamenTests
     [Fact]
     public void Sin_temporizador_no_hay_segundos_restantes()
         => Assert.Null(ReglasExamen.SegundosRestantes(ExamenAbierto(), new Intento { Inicio = Ahora }, Ahora));
+}
+
+public class EsquemaLocalTests
+{
+    [Fact]
+    public async Task Una_base_local_antigua_admite_examenes_sin_fecha_limite_sin_perder_datos()
+    {
+        using var conexion = new Microsoft.Data.Sqlite.SqliteConnection("DataSource=:memory:");
+        conexion.Open();
+
+        var opciones = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<TutorPreClase.Infrastructure.Persistencia.AppDbContext>()
+            .UseSqlite(conexion).Options;
+        using var db = new TutorPreClase.Infrastructure.Persistencia.AppDbContext(opciones);
+
+        // La tabla como la dejó una versión anterior: el cierre era obligatorio.
+        db.Database.ExecuteSqlRaw(
+            "CREATE TABLE \"viejo\" (\"Id\" TEXT NOT NULL PRIMARY KEY, \"CierraEn\" INTEGER NOT NULL, \"MaxIntentos\" INTEGER NOT NULL)");
+        db.Database.ExecuteSqlRaw("INSERT INTO viejo VALUES ('a', 5, 3)");
+
+        Assert.True(await TutorPreClase.Infrastructure.Persistencia.EsquemaSqlite.HacerOpcionalAsync(db, "viejo", "CierraEn"));
+        Assert.False(await TutorPreClase.Infrastructure.Persistencia.EsquemaSqlite.HacerOpcionalAsync(db, "viejo", "CierraEn"));
+
+        db.Database.ExecuteSqlRaw("INSERT INTO viejo VALUES ('b', NULL, 3)");
+
+        using var contar = conexion.CreateCommand();
+        contar.CommandText = "SELECT COUNT(*) || '-' || SUM(\"MaxIntentos\") FROM viejo";
+        Assert.Equal("2-6", contar.ExecuteScalar());
+    }
 }

@@ -9,6 +9,7 @@ import {
   Agente,
   ClaseResumen,
   Credencial,
+  Fuente,
   Mensaje,
   ModoChat,
   Progreso,
@@ -36,6 +37,22 @@ function guardarTutorElegido(agenteId: string): void {
     localStorage.setItem(TUTOR_ELEGIDO, agenteId);
   } catch {
     // Sin almacenamiento solo se pierde la preferencia al recargar.
+  }
+}
+
+/**
+ * Las fuentes guardadas con cada mensaje. Los mensajes anteriores las guardaron con
+ * mayúscula inicial (Archivo, Pagina, Valida): se leen igual, para no perder sus citas.
+ */
+function leerFuentes(json: string): Fuente[] {
+  try {
+    return (JSON.parse(json) as any[]).map((f) => ({
+      archivo: f.archivo ?? f.Archivo ?? '',
+      pagina: f.pagina ?? f.Pagina ?? 0,
+      valida: f.valida ?? f.Valida ?? false,
+    }));
+  } catch {
+    return [];
   }
 }
 
@@ -367,7 +384,7 @@ export class ChatTutorPage {
           rol: m.rol === 'Alumno' ? 'Alumno' : 'Agente',
           texto: cuerpo,
           ampliacion,
-          fuentes: m.fuentes ? JSON.parse(m.fuentes) : undefined,
+          fuentes: m.fuentes ? leerFuentes(m.fuentes) : undefined,
         } satisfies Mensaje;
       }),
     );
