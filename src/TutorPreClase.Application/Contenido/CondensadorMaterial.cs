@@ -27,7 +27,7 @@ public interface IColaCondensacion
 /// <summary>
 /// Reescribe cada página del material como apuntes compactos, una sola vez, para que el
 /// tutor lea menos tokens en cada pregunta (SDD §6.2). Trabaja página por página, así que
-/// las citas [archivo, p. N] siguen valiendo. Usa la cuenta de OpenRouter del profesor del
+/// las citas [archivo, p. N] siguen valiendo. Usa las cuentas de IA del profesor del
 /// curso: la plataforma no tiene clave propia. Nada se pierde: una página que la IA no
 /// devuelve, o devuelve más larga, se queda con su texto original.
 /// </summary>
@@ -58,23 +58,22 @@ public sealed class CondensadorMaterial(
             .Select(c => c.DocenteId)
             .FirstOrDefaultAsync(ct);
 
-        // Con la cuenta que el profesor tenga conectada: OpenRouter o Gemini (RF-37).
-        AgenteIA? agente = null;
-        string? clave = null;
+        // Con las cuentas que el profesor tenga conectadas (RF-37). Se empieza por la primera
+        // y, si se queda sin cupo o está saturada, se sigue con la siguiente: un material a
+        // medio condensar por un modelo gratuito saturado no ayuda a nadie.
+        var cuentas = new List<(AgenteIA Agente, string Clave)>();
 
         if (docenteId is Guid profesor)
         {
             foreach (var candidato in await db.Agentes.Where(a => a.Habilitado).OrderBy(a => a.Id).ToListAsync(ct))
             {
-                clave = await credenciales.ClaveParaAsync(profesor, candidato.Id, ct);
-                if (clave is null) continue;
-
-                agente = candidato;
-                break;
+                if (!proveedores.Existe(candidato.Id)) continue;
+                if (await credenciales.ClaveParaAsync(profesor, candidato.Id, ct) is string suClave)
+                    cuentas.Add((candidato, suClave));
             }
         }
 
-        if (clave is null)
+        if (cuentas.Count == 0)
         {
             await TerminarAsync(archivo, EstadoCondensado.SinCuenta,
                 "Conecta Gemini u OpenRouter en tu panel para que la IA condense el material.", ct);
@@ -85,7 +84,7 @@ public sealed class CondensadorMaterial(
         archivo.ErrorCondensado = null;
         await db.SaveChangesAsync(ct);
 
-        var proveedor = proveedores.Obtener(agente!.Id, clave);
+        var enUso = 0;
         var paginas = archivo.Paginas.OrderBy(p => p.Pagina).ToList();
 
         foreach (var pagina in paginas)
@@ -96,12 +95,34 @@ public sealed class CondensadorMaterial(
 
         foreach (var lote in Lotes(paginas.Where(p => p.Tokens >= TokensMinimos)))
         {
-            var (apuntes, error) = await PedirAsync(proveedor, agente.Modelo, archivo.Nombre, lote, ct);
+            Dictionary<int, string> apuntes = [];
+            ErrorProveedor? error = null;
+
+            // La cuenta que funcionó con el lote anterior sigue con este; solo un límite de
+            // uso hace pasar a la siguiente. El motivo que se muestra es el de la primera.
+            for (var i = enUso; i < cuentas.Count; i++)
+            {
+                var (agente, clave) = cuentas[i];
+                var (hechos, fallo) = await PedirAsync(proveedores.Obtener(agente.Id, clave), agente.Modelo, archivo.Nombre, lote, ct);
+
+                if (fallo is null)
+                {
+                    apuntes = hechos;
+                    error = null;
+                    enUso = i;
+                    break;
+                }
+
+                if (fallo.CredencialRechazada) await credenciales.MarcarInvalidaAsync(docenteId!.Value, agente.Id, ct);
+
+                log.LogWarning("No se pudo condensar {Archivo} con {Agente}: {Detalle}", archivo.Nombre, agente.Id, fallo.Mensaje);
+                error ??= fallo;
+
+                if (!fallo.LimiteDeUso) break;
+            }
 
             if (error is not null)
             {
-                if (error.CredencialRechazada) await credenciales.MarcarInvalidaAsync(docenteId!.Value, agente.Id, ct);
-
                 // Saturación del pool gratuito: pasa sola; se deja pendiente para reintentar.
                 if (error.Saturado)
                 {
@@ -235,9 +256,10 @@ public sealed class CondensadorMaterial(
 
     private static string MensajeError(ErrorProveedor error) => error switch
     {
-        { CredencialRechazada: true } => "OpenRouter rechazó tu cuenta. Vuelve a conectarla y condensa de nuevo.",
+        { CredencialRechazada: true } => "La IA rechazó tu cuenta. Vuelve a conectarla y condensa de nuevo.",
+        { SinSaldo: true } => "Tu cuenta de IA no tiene saldo. Cárgale créditos o conecta otra y condensa de nuevo.",
         { Saturado: true } => "El modelo gratuito estaba saturado. Vuelve a intentarlo en unos minutos.",
-        { LimiteDeUso: true } => "Se acabó el cupo de tu cuenta de OpenRouter por hoy. Vuelve a intentarlo más tarde.",
+        { LimiteDeUso: true } => "Se acabó el cupo de tu cuenta de IA por hoy. Vuelve a intentarlo más tarde.",
         _ => "La IA no respondió. Vuelve a intentarlo."
     };
 

@@ -163,6 +163,27 @@ public class CondensacionTests
     }
 
     [Fact]
+    public async Task Si_la_primera_cuenta_del_profesor_no_tiene_cupo_condensa_con_la_siguiente()
+    {
+        var m = Montar();
+        using var _ = m.Banco;
+        m.Banco.Db.Agentes.Add(new AgenteIA { Id = "gemini", NombreVisible = "Gemini", Proveedor = "Google", Modelo = "gemini-3.8-flash", Habilitado = true });
+        m.Banco.Db.SaveChanges();
+        await m.Banco.Boveda.ConectarAsync(m.DocenteId, "gemini", "1//renovacion-de-prueba-0000");
+
+        // Gemini (la primera por orden) está sin cupo; OpenRouter responde.
+        m.Banco.Proveedor.Responde(new ErrorProveedor("429", true, LimiteDeUso: true));
+        m.Banco.Proveedor.RespondeTexto(Json((1, "- Costo: inversión con beneficio futuro."), (2, "- Gasto: consumo del periodo."), (3, "- Desembolso: salida de efectivo.")));
+
+        var resultado = await m.Condensador.CondensarAsync(m.Archivo.Id);
+
+        Assert.Equal(ResultadoCondensacion.Hecho, resultado);
+        Assert.Equal(EstadoCondensado.Listo, m.Archivo.Condensado);
+        Assert.Null(m.Archivo.ErrorCondensado);
+        Assert.Equal(["gemini-3.8-flash", "qwen/qwen3.8-27b:free"], m.Banco.Proveedor.Solicitudes.Select(s => s.Modelo));
+    }
+
+    [Fact]
     public async Task Sin_cupo_propio_queda_en_error_con_el_motivo()
     {
         var m = Montar();
