@@ -96,45 +96,189 @@ th {
   accent-color: var(--tapa);
 }
 
-.cifra {
-  margin: 0 0 1rem;
+/* ---------- Resultados del examen ---------- */
+
+/* Cuatro cifras del grupo, como una fila de casillas. */
+.cifras {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 11rem));
+  gap: 0.75rem;
+  margin: 0.75rem 0 0;
 }
 
-.cifra strong {
+.cifra {
+  padding: 0.7rem 0.9rem;
+  border: 1.5px solid var(--pauta);
+  border-top: 3px solid var(--tapa);
+  border-radius: 4px;
+  background: #fff;
+}
+
+.cifra dt {
+  font-size: var(--t-pequeno);
+  color: var(--grafito);
+}
+
+.cifra dd {
+  margin: 0.1rem 0 0;
   font-family: var(--serif);
-  font-size: 1.8rem;
+  font-size: 1.7rem;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.cifra dd span {
+  font-family: var(--sans);
+  font-size: var(--t-pequeno);
+  font-weight: 400;
+  color: var(--grafito);
+}
+
+/* Barras horizontales con su etiqueta: se leen sin tener que interpretar un eje. */
+.reparto {
+  display: grid;
+  gap: 0.45rem;
+  max-width: 34rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reparto li {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 1fr) 3.5rem;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.reparto.fallados li {
+  grid-template-columns: minmax(0, 14rem) minmax(0, 1fr) 3.5rem;
+}
+
+.tramo {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.tramo strong {
   font-weight: 600;
 }
 
-/* Histograma de notas: cuatro tramos, una sola tinta. */
-.barras {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.75rem;
-  max-width: 24rem;
-  height: 8rem;
-  align-items: end;
-}
-
-.barra {
-  display: grid;
-  grid-template-rows: 1fr auto auto;
-  align-items: end;
-  height: 100%;
-  text-align: center;
-}
-
-.barra .valor {
-  display: block;
-  min-height: 2px;
-  background: var(--tapa);
-}
-
-.barra .etiqueta,
-.barra .cuenta {
+.tramo span,
+.reparto .cuenta {
   font-size: var(--t-pequeno);
   color: var(--grafito);
   font-variant-numeric: tabular-nums;
+}
+
+.reparto .cuenta {
+  text-align: right;
+}
+
+.pista {
+  display: block;
+  height: 0.7rem;
+  border-radius: 2px;
+  background: var(--pauta);
+  overflow: hidden;
+}
+
+.relleno {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border-radius: 2px;
+  background: var(--tapa);
+}
+
+.relleno[data-nivel='Inicial'] {
+  background: var(--lapicero);
+}
+
+.relleno[data-nivel='Basico'] {
+  background: var(--grafito);
+}
+
+.relleno[data-nivel='Intermedio'] {
+  background: var(--tapa-activa);
+}
+
+/* Una ficha por alumno: nombre, nota, nivel y, debajo, sus temas. */
+.fichas {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.ficha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    'quien nota nivel'
+    'temas temas temas';
+  align-items: center;
+  gap: 0.6rem 1.25rem;
+  padding: 0.8rem 1rem;
+  border: 1.5px solid var(--pauta);
+  border-radius: 4px;
+  background: #fff;
+}
+
+.ficha-quien {
+  grid-area: quien;
+  min-width: 0;
+}
+
+.ficha-quien strong {
+  display: block;
+  font-size: var(--t-base);
+}
+
+.ficha-nota {
+  grid-area: nota;
+  text-align: right;
+}
+
+.ficha-nota strong {
+  display: block;
+  font-family: var(--serif);
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.ficha-nivel {
+  grid-area: nivel;
+  min-width: 6.5rem;
+  text-align: right;
+}
+
+.ficha-temas {
+  grid-area: temas;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--pauta);
+}
+
+.detalle {
+  display: block;
+  font-size: var(--t-pequeno);
+  color: var(--grafito);
+}
+
+.rotulo {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: var(--t-pequeno);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--grafito);
 }
 
 /* En pantallas angostas las tablas se desplazan ellas solas, sin ensanchar la página. */
@@ -144,20 +288,6 @@ th {
 
 .tabla-desplazable table {
   min-width: 34rem;
-}
-
-.tabla-alumnos {
-  margin-bottom: 1.25rem;
-}
-
-.nota {
-  font-weight: 700;
-}
-
-.cuando {
-  display: block;
-  font-size: var(--t-pequeno);
-  color: var(--grafito);
 }
 
 .nivel {
@@ -175,37 +305,51 @@ th {
   color: var(--lapicero);
 }
 
+.nivel[data-nivel='Intermedio'] {
+  border-color: var(--tapa);
+  color: var(--tapa);
+}
+
 .nivel[data-nivel='Avanzado'] {
   border-color: var(--tapa);
   background: var(--tapa);
   color: #fff;
 }
 
+/* Los temas como etiquetas que el profesor puede quitar. */
 .temas-alumno {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .temas-alumno li {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.1rem 0;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.15rem 0.2rem 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: var(--pauta);
+  font-size: var(--t-pequeno);
 }
 
 .quitar-tema {
   flex: 0 0 auto;
-  padding: 0 0.35rem;
+  margin-left: 0.2rem;
+  padding: 0 0.4rem;
   border: 0;
+  border-radius: 999px;
   background: transparent;
   color: var(--grafito);
   font-size: 1rem;
-  line-height: 1.2;
+  line-height: 1.3;
 }
 
 .quitar-tema:hover {
+  background: #fff;
   color: var(--lapicero);
 }
 
@@ -235,6 +379,29 @@ th {
 @media (max-width: 760px) {
   .contenido {
     padding: 1.25rem 1rem 2rem;
+  }
+
+  /* La ficha se apila: quién y nota arriba, nivel debajo, temas al final. */
+  .ficha {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'quien nota'
+      'nivel nivel'
+      'temas temas';
+  }
+
+  .ficha-nivel {
+    text-align: left;
+  }
+
+  .reparto li,
+  .reparto.fallados li {
+    grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr) 3rem;
+  }
+
+  .tramo {
+    flex-direction: column;
+    gap: 0;
   }
 }
 

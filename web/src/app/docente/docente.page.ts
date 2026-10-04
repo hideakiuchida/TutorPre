@@ -57,7 +57,19 @@ export class DocentePage implements OnDestroy {
     ),
   );
 
-  readonly tramosNota = ['0-10', '11-14', '15-17', '18-20'];
+  /** Los tramos de nota del reporte, con el nivel que le corresponde a cada uno (SDD §5.6). */
+  readonly tramosNota = [
+    { rango: '0-10', nivel: 'Inicial', clave: 'Inicial' },
+    { rango: '11-14', nivel: 'Básico', clave: 'Basico' },
+    { rango: '15-17', nivel: 'Intermedio', clave: 'Intermedio' },
+    { rango: '18-20', nivel: 'Avanzado', clave: 'Avanzado' },
+  ];
+
+  /** La nota más alta y la más baja del grupo; con un solo alumno no dicen nada nuevo. */
+  readonly extremos = computed(() => {
+    const notas = (this.reporte()?.niveles ?? []).map((n) => n.nota).filter((n): n is number => n !== null);
+    return notas.length > 1 ? { alta: Math.max(...notas), baja: Math.min(...notas) } : null;
+  });
 
   private refresco?: ReturnType<typeof setTimeout>;
 

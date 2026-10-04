@@ -212,7 +212,7 @@ curl -s -H "X-Usuario-Id: $(python -c 'import uuid;print(uuid.uuid4())')" \
 | Requisito | Cómo verificarlo |
 | --- | --- |
 | RF-21 | El reporte trae el nivel del alumno acorde a su nota (0–10,9 Inicial · 11–14,9 Básico · 15–17,9 Intermedio · 18–20 Avanzado) |
-| RF-22 | El reporte trae `distribucionNiveles`, nivel por alumno y `temasDebilesDelGrupo`. En el panel del profesor, *Alumno por alumno* muestra de cada uno la nota, el nivel, los aciertos, los intentos y los temas a reforzar; la nota y el nivel aparecen solos al terminar el examen, sin que nadie los cargue |
+| RF-22 | El reporte trae `distribucionNiveles`, nivel por alumno y `temasDebilesDelGrupo`. En el panel del profesor, *Resultados por alumno* muestra de cada uno la nota, el nivel, los aciertos, los intentos y los temas a reforzar; la nota y el nivel aparecen solos al terminar el examen, sin que nadie los cargue |
 | RF-16 | El reporte trae `promedioNota`, `distribucionNotas`, `temasMasFallados` y `usoPorAgente` |
 | RF-21 | `PUT /clases/$CLA/niveles/$ALU` con `{"nivel":"Avanzado"}` responde `"origen":"Docente"` y el cálculo no lo pisa |
 | RF-20 | `PUT /clases/$CLA/ampliacion` con `{"permitida":true}`; recarga el chat y repite `¿qué es el WACC?`: ahora lo dice y amplía **a lápiz debajo de la respuesta** ("Fuera del material"). Vuelve a `{"permitida":false}` al terminar: apagada, el corte lo hace el servidor, no el prompt |
