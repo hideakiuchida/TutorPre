@@ -87,13 +87,10 @@ public sealed class CondensadorMaterial(
         var enUso = 0;
         var paginas = archivo.Paginas.OrderBy(p => p.Pagina).ToList();
 
-        foreach (var pagina in paginas)
-        {
-            pagina.TextoCondensado = null;
-            pagina.TokensCondensado = 0;
-        }
-
-        foreach (var lote in Lotes(paginas.Where(p => p.Tokens >= TokensMinimos)))
+        // Solo lo que falta: si un intento anterior se cortó por saturación, sus páginas ya
+        // condensadas se conservan y no vuelven a gastar cupo. "Condensar de nuevo" las borra
+        // antes de encolar, así que ese sí empieza de cero.
+        foreach (var lote in Lotes(paginas.Where(p => p.Tokens >= TokensMinimos && p.TextoCondensado is null)))
         {
             Dictionary<int, string> apuntes = [];
             ErrorProveedor? error = null;

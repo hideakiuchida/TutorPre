@@ -115,6 +115,7 @@ public static class EndpointsDocente
             var forzar = peticion?.Forzar ?? false;
 
             var archivos = await db.Archivos
+                .Include(a => a.Paginas)
                 .Where(a => a.ClaseId == claseId && a.Estado == EstadoArchivo.Listo &&
                             (forzar || a.Condensado != EstadoCondensado.Listo))
                 .ToListAsync(ct);
@@ -123,6 +124,15 @@ public static class EndpointsDocente
             {
                 archivo.Condensado = EstadoCondensado.Pendiente;
                 archivo.ErrorCondensado = null;
+
+                // Forzar es empezar de cero; sin forzar, se retoma donde quedó.
+                if (!forzar) continue;
+
+                foreach (var pagina in archivo.Paginas)
+                {
+                    pagina.TextoCondensado = null;
+                    pagina.TokensCondensado = 0;
+                }
             }
 
             await db.SaveChangesAsync(ct);

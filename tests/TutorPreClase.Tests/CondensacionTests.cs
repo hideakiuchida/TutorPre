@@ -184,6 +184,30 @@ public class CondensacionTests
     }
 
     [Fact]
+    public async Task Un_reintento_retoma_donde_quedo_sin_volver_a_pedir_lo_ya_condensado()
+    {
+        var m = Montar();
+        using var _ = m.Banco;
+
+        // La página 1 quedó condensada en un intento que se cortó por saturación.
+        var primera = m.Archivo.Paginas.Single(p => p.Pagina == 1);
+        primera.TextoCondensado = "- Costo: ya condensado.";
+        primera.TokensCondensado = ContadorTokens.Estimar(primera.TextoCondensado);
+        m.Banco.Db.SaveChanges();
+
+        m.Banco.Proveedor.RespondeTexto(Json((2, "- Gasto: consumo del periodo."), (3, "- Desembolso: salida de efectivo.")));
+        var resultado = await m.Condensador.CondensarAsync(m.Archivo.Id);
+
+        Assert.Equal(ResultadoCondensacion.Hecho, resultado);
+        Assert.Equal("- Costo: ya condensado.", primera.TextoCondensado);
+        Assert.All(m.Archivo.Paginas, p => Assert.NotNull(p.TextoCondensado));
+
+        var pedido = m.Banco.Proveedor.Solicitudes.Single().Mensajes.Single().Texto!;
+        Assert.DoesNotContain("[p. 1]", pedido);
+        Assert.Contains("[p. 2]", pedido);
+    }
+
+    [Fact]
     public async Task Sin_cupo_propio_queda_en_error_con_el_motivo()
     {
         var m = Montar();
