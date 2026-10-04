@@ -487,6 +487,10 @@ export class ChatTutorPage {
   private fijarProgreso(progreso: Progreso | null): void {
     this.progreso.set(progreso);
 
+    // El reloj se pone en hora en el mismo momento: en una pestaña en segundo plano el
+    // navegador lo atrasa, y el tiempo restante saldría de más.
+    this.ahora.set(Date.now());
+
     const segundos = progreso?.segundosRestantes;
     this.finDelTiempo.set(segundos === null || segundos === undefined ? null : Date.now() + segundos * 1000);
   }

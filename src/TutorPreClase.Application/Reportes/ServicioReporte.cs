@@ -7,8 +7,9 @@ using TutorPreClase.Domain.Reglas;
 namespace TutorPreClase.Application.Reportes;
 
 /// <summary>
-/// La ficha de cada alumno en la clase (RF-22): la nota con la que se fijó su nivel, cuántas
-/// veces rindió, cuándo fue la última y los temas que el tutor le marcó para reforzar.
+/// La ficha de cada alumno en la clase (RF-22): la nota con la que se fijó su nivel (su mejor
+/// intento) con sus aciertos, cuántas veces rindió, cuándo fue la última y los temas que el
+/// tutor le marcó para reforzar.
 /// </summary>
 public sealed record NivelDeAlumno(
     Guid AlumnoId,
@@ -71,7 +72,13 @@ public sealed class ServicioReporte(IAppDbContext db) : IServicioReporte
                 .Include(i => i.Respuestas)
                 .ToListAsync(ct);
 
-        var notas = intentos.Where(i => i.Puntaje.HasValue).Select(i => i.Puntaje!.Value).ToList();
+        // Una nota por alumno, la misma con la que se fija su nivel (su mejor intento): si
+        // se promediaran los intentos, quien repite el examen contaría como varios alumnos.
+        var notas = intentos
+            .Where(i => i.Puntaje.HasValue)
+            .GroupBy(i => i.AlumnoId)
+            .Select(g => ClasificacionNivel.NotaVigente(g))
+            .ToList();
 
         var niveles = await db.Niveles.AsNoTracking().Where(n => n.ClaseId == claseId).ToListAsync(ct);
         var alumnosIds = niveles.Select(n => n.AlumnoId).ToList();
@@ -87,6 +94,9 @@ public sealed class ServicioReporte(IAppDbContext db) : IServicioReporte
                 var suyos = intentos.Where(i => i.AlumnoId == n.AlumnoId).ToList();
                 var ultimo = suyos.OrderByDescending(i => i.Envio ?? i.Inicio).FirstOrDefault();
 
+                // Los aciertos acompañan a la nota: son los del intento que la dio.
+                var mejor = suyos.OrderByDescending(i => i.Puntaje ?? 0m).ThenByDescending(i => i.Envio ?? i.Inicio).FirstOrDefault();
+
                 return new NivelDeAlumno(
                     n.AlumnoId,
                     nombres.GetValueOrDefault(n.AlumnoId, "(sin nombre)"),
@@ -96,8 +106,8 @@ public sealed class ServicioReporte(IAppDbContext db) : IServicioReporte
                     // La misma nota con la que el servidor fijó el nivel.
                     Nota: suyos.Count == 0 ? null : ClasificacionNivel.NotaVigente(suyos),
                     Intentos: suyos.Count,
-                    Correctas: ultimo?.Respuestas.Count(r => r.EsCorrecta) ?? 0,
-                    Preguntas: ultimo?.PreguntasPlaneadas ?? 0,
+                    Correctas: mejor?.Respuestas.Count(r => r.EsCorrecta) ?? 0,
+                    Preguntas: mejor?.PreguntasPlaneadas ?? 0,
                     RendidoEn: ultimo?.Envio);
             })
             .OrderBy(n => n.Nombre)

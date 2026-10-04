@@ -175,6 +175,34 @@ public class FlujoExamenTests
     }
 
     [Fact]
+    public async Task El_reporte_cuenta_una_nota_por_alumno_la_de_su_mejor_intento()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+
+        // Primer intento: 2 de 2. Segundo: 0 de 2.
+        await banco.Tutor.IniciarExamenAsync(conversacion.Id);
+        await Empezar(banco, conversacion.Id);
+        await banco.EnviarAsync(conversacion.Id, "A");
+        await banco.EnviarAsync(conversacion.Id, "A");
+
+        banco.Reloj.Ahora = banco.Reloj.Ahora.AddMinutes(30);
+        await banco.Tutor.IniciarExamenAsync(conversacion.Id);
+        await Empezar(banco, conversacion.Id);
+        await banco.EnviarAsync(conversacion.Id, "B");
+        await banco.EnviarAsync(conversacion.Id, "B");
+
+        var reporte = (await new TutorPreClase.Application.Reportes.ServicioReporte(banco.Db).DeClaseAsync(banco.ClaseId))!;
+        var alumna = Assert.Single(reporte.Niveles);
+
+        Assert.Equal((1, 20.0m), (reporte.Alumnos, reporte.PromedioNota));
+        Assert.Equal(1, reporte.DistribucionNotas["18-20"]);
+        Assert.Equal(0, reporte.DistribucionNotas["0-10"]);
+        Assert.Equal((20.0m, 2, 2, 2), (alumna.Nota, alumna.Correctas, alumna.Preguntas, alumna.Intentos));
+        Assert.Equal("Avanzado", alumna.Nivel);
+    }
+
+    [Fact]
     public async Task La_correccion_del_docente_no_la_pisa_el_calculo_automatico()
     {
         using var banco = new BancoDePruebas().Sembrar();
