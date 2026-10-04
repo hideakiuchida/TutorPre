@@ -76,26 +76,28 @@ Pega el `alumnoId` de `/demo` en la pantalla de entrada.
 
 ## Credenciales de IA (BYOK)
 
-No hay claves en el repositorio ni en la configuración: **cada alumno conecta la suya** desde
-el chat (panel "Conecta tu agente"), o por API:
+No hay claves en el repositorio ni en la configuración: **cada alumno conecta la suya** en
+el chat, en **Mi tutor** (*Cambiar* en la cabecera), de una de tres formas:
 
-```bash
-curl -X PUT \
-  -H "X-Usuario-Id: <alumnoId>" -H "X-Usuario-Rol: Alumno" \
-  -H "Content-Type: application/json" \
-  -d '{"clave":"sk-ant-…"}' \
-  http://localhost:5080/api/v1/alumno/credenciales/claude
-```
+| Pestaña | Cómo se conecta | Opciones |
+| --- | --- | --- |
+| Con tu cuenta | Iniciando sesión en el proveedor (OAuth con PKCE), sin copiar claves | OpenRouter (modelo gratuito) y Gemini con la cuenta de Google |
+| Con tu clave de API | Pegando una clave propia, que se comprueba con el proveedor antes de guardarla | Claude (Anthropic), ChatGPT (OpenAI) y Gemini (AI Studio) |
+| Desde tu asistente | Con un token personal, el Tutor se usa como servidor MCP desde Claude Code, Claude Desktop o Cursor | `/mcp` |
 
-Se valida contra el proveedor antes de guardarla, se cifra con ASP.NET Data Protection con
-un propósito distinto por usuario, y solo se descifra para las llamadas de *esa* persona.
-La API nunca la devuelve.
+La credencial se cifra con ASP.NET Data Protection con un propósito distinto por usuario y
+solo se descifra para las llamadas de *esa* persona. La API nunca la devuelve: la web solo
+ve sus últimos 4 caracteres.
 
-Hace falta una clave de API: las suscripciones de claude.ai Pro y de ChatGPT Plus no
-habilitan la API y no existe un OAuth que permita consumirlas desde una web de terceros.
+Las suscripciones de claude.ai Pro y de ChatGPT Plus no habilitan la API: para esos
+proveedores hace falta una clave de API con saldo.
 
 - Anthropic → https://console.anthropic.com/settings/keys
 - OpenAI → https://platform.openai.com/api-keys
+- Google AI Studio → https://aistudio.google.com/apikey
+
+Conviene conectar más de una: si la IA del examen se queda sin cupo a mitad de un intento,
+la siguiente pregunta se genera con otra de las conectadas.
 
 `appsettings.json` solo describe qué proveedores se pueden conectar, con qué modelo y
 contra qué `BaseUrl`.
@@ -106,9 +108,16 @@ gratuitos y costo por uso, medidos en producción— está en
 
 ## Autenticación
 
-En producción, OIDC: se configura `Oidc:Authority` y `Oidc:Audience` y la API valida el
-JWT. Fuera de producción se acepta además un esquema de desarrollo por cabeceras
-(`X-Usuario-Id`, `X-Usuario-Rol`) para poder probar sin un proveedor de identidad.
+La entrada pide primero el perfil (*Soy alumno* / *Soy profesor*) y después la cuenta:
+*Continuar con Google* o *Continuar con Microsoft (Outlook)*, por OIDC con PKCE. La API
+canjea el código, crea o reconoce al usuario y emite **su propia sesión**, que la web envía
+como `Authorization: Bearer`. Cómo registrar las aplicaciones en Google y Microsoft está en
+el skill `setup-oauth`; hoy solo Google está configurado.
+
+Fuera de producción se acepta además un esquema de desarrollo para probar sin proveedor de
+identidad: las cabeceras `X-Usuario-Id` / `X-Usuario-Rol` por `curl`, y
+`POST /api/v1/acceso/desarrollo` para obtener una sesión en la web. En producción ninguno
+de los dos existe.
 
 ## Pruebas
 

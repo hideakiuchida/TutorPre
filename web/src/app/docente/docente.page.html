@@ -41,6 +41,7 @@
           </p>
 
           @if (contenido(); as c) {
+            <div class="tabla-desplazable">
             <table>
               <thead>
                 <tr><th>Archivo</th><th>Estado</th><th class="num">Páginas</th><th>Para el tutor</th><th class="num">Tokens</th></tr>
@@ -79,6 +80,7 @@
                 }
               </tbody>
             </table>
+            </div>
 
             <p class="ayuda">
               El tutor lee {{ c.contextoClase.tokens | number }} tokens de material en esta clase.
@@ -167,7 +169,7 @@
                   La nota la calcula el servidor al terminar el examen y con ella fija el nivel. Los temas a
                   reforzar los propone el tutor al revisar los errores con cada alumno.
                 </p>
-                <div class="tabla-alumnos">
+                <div class="tabla-desplazable tabla-alumnos">
                   <table>
                     <thead>
                       <tr>

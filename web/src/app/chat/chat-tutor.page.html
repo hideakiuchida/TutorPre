@@ -134,7 +134,8 @@
                 @if (mensaje.ampliacion) {
                   <div class="anotacion">
                     <p class="que-es">Fuera del material</p>
-                    <p>{{ mensaje.ampliacion }}</p>
+                    <!-- Mismo formato que la respuesta: las negritas del modelo, sin asteriscos. -->
+                    <p>@for (tramo of tramos(mensaje.ampliacion); track $index) {@if (tramo.negrita) {<strong>{{ tramo.texto }}</strong>} @else {<span>{{ tramo.texto }}</span>}}</p>
                     <p class="consejo">Confírmalo con tu docente.</p>
                   </div>
                 }

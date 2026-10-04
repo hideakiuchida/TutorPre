@@ -20,6 +20,8 @@
 
 .contenido {
   display: grid;
+  /* La columna no crece con lo que lleva dentro: una tabla ancha se desplaza ella sola. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 2rem;
   max-width: 52rem;
   padding: 2rem 2.5rem 3rem;
@@ -135,14 +137,17 @@ th {
   font-variant-numeric: tabular-nums;
 }
 
-/* La ficha de cada alumno: en pantallas angostas la tabla se desplaza, no se aprieta. */
-.tabla-alumnos {
-  margin-bottom: 1.25rem;
+/* En pantallas angostas las tablas se desplazan ellas solas, sin ensanchar la página. */
+.tabla-desplazable {
   overflow-x: auto;
 }
 
-.tabla-alumnos table {
+.tabla-desplazable table {
   min-width: 34rem;
+}
+
+.tabla-alumnos {
+  margin-bottom: 1.25rem;
 }
 
 .nota {
