@@ -100,6 +100,10 @@ habilitan la API y no existe un OAuth que permita consumirlas desde una web de t
 `appsettings.json` solo describe qué proveedores se pueden conectar, con qué modelo y
 contra qué `BaseUrl`.
 
+Qué opción conviene —tiempos de respuesta, coherencia en el examen y en las dudas, límites
+gratuitos y costo por uso, medidos en producción— está en
+[`docs/COMPARATIVA-MODELOS.md`](docs/COMPARATIVA-MODELOS.md).
+
 ## Autenticación
 
 En producción, OIDC: se configura `Oidc:Authority` y `Oidc:Audience` y la API valida el
