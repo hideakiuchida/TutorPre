@@ -15,7 +15,7 @@ public sealed record EventoToken(string Texto) : EventoTutor;
 
 public sealed record EventoHerramienta(string Nombre, string Estado, string? Detalle = null) : EventoTutor;
 
-public sealed record EventoProgreso(int Respondidas, int Total, int? SegundosRestantes) : EventoTutor;
+public sealed record EventoProgreso(int Respondidas, int Total, int? SegundosRestantes, bool EnPausa = false) : EventoTutor;
 
 public sealed record EventoFuentes(IReadOnlyList<Cita> Citas) : EventoTutor;
 

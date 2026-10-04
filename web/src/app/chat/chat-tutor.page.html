@@ -72,7 +72,12 @@
           }
         </ol>
         @if (tiempoRestante(); as tiempo) {
-          <p class="tiempo">Quedan <strong>{{ tiempo }}</strong></p>
+          <p class="tiempo" [class.en-pausa]="relojEnPausa()">
+            Quedan <strong>{{ tiempo }}</strong>
+            @if (relojEnPausa()) {
+              <span class="pausa">en pausa</span>
+            }
+          </p>
         }
       </div>
     }

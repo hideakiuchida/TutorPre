@@ -185,7 +185,7 @@ curl -s -H "X-Usuario-Id: $(python -c 'import uuid;print(uuid.uuid4())')" \
 | Requisito | Cómo verificarlo |
 | --- | --- |
 | RF-04 | **Comenzar examen**: sale *"Preparando tu examen con el material de la clase…"* y en pocos segundos arranca con la **primera** pregunta **sobre el material de M1** (no inventada ni de otro tema). La cabecera dice *Pregunta 1 de 6* aunque las demás aún no existan: se generan **pregunta a pregunta** mientras responde, sin repetir tema (SDD §5.2) |
-| RF-04 | Tras cada respuesta, la siguiente llega casi al instante (se preparó en segundo plano) y la escribe **el servidor**, con el formato fijo `Pregunta N de 6` + alternativas A–D. Si no se pudo generar, sale *"No pude preparar la siguiente pregunta… Escribe «siguiente»"*; las respuestas ya registradas se conservan |
+| RF-04 | Tras cada respuesta, la siguiente llega casi al instante (se preparó en segundo plano) y la escribe **el servidor**, con el formato fijo `Pregunta N de 6` + alternativas A–D. Si no se pudo generar, sale *"No pude preparar la siguiente pregunta… Detuve el reloj del examen: escribe «siguiente»"*, la cabecera muestra el tiempo con la marca *en pausa* y no baja; al llegar la pregunta el reloj sigue desde donde quedó. Las respuestas ya registradas se conservan |
 | RF-05 | Cada pregunta trae 4 alternativas; la correcta no cae siempre en la misma letra. Tras el examen, `GET /intentos/$INT/resultado` muestra justificaciones que citan `[archivo, p. N]` |
 | RF-04 | Un segundo intento trae preguntas distintas a las del primero |
 | RF-06 | La cabecera pasa a *Examen en curso* y el intento guarda el modelo (`openrouter` en `usoPorAgente` del reporte) |

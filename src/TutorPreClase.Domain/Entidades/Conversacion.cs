@@ -35,6 +35,15 @@ public class Intento
     /// </summary>
     public int PreguntasPlaneadas { get; set; }
 
+    /// <summary>
+    /// Desde cuándo está detenido el reloj del intento, o null si corre. Se detiene cuando la
+    /// siguiente pregunta no se pudo generar: ese rato de espera no es culpa del alumno.
+    /// </summary>
+    public DateTimeOffset? PausadoDesde { get; set; }
+
+    /// <summary>Lo que el reloj ya estuvo detenido en pausas anteriores.</summary>
+    public int SegundosEnPausa { get; set; }
+
     public List<RespuestaIntento> Respuestas { get; set; } = [];
 }
 

@@ -319,6 +319,49 @@ public class FlujoExamenTests
     }
 
     [Fact]
+    public async Task Mientras_no_hay_pregunta_el_reloj_se_detiene_y_sigue_al_llegar_la_siguiente()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        banco.Db.Examenes.Single().MinutosLimite = 20;
+        banco.Db.SaveChanges();
+
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        await banco.Tutor.IniciarExamenAsync(conversacion.Id);
+        var intentoId = banco.Db.Intentos.Single().Id;
+        await Empezar(banco, conversacion.Id);
+
+        // Responde a los 5 minutos y la siguiente pregunta no se puede generar.
+        banco.Reloj.Ahora = banco.Reloj.Ahora.AddMinutes(5);
+        banco.Generador.Falla = new ErrorProveedor("429", true, LimiteDeUso: true, Saturado: true);
+        var eventos = await banco.EnviarAsync(conversacion.Id, "la A");
+
+        var enPausa = eventos.OfType<EventoProgreso>().Last();
+        Assert.True(enPausa.EnPausa);
+        Assert.Equal(15 * 60, enPausa.SegundosRestantes);
+        Assert.Contains("Detuve el reloj", string.Concat(eventos.OfType<EventoToken>().Select(t => t.Texto)));
+
+        // Media hora después el modelo sigue saturado: el tiempo no bajó.
+        banco.Reloj.Ahora = banco.Reloj.Ahora.AddMinutes(30);
+        await banco.EnviarAsync(conversacion.Id, "siguiente");
+        var sigueEnPausa = await banco.Examen.ProgresoAsync(intentoId);
+        Assert.Equal((true, 15 * 60), (sigueEnPausa.EnPausa, sigueEnPausa.SegundosRestantes!.Value));
+
+        // Diez minutos más y llega la pregunta: el reloj sigue desde donde quedó.
+        banco.Reloj.Ahora = banco.Reloj.Ahora.AddMinutes(10);
+        banco.Generador.Falla = null;
+        var reanudado = (await banco.EnviarAsync(conversacion.Id, "siguiente")).OfType<EventoProgreso>().Last();
+        Assert.Equal((false, 15 * 60), (reanudado.EnPausa, reanudado.SegundosRestantes!.Value));
+
+        // Y puede responder: los 40 minutos de espera no vencieron su examen de 20.
+        banco.Reloj.Ahora = banco.Reloj.Ahora.AddMinutes(2);
+        banco.Proveedor.RespondeTexto("Evaluación final.");
+        await banco.EnviarAsync(conversacion.Id, "la A");
+
+        Assert.Equal(2, banco.Db.Respuestas.Count());
+        Assert.Equal(20.0m, banco.Db.Intentos.Single().Puntaje);
+    }
+
+    [Fact]
     public async Task La_nota_se_calcula_sobre_las_preguntas_planeadas()
     {
         using var banco = new BancoDePruebas().Sembrar();

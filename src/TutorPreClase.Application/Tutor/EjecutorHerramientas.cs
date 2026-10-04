@@ -66,13 +66,23 @@ public sealed class EjecutorHerramientas(
         {
             var generacion = await preguntas.GenerarSiguienteAsync(intentoId, ct);
             if (!generacion.Ok)
+            {
+                // Sin pregunta que responder, el reloj se detiene: la espera no es del alumno.
+                await examen.PausarRelojAsync(intentoId, pausar: true, ct);
                 return Error(Herramientas.ObtenerSiguientePregunta, "pregunta_no_generada", generacion.Mensaje!);
+            }
 
             pregunta = await examen.SiguientePreguntaAsync(intentoId, ct);
         }
 
-        // Mientras responde esta, se prepara la siguiente.
-        if (pregunta is not null) preparador.Preparar(intentoId);
+        if (pregunta is not null)
+        {
+            // Ya tiene pregunta: el reloj sigue desde donde quedó.
+            await examen.PausarRelojAsync(intentoId, pausar: false, ct);
+
+            // Mientras responde esta, se prepara la siguiente.
+            preparador.Preparar(intentoId);
+        }
 
         return pregunta is null
             ? Ok(Herramientas.ObtenerSiguientePregunta, new { quedan_preguntas = false })
@@ -133,7 +143,8 @@ public sealed class EjecutorHerramientas(
         {
             respondidas = progreso.Respondidas,
             total = progreso.Total,
-            segundos_restantes = progreso.SegundosRestantes
+            segundos_restantes = progreso.SegundosRestantes,
+            reloj_en_pausa = progreso.EnPausa
         });
     }
 

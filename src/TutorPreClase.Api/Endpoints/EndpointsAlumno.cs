@@ -195,7 +195,8 @@ public static class EndpointsAlumno
                 {
                     respondidas = progreso.Respondidas,
                     total = progreso.Total,
-                    segundosRestantes = progreso.SegundosRestantes
+                    segundosRestantes = progreso.SegundosRestantes,
+                    enPausa = progreso.EnPausa
                 }
             });
         });

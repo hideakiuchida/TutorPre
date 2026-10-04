@@ -48,6 +48,32 @@ public class ReglasExamenTests
     }
 
     [Fact]
+    public void El_tiempo_en_pausa_no_se_descuenta()
+    {
+        var examen = new Examen { Publicado = true, AbreEn = Ahora.AddDays(-1), MaxIntentos = 3, MinutosLimite = 20 };
+
+        // Empezó hace 50 minutos, estuvo 25 en pausa y lleva otros 10 detenido.
+        var intento = new Intento
+        {
+            Estado = EstadoIntento.EnCurso,
+            Inicio = Ahora.AddMinutes(-50),
+            SegundosEnPausa = 25 * 60,
+            PausadoDesde = Ahora.AddMinutes(-10)
+        };
+
+        // Corrió 50 - 25 - 10 = 15 minutos: le quedan 5, ahora y dentro de una hora.
+        Assert.Equal(5 * 60, ReglasExamen.SegundosRestantes(examen, intento, Ahora));
+        Assert.Equal(5 * 60, ReglasExamen.SegundosRestantes(examen, intento, Ahora.AddHours(1)));
+        Assert.False(ReglasExamen.TiempoVencido(examen, intento, Ahora.AddHours(1)));
+
+        // Al reanudar, vuelve a correr.
+        intento.SegundosEnPausa += 10 * 60;
+        intento.PausadoDesde = null;
+        Assert.Equal(5 * 60, ReglasExamen.SegundosRestantes(examen, intento, Ahora));
+        Assert.True(ReglasExamen.TiempoVencido(examen, intento, Ahora.AddMinutes(6)));
+    }
+
+    [Fact]
     public void Rechaza_fuera_de_la_ventana()
         => Assert.Equal(MotivoRechazo.FueraDeVentana,
             ReglasExamen.PuedeIniciar(ExamenAbierto(), [], Ahora.AddHours(5)).Motivo);

@@ -19,6 +19,12 @@ public interface IServicioExamen
     Task<PreguntaDto?> SiguientePreguntaAsync(Guid intentoId, CancellationToken ct = default);
     Task<RegistroRespuestaDto> RegistrarRespuestaAsync(Guid intentoId, Guid preguntaId, string letra, string textoOriginal, CancellationToken ct = default);
     Task<ProgresoDto> ProgresoAsync(Guid intentoId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Detiene el reloj del intento (la siguiente pregunta no se pudo preparar) o lo pone a
+    /// correr otra vez (ya hay pregunta). El tiempo en pausa no se le descuenta al alumno.
+    /// </summary>
+    Task PausarRelojAsync(Guid intentoId, bool pausar, CancellationToken ct = default);
     Task<ResultadoDto> FinalizarAsync(Guid intentoId, CancellationToken ct = default);
     Task<ResultadoDto> ResultadoAsync(Guid intentoId, CancellationToken ct = default);
 }
@@ -139,7 +145,28 @@ public sealed class ServicioExamen(IAppDbContext db, IRelojSistema reloj, INivel
         return new ProgresoDto(
             intento.Respuestas.Count,
             Total(examen, intento),
-            ReglasExamen.SegundosRestantes(examen, intento, reloj.Ahora));
+            ReglasExamen.SegundosRestantes(examen, intento, reloj.Ahora),
+            EnPausa: intento.PausadoDesde is not null);
+    }
+
+    public async Task PausarRelojAsync(Guid intentoId, bool pausar, CancellationToken ct = default)
+    {
+        var intento = await db.Intentos.FirstOrDefaultAsync(i => i.Id == intentoId, ct);
+        if (intento is null || intento.Estado != EstadoIntento.EnCurso) return;
+
+        if (pausar)
+        {
+            if (intento.PausadoDesde is not null) return;
+            intento.PausadoDesde = reloj.Ahora;
+        }
+        else
+        {
+            if (intento.PausadoDesde is not DateTimeOffset desde) return;
+            intento.SegundosEnPausa += Math.Max(0, (int)(reloj.Ahora - desde).TotalSeconds);
+            intento.PausadoDesde = null;
+        }
+
+        await db.SaveChangesAsync(ct);
     }
 
     public async Task<ResultadoDto> FinalizarAsync(Guid intentoId, CancellationToken ct = default)

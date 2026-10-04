@@ -10,7 +10,8 @@ public sealed record PreguntaDto(
     int Total,
     IReadOnlyList<AlternativaDto> Alternativas);
 
-public sealed record ProgresoDto(int Respondidas, int Total, int? SegundosRestantes);
+/// <summary>`EnPausa`: el reloj está detenido a la espera de la siguiente pregunta.</summary>
+public sealed record ProgresoDto(int Respondidas, int Total, int? SegundosRestantes, bool EnPausa = false);
 
 public sealed record FalloDto(
     Guid PreguntaId,

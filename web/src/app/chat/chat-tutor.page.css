@@ -85,6 +85,20 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Reloj detenido: se ve que no corre, sin alarmar. */
+.tiempo.en-pausa strong {
+  color: var(--grafito);
+}
+
+.pausa {
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--pauta);
+  border-radius: 2px;
+  font-size: var(--t-pequeno);
+  color: var(--grafito);
+}
+
 /* ---------- Conversación ---------- */
 
 /* Conversación: alumno a la izquierda, tutor a la derecha. */

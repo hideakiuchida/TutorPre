@@ -176,6 +176,10 @@ if (app.Environment.IsDevelopment())
         // límite), y los exámenes locales que ya existían quedan como los de producción.
         if (await EsquemaSqlite.HacerOpcionalAsync(db, "examen", "CierraEn"))
             await db.Database.ExecuteSqlRawAsync("UPDATE examen SET \"CierraEn\" = NULL");
+
+        // Ni agrega columnas: el reloj del intento ahora se puede pausar.
+        await EsquemaSqlite.AgregarColumnaAsync(db, "intento", "PausadoDesde", "INTEGER NULL");
+        await EsquemaSqlite.AgregarColumnaAsync(db, "intento", "SegundosEnPausa", "INTEGER NOT NULL DEFAULT 0");
     }
 
     await DatosIniciales.SembrarAsync(db);

@@ -61,6 +61,8 @@ export interface Progreso {
   respondidas: number;
   total: number;
   segundosRestantes: number | null;
+  /** El reloj está detenido: la siguiente pregunta no se pudo preparar. */
+  enPausa?: boolean;
 }
 
 /** Un mensaje del chat; el bloque de ampliación se separa para pintarlo aparte. */

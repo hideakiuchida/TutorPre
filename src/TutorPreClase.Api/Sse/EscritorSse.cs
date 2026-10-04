@@ -32,7 +32,8 @@ public static class EscritorSse
         {
             respondidas = e.Respondidas,
             total = e.Total,
-            segundosRestantes = e.SegundosRestantes
+            segundosRestantes = e.SegundosRestantes,
+            enPausa = e.EnPausa
         }),
 
         EventoFuentes e => ("fuentes", e.Citas.Select(c => new

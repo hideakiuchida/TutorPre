@@ -122,11 +122,16 @@ export class ChatTutorPage {
   /** Cuándo se acaba el tiempo, según el último progreso que mandó el servidor. */
   private readonly finDelTiempo = signal<number | null>(null);
 
+  /** Con el reloj en pausa el tiempo no baja: se muestra lo que quedaba al detenerlo. */
+  readonly relojEnPausa = computed(() => this.progreso()?.enPausa === true);
+
   readonly tiempoRestante = computed(() => {
     const fin = this.finDelTiempo();
     if (fin === null) return null;
 
-    const s = Math.max(0, Math.round((fin - this.ahora()) / 1000));
+    const s = this.relojEnPausa()
+      ? Math.max(0, this.progreso()?.segundosRestantes ?? 0)
+      : Math.max(0, Math.round((fin - this.ahora()) / 1000));
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   });
 

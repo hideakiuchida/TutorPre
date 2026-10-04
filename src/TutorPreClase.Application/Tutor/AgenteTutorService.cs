@@ -478,7 +478,8 @@ public sealed class AgenteTutorService(
             var contenido = siguiente.Ok
                 ? GuionExamen.Pregunta(siguiente.Json)
                 : $"No pude preparar la siguiente pregunta: {GuionExamen.MensajeDeError(siguiente.Json)} " +
-                  "Escribe «siguiente» para volver a intentarlo; tu avance está guardado.";
+                  "Detuve el reloj del examen: escribe «siguiente» para volver a intentarlo y el tiempo seguirá " +
+                  "desde donde quedó.";
 
             if (contenido is not null)
             {
@@ -552,7 +553,7 @@ public sealed class AgenteTutorService(
     private async Task<EventoProgreso> ProgresoAsync(Guid intentoId, CancellationToken ct)
     {
         var progreso = await examen.ProgresoAsync(intentoId, ct);
-        return new EventoProgreso(progreso.Respondidas, progreso.Total, progreso.SegundosRestantes);
+        return new EventoProgreso(progreso.Respondidas, progreso.Total, progreso.SegundosRestantes, progreso.EnPausa);
     }
 
     private async Task<ResultadoHerramienta> EjecutarYGuardarAsync(

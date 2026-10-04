@@ -407,6 +407,9 @@ namespace TutorPreClase.Infrastructure.Persistencia.Migraciones
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<DateTimeOffset?>("PausadoDesde")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int?>("Porcentaje")
                         .HasColumnType("integer");
 
@@ -416,6 +419,9 @@ namespace TutorPreClase.Infrastructure.Persistencia.Migraciones
                     b.Property<decimal?>("Puntaje")
                         .HasPrecision(4, 1)
                         .HasColumnType("numeric(4,1)");
+
+                    b.Property<int>("SegundosEnPausa")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 

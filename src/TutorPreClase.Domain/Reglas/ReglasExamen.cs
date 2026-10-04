@@ -53,15 +53,23 @@ public static class ReglasExamen
     {
         if (Cerrado(examen, ahora)) return true;
         if (examen.MinutosLimite is not int minutos) return false;
-        return ahora > intento.Inicio.AddMinutes(minutos);
+        return Transcurrido(intento, ahora) > TimeSpan.FromMinutes(minutos);
     }
 
     public static int? SegundosRestantes(Examen examen, Intento intento, DateTimeOffset ahora)
     {
         if (examen.MinutosLimite is not int minutos) return null;
-        var fin = intento.Inicio.AddMinutes(minutos);
-        if (examen.CierraEn is DateTimeOffset cierre && fin > cierre) fin = cierre;
-        var restante = (int)(fin - ahora).TotalSeconds;
-        return restante < 0 ? 0 : restante;
+
+        var restante = TimeSpan.FromMinutes(minutos) - Transcurrido(intento, ahora);
+        if (examen.CierraEn is DateTimeOffset cierre && cierre - ahora < restante) restante = cierre - ahora;
+
+        return restante < TimeSpan.Zero ? 0 : (int)restante.TotalSeconds;
     }
+
+    /// <summary>
+    /// El tiempo que el reloj del intento estuvo corriendo: no cuenta lo que pasó en pausa,
+    /// ni la pausa en curso (SDD §5.2).
+    /// </summary>
+    public static TimeSpan Transcurrido(Intento intento, DateTimeOffset ahora) =>
+        (intento.PausadoDesde ?? ahora) - intento.Inicio - TimeSpan.FromSeconds(intento.SegundosEnPausa);
 }
