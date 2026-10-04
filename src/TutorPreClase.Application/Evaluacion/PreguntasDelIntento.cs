@@ -162,6 +162,7 @@ public sealed class PreguntasDelIntento(
     private static string Mensaje(ErrorProveedor? error) => error switch
     {
         { CredencialRechazada: true } => "Tu cuenta de IA fue rechazada. Vuelve a conectarla para seguir con el examen.",
+        { SinSaldo: true } => "Tu cuenta de IA no tiene saldo. Cárgale créditos o conecta otra IA en «Mi tutor» para seguir.",
         { Saturado: true } => "El modelo está saturado ahora mismo. Pide la siguiente pregunta en unos segundos; tu avance está guardado.",
         { LimiteDeUso: true } => "Se acabó el cupo de tu cuenta de IA. Conecta otra IA en «Mi tutor» para seguir, o vuelve más tarde.",
         _ => "No se pudo preparar la siguiente pregunta. Pídela de nuevo; tu avance está guardado."

@@ -119,8 +119,12 @@ internal static class MapeoLlm
         var credencialRechazada =
             respuesta.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden;
 
+        // Una cuenta de pago sin créditos (OpenAI responde 429; Anthropic, 400): la clave es
+        // buena, pero no hay nada que esperar: hay que cargar saldo o usar otra IA.
+        var sinSaldo = EsFaltaDeSaldo(detalle);
+
         // Un 429 es cupo agotado, no clave mala: no se invalida la credencial (RF-30).
-        var limiteDeUso = respuesta.StatusCode == HttpStatusCode.TooManyRequests;
+        var limiteDeUso = respuesta.StatusCode == HttpStatusCode.TooManyRequests || sinSaldo;
 
         return new ErrorProveedor(
             MensajeDeFallo(respuesta.StatusCode),
@@ -128,8 +132,14 @@ internal static class MapeoLlm
             credencialRechazada,
             limiteDeUso,
             limiteDeUso ? ReintentarEn(respuesta) : null,
-            limiteDeUso && EsSaturacion(detalle));
+            limiteDeUso && EsSaturacion(detalle),
+            sinSaldo);
     }
+
+    public static bool EsFaltaDeSaldo(string detalle) =>
+        detalle.Contains("insufficient_quota", StringComparison.OrdinalIgnoreCase) ||
+        detalle.Contains("no credits remaining", StringComparison.OrdinalIgnoreCase) ||
+        detalle.Contains("credit balance is too low", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// OpenRouter marca con `limit_source` de dónde viene el 429: si es del proveedor que

@@ -683,6 +683,10 @@ public sealed class AgenteTutorService(
     /// </summary>
     private string MensajeLimite(string agente, ErrorProveedor error, string avance)
     {
+        if (error.SinSaldo)
+            return $"Tu cuenta de {agente} no tiene saldo. Cárgale créditos en la consola del proveedor " +
+                   $"o elige otro tutor en «Mi tutor». {avance}";
+
         if (error.Saturado)
             return "El modelo está saturado en este momento (le pasa a todos los que lo usan, " +
                    $"no es tu cupo). Vuelve a intentarlo en unos segundos. {avance}";

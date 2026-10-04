@@ -258,6 +258,27 @@ public class OpenRouterProviderTests
         Assert.True(error.Saturado);
     }
 
+    [Theory]
+    // OpenAI responde 429 y Anthropic 400 cuando la cuenta no tiene créditos.
+    [InlineData(HttpStatusCode.TooManyRequests, """{"error":{"message":"You have no credits remaining. Add credits to continue using the API","type":"insufficient_quota"}}""", true)]
+    [InlineData(HttpStatusCode.BadRequest, """{"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API."}}""", true)]
+    [InlineData(HttpStatusCode.TooManyRequests, """{"error":{"message":"Rate limit reached for requests","type":"rate_limit_exceeded"}}""", false)]
+    public async Task Una_cuenta_sin_creditos_no_se_confunde_con_un_limite_pasajero(HttpStatusCode estado, string cuerpo, bool sinSaldo)
+    {
+        var simulado = new OpenRouterSimulado
+        {
+            Responder = _ => new HttpResponseMessage(estado) { Content = new StringContent(cuerpo) }
+        };
+
+        var eventos = new List<LlmEvento>();
+        await foreach (var e in Proveedor(simulado).StreamAsync(Solicitud, CancellationToken.None)) eventos.Add(e);
+
+        var error = Assert.Single(eventos.OfType<ErrorProveedor>());
+        Assert.Equal(sinSaldo, error.SinSaldo);
+        Assert.True(error.LimiteDeUso);
+        Assert.False(error.CredencialRechazada);
+    }
+
     [Fact]
     public async Task Con_modelos_alternativos_pide_a_OpenRouter_que_pase_al_siguiente_si_falla_el_principal()
     {
@@ -331,6 +352,23 @@ public class LimiteDeUsoEnElChatTests
         Assert.Equal("limite_de_uso", aviso.Codigo);
         Assert.Contains("saturado", aviso.Mensaje);
         Assert.DoesNotContain("Se acabó tu cupo", aviso.Mensaje);
+        Assert.Equal(EstadoCredencial.Valida, banco.Db.Credenciales.Single().Estado);
+    }
+}
+
+public class SinSaldoTests
+{
+    [Fact]
+    public async Task El_chat_dice_que_falta_saldo_y_no_que_vuelva_mas_tarde()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+
+        banco.Proveedor.Responde(new ErrorProveedor("sin saldo", false, LimiteDeUso: true, SinSaldo: true));
+        var aviso = (await banco.EnviarAsync(conversacion.Id, "hola")).OfType<EventoAviso>().Single();
+
+        Assert.Contains("no tiene saldo", aviso.Mensaje);
+        Assert.DoesNotContain("más tarde", aviso.Mensaje);
         Assert.Equal(EstadoCredencial.Valida, banco.Db.Credenciales.Single().Estado);
     }
 }

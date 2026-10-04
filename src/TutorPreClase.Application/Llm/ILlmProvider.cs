@@ -56,4 +56,6 @@ public sealed record ErrorProveedor(
     bool CredencialRechazada = false,
     bool LimiteDeUso = false,
     DateTimeOffset? ReintentarEn = null,
-    bool Saturado = false) : LlmEvento;
+    bool Saturado = false,
+    // La cuenta del alumno en el proveedor no tiene créditos: esperar no lo arregla.
+    bool SinSaldo = false) : LlmEvento;
