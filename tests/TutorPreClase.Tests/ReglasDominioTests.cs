@@ -138,4 +138,29 @@ public class SalvaguardasTests
             [("M1 Estados Financieros.pdf", 44, true), ("Infografía.pdf", 1, true), ("M1 Estados Financieros.pdf", 39, true), ("Otro.pdf", 7, false)],
             citas.Select(c => (c.Archivo, c.Pagina, c.Valida)));
     }
+
+    [Fact]
+    public void Una_cita_con_el_nombre_abreviado_vale_si_apunta_a_un_unico_archivo()
+    {
+        var paginas = new HashSet<(string, int)>
+        {
+            ("M1 Estados Financieros.pdf", 44),
+            ("MDSTI_MFEP_M1_INFOGRAFÍA_Costo vs Gasto.pdf", 1),
+            ("MDSTI_MFEP_M1_INFOGRAFÍA_Balance.pdf", 1),
+            ("MDSTI_MFEP_M1_INFOGRAFÍA_Balance.pdf", 2)
+        };
+
+        var citas = Salvaguardas.ExtraerCitas(
+            "Costo [M1, p. 44]. Gasto [MDSTI_MFEP_M1_INFOGRAFÍA, p. 1]. Balance [MDSTI_MFEP_M1_INFOGRAFÍA, p. 2]. Nada [M1, p. 99].",
+            paginas);
+
+        Assert.Equal(
+            [
+                ("M1 Estados Financieros.pdf", 44, true),              // se completa el nombre
+                ("MDSTI_MFEP_M1_INFOGRAFÍA", 1, false),                // dos infografías tienen p. 1: no se adivina
+                ("MDSTI_MFEP_M1_INFOGRAFÍA_Balance.pdf", 2, true),
+                ("M1", 99, false)
+            ],
+            citas.Select(c => (c.Archivo, c.Pagina, c.Valida)));
+    }
 }

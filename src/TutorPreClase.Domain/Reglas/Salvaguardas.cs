@@ -75,19 +75,39 @@ public static partial class Salvaguardas
                 var m = RegexFuente().Match(fuente);
                 if (!m.Success) continue;
 
-                var archivo = m.Groups["archivo"].Value.Trim();
+                var citado = m.Groups["archivo"].Value.Trim();
 
                 foreach (Match numero in RegexPagina().Matches(m.Groups["paginas"].Value))
                 {
                     var pagina = int.Parse(numero.Value);
-                    if (!vistas.Add((archivo, pagina))) continue;
+                    var archivo = Resolver(citado, pagina, paginasDeLaClase);
+                    if (!vistas.Add((archivo ?? citado, pagina))) continue;
 
-                    citas.Add(new Cita(archivo, pagina, paginasDeLaClase.Contains((archivo, pagina))));
+                    citas.Add(new Cita(archivo ?? citado, pagina, archivo is not null));
                 }
             }
         }
 
         return citas;
+    }
+
+    /// <summary>
+    /// El archivo de la clase al que apunta la cita, o null si no hay ninguno. Algunos modelos
+    /// abrevian el nombre ("M1" por "M1 Estados Financieros.pdf"): vale si esa página existe
+    /// en un único archivo cuyo nombre empieza así; si hay dos candidatos, no se adivina.
+    /// </summary>
+    private static string? Resolver(string citado, int pagina, IReadOnlySet<(string Archivo, int Pagina)> paginasDeLaClase)
+    {
+        if (paginasDeLaClase.Contains((citado, pagina))) return citado;
+
+        var candidatos = paginasDeLaClase
+            .Where(p => p.Pagina == pagina && p.Archivo.StartsWith(citado, StringComparison.OrdinalIgnoreCase))
+            .Select(p => p.Archivo)
+            .Distinct()
+            .Take(2)
+            .ToList();
+
+        return candidatos.Count == 1 ? candidatos[0] : null;
     }
 
     /// <summary>
