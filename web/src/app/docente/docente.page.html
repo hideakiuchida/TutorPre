@@ -151,7 +151,7 @@
             @if (r.alumnos === 0) {
               <p class="vacio">Todavía ningún alumno rindió el examen de esta clase.</p>
             } @else {
-              <p class="cifra"><strong>{{ r.promedioNota | number: '1.1-1' }}</strong> de promedio, {{ r.alumnos }} alumnos</p>
+              <p class="cifra"><strong>{{ r.promedioNota | number: '1.1-1' }}</strong> de promedio, {{ r.alumnos }} {{ r.alumnos === 1 ? 'alumno' : 'alumnos' }}</p>
 
               <div class="barras" aria-label="Distribución de notas">
                 @for (tramo of tramosNota; track tramo) {

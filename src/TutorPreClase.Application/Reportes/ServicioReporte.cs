@@ -138,7 +138,10 @@ public sealed class ServicioReporte(IAppDbContext db) : IServicioReporte
                 .Select(g => g.Key)
                 .Take(10)
                 .ToList(),
+            // La misma duda preguntada varias veces se lista una vez, con su fecha más reciente.
             DudasFueraDelMaterial: dudas
+                .GroupBy(d => d.Texto.Trim(), StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
                 .Select(d => new DudaReportada(d.Texto, d.Tema, d.RespondidaConAmpliacion, d.CreadoEn))
                 .ToList(),
             UsoPorAgente: intentos

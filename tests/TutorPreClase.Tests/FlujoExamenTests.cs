@@ -175,6 +175,25 @@ public class FlujoExamenTests
     }
 
     [Fact]
+    public async Task Una_duda_repetida_sale_una_sola_vez_en_el_reporte()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+
+        foreach (var texto in new[] { "¿Qué es el WACC?", "¿qué es el WACC?", "¿Qué es la TIR?" })
+        {
+            banco.Proveedor.LlamaHerramienta(Herramientas.RegistrarDudaSinCobertura, new { texto, con_ampliacion = false });
+            banco.Proveedor.RespondeTexto("Esto no está en el material de la clase; pregúntalo en la sesión.");
+            await banco.EnviarAsync(conversacion.Id, texto);
+            banco.Reloj.Ahora = banco.Reloj.Ahora.AddMinutes(1);
+        }
+
+        var reporte = (await new TutorPreClase.Application.Reportes.ServicioReporte(banco.Db).DeClaseAsync(banco.ClaseId))!;
+
+        Assert.Equal(["¿Qué es la TIR?", "¿qué es el WACC?"], reporte.DudasFueraDelMaterial.Select(d => d.Texto));
+    }
+
+    [Fact]
     public async Task El_reporte_cuenta_una_nota_por_alumno_la_de_su_mejor_intento()
     {
         using var banco = new BancoDePruebas().Sembrar();
