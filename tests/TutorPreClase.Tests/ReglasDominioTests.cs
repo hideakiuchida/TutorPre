@@ -122,4 +122,20 @@ public class SalvaguardasTests
 
         Assert.False(Salvaguardas.RespuestaSustentada(texto, citas));
     }
+
+    [Fact]
+    public void Varias_fuentes_en_un_mismo_corchete_se_extraen_todas()
+    {
+        var paginas = new HashSet<(string, int)> { ("M1 Estados Financieros.pdf", 39), ("M1 Estados Financieros.pdf", 44), ("Infografía.pdf", 1) };
+
+        // Así cita el tutor en producción.
+        var citas = Salvaguardas.ExtraerCitas(
+            "El costo se activa [M1 Estados Financieros.pdf, p. 44; Infografía.pdf, p. 1]. " +
+            "El gasto va a resultados [M1 Estados Financieros.pdf, p. 39, 44; Otro.pdf, p. 7]. Ver [nota al pie].",
+            paginas);
+
+        Assert.Equal(
+            [("M1 Estados Financieros.pdf", 44, true), ("Infografía.pdf", 1, true), ("M1 Estados Financieros.pdf", 39, true), ("Otro.pdf", 7, false)],
+            citas.Select(c => (c.Archivo, c.Pagina, c.Valida)));
+    }
 }

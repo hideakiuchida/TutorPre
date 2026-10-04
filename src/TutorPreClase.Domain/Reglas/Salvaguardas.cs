@@ -19,9 +19,16 @@ public static partial class Salvaguardas
     [GeneratedRegex(@"Ampliaci[óo]n\s+fuera\s+del\s+material\s*:", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex RegexAmpliacion();
 
-    // [Clase03_RedesProfundas.pdf, p. 12]
-    [GeneratedRegex(@"\[\s*(?<archivo>[^\[\],]+?)\s*,\s*p\.\s*(?<pagina>\d{1,5})\s*\]", RegexOptions.CultureInvariant)]
+    // Lo que va entre corchetes y menciona una página: [Clase03_RedesProfundas.pdf, p. 12]
+    [GeneratedRegex(@"\[(?<contenido>[^\[\]]*\bp{1,2}\.\s*\d[^\[\]]*)\]", RegexOptions.CultureInvariant)]
     private static partial Regex RegexCita();
+
+    // Una fuente dentro del corchete: "archivo, p. 39, 44" o "archivo, pp. 3-5".
+    [GeneratedRegex(@"^\s*(?<archivo>.+?)\s*,\s*p{1,2}\.\s*(?<paginas>\d{1,5}(?:\s*(?:,|y|-|–)\s*\d{1,5})*)\s*$", RegexOptions.CultureInvariant)]
+    private static partial Regex RegexFuente();
+
+    [GeneratedRegex(@"\d{1,5}", RegexOptions.CultureInvariant)]
+    private static partial Regex RegexPagina();
 
     public static bool ContieneAmpliacion(string texto) =>
         !string.IsNullOrEmpty(texto) && RegexAmpliacion().IsMatch(texto);
@@ -50,7 +57,10 @@ public static partial class Salvaguardas
         return previo.Length == 0 ? SinCobertura : $"{previo}\n\n{SinCobertura}";
     }
 
-    /// <summary>Extrae las citas del texto y las resuelve contra las páginas de la clase.</summary>
+    /// <summary>
+    /// Extrae las citas del texto y las resuelve contra las páginas de la clase. Los modelos
+    /// suelen juntar varias en un corchete: `[a.pdf, p. 44; b.pdf, p. 1]` o `[a.pdf, p. 39, 44]`.
+    /// </summary>
     public static IReadOnlyList<Cita> ExtraerCitas(string texto, IReadOnlySet<(string Archivo, int Pagina)> paginasDeLaClase)
     {
         if (string.IsNullOrEmpty(texto)) return [];
@@ -58,13 +68,23 @@ public static partial class Salvaguardas
         var vistas = new HashSet<(string, int)>();
         var citas = new List<Cita>();
 
-        foreach (Match m in RegexCita().Matches(texto))
+        foreach (Match corchete in RegexCita().Matches(texto))
         {
-            var archivo = m.Groups["archivo"].Value.Trim();
-            if (!int.TryParse(m.Groups["pagina"].Value, out var pagina)) continue;
-            if (!vistas.Add((archivo, pagina))) continue;
+            foreach (var fuente in corchete.Groups["contenido"].Value.Split(';'))
+            {
+                var m = RegexFuente().Match(fuente);
+                if (!m.Success) continue;
 
-            citas.Add(new Cita(archivo, pagina, paginasDeLaClase.Contains((archivo, pagina))));
+                var archivo = m.Groups["archivo"].Value.Trim();
+
+                foreach (Match numero in RegexPagina().Matches(m.Groups["paginas"].Value))
+                {
+                    var pagina = int.Parse(numero.Value);
+                    if (!vistas.Add((archivo, pagina))) continue;
+
+                    citas.Add(new Cita(archivo, pagina, paginasDeLaClase.Contains((archivo, pagina))));
+                }
+            }
         }
 
         return citas;

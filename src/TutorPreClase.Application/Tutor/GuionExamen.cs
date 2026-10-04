@@ -35,7 +35,7 @@ public static partial class GuionExamen
     [GeneratedRegex(@"^[\s\-\*•]*[A-D][\)\.:]", RegexOptions.Multiline | RegexOptions.CultureInvariant)]
     private static partial Regex RegexAlternativa();
 
-    [GeneratedRegex(@"\[[^\[\],]+,\s*p\.\s*\d{1,5}\s*\]", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\[[^\[\]]*\bp{1,2}\.\s*\d[^\[\]]*\]", RegexOptions.CultureInvariant)]
     private static partial Regex RegexCita();
 
     [GeneratedRegex(
