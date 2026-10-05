@@ -83,6 +83,71 @@ th {
   font-weight: 600;
 }
 
+/* Las reglas del examen, en una rejilla de campos cortos. */
+.ajustes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.9rem 1.25rem;
+  max-width: 44rem;
+  margin: 0.5rem 0 1.25rem;
+  padding: 1rem 1.1rem;
+  border: 1.5px solid var(--pauta);
+  border-radius: 4px;
+  background: #fff;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.campo > span,
+.campo > label:first-child {
+  font-size: var(--t-pequeno);
+  font-weight: 600;
+  color: var(--grafito);
+}
+
+.campo input[type='number'],
+.campo input[type='datetime-local'],
+.campo select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.campo.ancho {
+  grid-column: 1 / -1;
+  max-width: 20rem;
+}
+
+.opcion-campo {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--t-pequeno);
+  cursor: pointer;
+}
+
+.opcion-campo input {
+  accent-color: var(--tapa);
+}
+
+.guardar {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.aviso-examen {
+  font-size: var(--t-pequeno);
+  color: var(--grafito);
+}
+
 .interruptor {
   display: flex;
   align-items: center;

@@ -36,19 +36,31 @@ export interface ClaseResumen {
   claseId: string;
   titulo: string;
   inicio: string;
-  /** `cierraEn` null: el examen no tiene fecha límite. */
-  examen: { publicado: boolean; abreEn: string; cierraEn: string | null } | null;
+  /**
+   * `cierraEn` null: el examen no tiene fecha límite. `intentosUsados` y `mejorNota` son del
+   * propio alumno; el profesor ve ceros.
+   */
+  examen: {
+    publicado: boolean;
+    abreEn: string;
+    cierraEn: string | null;
+    maxIntentos: number;
+    intentosUsados: number;
+    mejorNota: number | null;
+  } | null;
 }
 
-/** Si el examen de la clase se puede rendir ahora (RF-08): la ventana la fija el docente. */
-export type VentanaExamen = 'disponible' | 'proximo' | 'cerrado';
+/** Si el examen de la clase se puede rendir ahora (RF-08): ventana e intentos los fija el docente. */
+export type VentanaExamen = 'disponible' | 'proximo' | 'cerrado' | 'sin-intentos';
 
 export function ventanaExamen(clase: ClaseResumen | null | undefined, ahora: number): VentanaExamen | null {
   const examen = clase?.examen;
   if (!examen?.publicado) return null;
 
   if (ahora < Date.parse(examen.abreEn)) return 'proximo';
-  return examen.cierraEn && ahora > Date.parse(examen.cierraEn) ? 'cerrado' : 'disponible';
+  if (examen.cierraEn && ahora > Date.parse(examen.cierraEn)) return 'cerrado';
+
+  return examen.intentosUsados >= examen.maxIntentos ? 'sin-intentos' : 'disponible';
 }
 
 export interface Fuente {

@@ -101,11 +101,27 @@ public static class EndpointsDocente
             var original = await contexto.ObtenerOriginalAsync(claseId, ct);
             var ampliacion = await db.Clases.Where(c => c.Id == claseId).Select(c => c.AmpliacionPermitida).FirstOrDefaultAsync(ct);
 
+            // Los ajustes del examen, para que el profesor los vea y los cambie en su panel (RF-34).
+            var examen = await db.Examenes
+                .AsNoTracking()
+                .Where(e => e.ClaseId == claseId)
+                .Select(e => new
+                {
+                    abreEn = e.AbreEn,
+                    cierraEn = e.CierraEn,
+                    maxIntentos = e.MaxIntentos,
+                    minutosLimite = e.MinutosLimite,
+                    modoFeedback = e.ModoFeedback.ToString(),
+                    preguntasPorIntento = e.PreguntasPorIntento
+                })
+                .FirstOrDefaultAsync(ct);
+
             return Results.Ok(new
             {
                 archivos,
                 contextoClase = new { tokens = ctx.TokensTotales, tokensOriginal = original.TokensTotales, truncado = ctx.Truncado },
-                ampliacionPermitida = ampliacion
+                ampliacionPermitida = ampliacion,
+                examen
             });
         });
 
@@ -201,6 +217,17 @@ public static class EndpointsDocente
         {
             if (!Enum.TryParse<ModoFeedback>(peticion.ModoFeedback, out var modo))
                 return Results.BadRequest(new { error = "modo_feedback_invalido" });
+
+            // Lo que llega de un formulario se comprueba aquí: la web también lo limita, pero
+            // la regla es del servidor.
+            if (peticion.MaxIntentos is < 1 or > 10)
+                return Results.BadRequest(new { error = "intentos_invalidos", mensaje = "Los intentos van de 1 a 10." });
+
+            if (peticion.MinutosLimite is < 5 or > 240)
+                return Results.BadRequest(new { error = "tiempo_invalido", mensaje = "El tiempo va de 5 a 240 minutos, o sin límite." });
+
+            if (peticion.CierraEn is DateTimeOffset cierre && cierre <= peticion.AbreEn)
+                return Results.BadRequest(new { error = "cierre_invalido", mensaje = "La fecha límite debe ser posterior a la apertura." });
 
             var examen = await db.Examenes.FirstOrDefaultAsync(e => e.ClaseId == claseId, ct);
 

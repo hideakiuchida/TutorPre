@@ -145,7 +145,6 @@ luego la web. La guía para montar las cuentas está en
   servicio de contenido.
 - El frontend es una app Angular estándar, no un monorepo Nx; la separación por carpetas
   (`datos`, `chat`) sigue la de las librerías del SDD §8.1.
-- La generación de preguntas con IA (RF-04) aún no está implementada: el docente las crea
-  y aprueba por API.
-- El docente no tiene pantalla propia todavía: su parte (contenido, preguntas, reporte,
-  niveles) se opera por API.
+- No hay pantalla de administrador para elegir el modelo de cada IA (RF-35): se cambia por
+  `PUT /api/v1/admin/agentes/{id}`.
+- La IA todavía no ajusta la dificultad de las preguntas al nivel del alumno (RF-23).

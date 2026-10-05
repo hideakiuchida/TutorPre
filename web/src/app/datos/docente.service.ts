@@ -26,6 +26,19 @@ export interface ContenidoClase {
   /** `tokens`: lo que lee el tutor; `tokensOriginal`: el texto sin condensar. */
   contextoClase: { tokens: number; tokensOriginal: number; truncado: boolean };
   ampliacionPermitida: boolean;
+  examen: AjustesExamen | null;
+}
+
+/** Lo que el profesor decide del examen de una clase (RF-34). */
+export interface AjustesExamen {
+  abreEn: string;
+  /** null: sin fecha límite. */
+  cierraEn: string | null;
+  maxIntentos: number;
+  /** null: sin límite de tiempo. */
+  minutosLimite: number | null;
+  modoFeedback: 'AlFinal' | 'Inmediato';
+  preguntasPorIntento: number;
 }
 
 export interface PaginaComparada {
@@ -73,6 +86,10 @@ export class DocenteService {
 
   reporte(claseId: string): Promise<ReporteClase> {
     return firstValueFrom(this.http.get<ReporteClase>(`${API}/clases/${claseId}/reporte`));
+  }
+
+  guardarExamen(claseId: string, ajustes: AjustesExamen) {
+    return firstValueFrom(this.http.put<{ examenId: string }>(`${API}/clases/${claseId}/examen`, ajustes));
   }
 
   /** Deja los temas a reforzar de un alumno como el docente decida. */

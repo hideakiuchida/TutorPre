@@ -142,15 +142,27 @@ public sealed class AgenteTutorService(
         if (conversacion is { Modo: ModoConversacion.Evaluacion, IntentoId: Guid enCurso })
             yield return await ProgresoAsync(enCurso, ct);
 
-        db.Mensajes.Add(new MensajeChat
+        // Un reintento (RF-17): si el tutor no llegó a contestar el mismo mensaje, no se guarda
+        // otra vez; el historial queda con una sola pregunta y su respuesta.
+        var ultimo = await db.Mensajes
+            .AsNoTracking()
+            .Where(m => m.ConversacionId == conversacion.Id && m.Rol != RolMensaje.Herramienta)
+            .OrderByDescending(m => m.CreadoEn)
+            .Select(m => new { m.Rol, m.Texto })
+            .FirstOrDefaultAsync(ct);
+
+        if (ultimo is not { Rol: RolMensaje.Alumno } || ultimo.Texto != mensaje)
         {
-            ConversacionId = conversacion.Id,
-            AgenteId = agente.Id,
-            Rol = RolMensaje.Alumno,
-            Texto = mensaje,
-            CreadoEn = reloj.Ahora
-        });
-        await db.SaveChangesAsync(ct);
+            db.Mensajes.Add(new MensajeChat
+            {
+                ConversacionId = conversacion.Id,
+                AgenteId = agente.Id,
+                Rol = RolMensaje.Alumno,
+                Texto = mensaje,
+                CreadoEn = reloj.Ahora
+            });
+            await db.SaveChangesAsync(ct);
+        }
 
         // La credencial es del alumno dueño del chat (BYOK, SDD §5.1).
         var clave = await credenciales.ClaveParaAsync(conversacion.AlumnoId, agente.Id, ct);

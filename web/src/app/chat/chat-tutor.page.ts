@@ -1,6 +1,6 @@
 import { Component, DestroyRef, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { ConfiguracionTutor } from './configuracion-tutor';
 import { EventoTutor, TutorStreamService } from '../datos/tutor-stream.service';
 import { SesionService } from '../datos/sesion.service';
@@ -29,6 +29,25 @@ function leerTutorElegido(): string | null {
     return localStorage.getItem(TUTOR_ELEGIDO);
   } catch {
     return null;
+  }
+}
+
+/** La última clase que abrió: al volver a entrar sigue donde estaba. */
+const CLASE_ABIERTA = 'tutor.clase';
+
+function leerClaseAbierta(): string | null {
+  try {
+    return localStorage.getItem(CLASE_ABIERTA);
+  } catch {
+    return null;
+  }
+}
+
+function guardarClaseAbierta(claseId: string): void {
+  try {
+    localStorage.setItem(CLASE_ABIERTA, claseId);
+  } catch {
+    // Sin almacenamiento solo se pierde la preferencia al recargar.
   }
 }
 
@@ -62,7 +81,7 @@ function leerFuentes(json: string): Fuente[] {
  */
 @Component({
   selector: 'app-chat-tutor',
-  imports: [FormsModule, DatePipe, ConfiguracionTutor],
+  imports: [FormsModule, DatePipe, DecimalPipe, ConfiguracionTutor],
   templateUrl: './chat-tutor.page.html',
   styleUrl: './chat-tutor.page.css',
 })
@@ -88,6 +107,9 @@ export class ChatTutorPage {
   readonly novedad = signal('');
   readonly error = signal<string>('');
   readonly borrador = signal('');
+
+  /** El mensaje que el tutor no llegó a contestar: se puede volver a enviar con un clic (RF-17). */
+  readonly porReintentar = signal('');
 
   readonly credenciales = signal<Credencial[]>([]);
   readonly conectando = signal(false);
@@ -289,7 +311,10 @@ export class ChatTutorPage {
         return;
       }
 
-      if (clases.length > 0 && !this.sinAgente()) await this.abrir(clases[0]);
+      if (clases.length > 0 && !this.sinAgente()) {
+        const ultima = leerClaseAbierta();
+        await this.abrir(clases.find((c) => c.claseId === ultima) ?? clases[0]);
+      }
     } catch {
       this.error.set('No se pudo cargar tus clases. ¿Está levantada la API?');
     }
@@ -371,7 +396,9 @@ export class ChatTutorPage {
     this.claseActiva.set(clase);
     this.error.set('');
     this.novedad.set('');
+    this.porReintentar.set('');
     this.fijarProgreso(null);
+    guardarClaseAbierta(clase.claseId);
 
     const conversacion = await this.api.abrirConversacion(clase.claseId, this.agenteActivo());
     this.conversacionId.set(conversacion.conversacionId);
@@ -425,6 +452,7 @@ export class ChatTutorPage {
       const inicio = await this.api.iniciarExamen(this.conversacionId());
       this.mensajes.update((ms) => ms.slice(0, -1));
       this.modo.set(inicio.modo);
+      void this.refrescarClases();
       await this.enviar('Estoy listo para empezar el examen.');
     } catch (e: any) {
       this.mensajes.update((ms) => ms.slice(0, -1));
@@ -448,19 +476,31 @@ export class ChatTutorPage {
     await this.enviar(texto);
   }
 
-  private async enviar(texto: string): Promise<void> {
+  /** Vuelve a enviar el mensaje que quedó sin respuesta; no se repite en el chat. */
+  async reintentar(): Promise<void> {
+    const texto = this.porReintentar();
+    if (texto) await this.enviar(texto, true);
+  }
+
+  private async enviar(texto: string, reintento = false): Promise<void> {
     if (this.enviando() || !this.conversacionId()) return;
 
     this.enviando.set(true);
     this.error.set('');
     this.novedad.set('');
+    this.porReintentar.set('');
     this.alFinal = true;
+    this.ultimoEnviado = texto;
 
-    this.mensajes.update((ms) => [
-      ...ms,
-      { rol: 'Alumno', texto },
-      { rol: 'Agente', texto: '', enCurso: true },
-    ]);
+    // En un reintento el mensaje del alumno ya está en pantalla: solo se quita el aviso viejo.
+    this.mensajes.update((ms) => {
+      const previos = reintento && ms[ms.length - 1]?.rol === 'Agente' ? ms.slice(0, -1) : ms;
+      return [
+        ...previos,
+        ...(reintento ? [] : [{ rol: 'Alumno' as const, texto }]),
+        { rol: 'Agente' as const, texto: '', enCurso: true },
+      ];
+    });
 
     try {
       for await (const evento of this.api.enviar(
@@ -472,6 +512,7 @@ export class ChatTutorPage {
       }
     } catch {
       this.error.set('Se perdió la conexión con el tutor.');
+      this.porReintentar.set(texto);
     } finally {
       this.enviando.set(false);
       this.actualizarUltimo((m) => ({ ...m, enCurso: false }));
@@ -503,6 +544,8 @@ export class ChatTutorPage {
   private aplicar(evento: EventoTutor): void {
     switch (evento.tipo) {
       case 'modo':
+        // Al cerrarse el examen cambian su nota y sus intentos: la lista de clases se pone al día.
+        if (this.modo() === 'Evaluacion' && evento.modo !== 'Evaluacion') void this.refrescarClases();
         this.modo.set(evento.modo);
         this.ampliacionPermitida.set(evento.ampliacionPermitida);
         break;
@@ -527,11 +570,28 @@ export class ChatTutorPage {
           this.configuracionAbierta.set(true);
           void this.refrescarCredenciales();
         }
+        // Saturado o sin cupo: el mensaje no se contestó y se puede volver a enviar.
+        if (evento.codigo === 'limite_de_uso') this.porReintentar.set(this.ultimoEnviado);
         break;
 
       case 'error':
         this.error.set(evento.mensaje);
+        if (evento.reintentable) this.porReintentar.set(this.ultimoEnviado);
         break;
+    }
+  }
+
+  private ultimoEnviado = '';
+
+  private async refrescarClases(): Promise<void> {
+    try {
+      const clases = await this.api.clases();
+      this.clases.set(clases);
+
+      const activa = this.claseActiva();
+      if (activa) this.claseActiva.set(clases.find((c) => c.claseId === activa.claseId) ?? activa);
+    } catch {
+      // La lista se pondrá al día la próxima vez que se cargue.
     }
   }
 

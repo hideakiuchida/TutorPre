@@ -25,6 +25,20 @@
           @case ('cerrado') {
             <span class="examen-fuera">Examen cerrado</span>
           }
+          @case ('sin-intentos') {
+            <span class="examen-fuera">Sin intentos disponibles</span>
+          }
+        }
+        <!-- Cómo va el alumno en este examen: su mejor nota y los intentos que le quedan. -->
+        @if (clase.examen; as e) {
+          @if (e.intentosUsados > 0) {
+            <span class="mi-avance">
+              @if (e.mejorNota !== null) {
+                Nota {{ e.mejorNota | number: '1.1-1' }} ·
+              }
+              {{ e.intentosUsados }} de {{ e.maxIntentos }} intentos
+            </span>
+          }
         }
       </button>
     } @empty {
@@ -162,6 +176,13 @@
         </li>
       }
     </ol>
+
+    @if (porReintentar() && !enviando()) {
+      <p class="reintento" role="status">
+        El tutor no llegó a responder tu último mensaje.
+        <button type="button" class="enlace" (click)="reintentar()">Reintentar</button>
+      </p>
+    }
 
     <form class="redaccion" (submit)="$event.preventDefault(); enviarBorrador()">
       <input

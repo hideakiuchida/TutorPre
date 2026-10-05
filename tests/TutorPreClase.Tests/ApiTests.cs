@@ -120,6 +120,40 @@ public class ApiTests
     }
 
     [Fact]
+    public async Task El_profesor_ve_y_ajusta_el_examen_y_el_servidor_valida_lo_que_llega()
+    {
+        using var api = new ApiDePruebas();
+        var (docenteId, alumnoId, _, claseId) = api.Sembrar();
+        var docente = api.Como(docenteId, "Docente");
+
+        var abre = DateTimeOffset.UtcNow.AddHours(-1);
+        object Ajustes(int intentos = 2, int? minutos = 30, DateTimeOffset? cierra = null, string modo = "Inmediato") => new
+        {
+            abreEn = abre, cierraEn = cierra, maxIntentos = intentos, minutosLimite = minutos, modoFeedback = modo, preguntasPorIntento = 8
+        };
+
+        Assert.Equal(HttpStatusCode.OK, (await docente.PutAsJsonAsync($"/api/v1/clases/{claseId}/examen", Ajustes())).StatusCode);
+
+        var examen = (await docente.GetFromJsonAsync<JsonElement>($"/api/v1/clases/{claseId}/contenido")).GetProperty("examen");
+        Assert.Equal(2, examen.GetProperty("maxIntentos").GetInt32());
+        Assert.Equal(30, examen.GetProperty("minutosLimite").GetInt32());
+        Assert.Equal(8, examen.GetProperty("preguntasPorIntento").GetInt32());
+        Assert.Equal("Inmediato", examen.GetProperty("modoFeedback").GetString());
+        Assert.Equal(JsonValueKind.Null, examen.GetProperty("cierraEn").ValueKind);
+
+        // Valores fuera de rango no se guardan.
+        foreach (var malo in new[] { Ajustes(intentos: 0), Ajustes(intentos: 11), Ajustes(minutos: 2), Ajustes(cierra: abre.AddMinutes(-1)), Ajustes(modo: "Otro") })
+            Assert.Equal(HttpStatusCode.BadRequest, (await docente.PutAsJsonAsync($"/api/v1/clases/{claseId}/examen", malo)).StatusCode);
+
+        // El alumno ve cuántos intentos tiene y que aún no rindió.
+        var clases = await api.Como(alumnoId, "Alumno").GetFromJsonAsync<JsonElement>("/api/v1/alumno/clases");
+        var suExamen = clases.EnumerateArray().Single(c => c.GetProperty("claseId").GetGuid() == claseId).GetProperty("examen");
+        Assert.Equal(2, suExamen.GetProperty("maxIntentos").GetInt32());
+        Assert.Equal(0, suExamen.GetProperty("intentosUsados").GetInt32());
+        Assert.Equal(JsonValueKind.Null, suExamen.GetProperty("mejorNota").ValueKind);
+    }
+
+    [Fact]
     public async Task El_reporte_del_docente_trae_niveles_y_dudas()
     {
         using var api = new ApiDePruebas();

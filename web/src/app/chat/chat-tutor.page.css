@@ -99,6 +99,22 @@
   color: var(--grafito);
 }
 
+/* El mensaje que quedó sin respuesta se reenvía sin volver a escribirlo. */
+.reintento {
+  margin: 0;
+  padding: 0.5rem 2.5rem;
+  border-top: 1px solid var(--pauta);
+  background: var(--papel);
+  font-size: var(--t-pequeno);
+  color: var(--grafito);
+}
+
+.reintento .enlace {
+  margin-left: 0.35rem;
+  color: var(--tapa);
+  font-weight: 700;
+}
+
 /* ---------- Conversación ---------- */
 
 /* Conversación: alumno a la izquierda, tutor a la derecha. */

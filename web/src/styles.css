@@ -198,6 +198,14 @@ input:focus {
   font-weight: 700;
 }
 
+/* Lo que lleva el alumno en ese examen: se lee de un vistazo bajo la etiqueta. */
+.mi-avance {
+  margin-top: 0.25rem;
+  font-size: var(--t-pequeno);
+  color: rgb(255 255 255 / 85%);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Examen que todavía no abre o ya cerró: se dice, pero sin invitar a pulsarlo. */
 .examen-fuera {
   align-self: flex-start;

@@ -4,6 +4,7 @@ import { TutorStreamService } from '../datos/tutor-stream.service';
 import { SesionService } from '../datos/sesion.service';
 import { Agente, ClaseResumen, Credencial } from '../datos/tutor.modelos';
 import {
+  AjustesExamen,
   ArchivoClase,
   ContenidoClase,
   DocenteService,
@@ -104,9 +105,67 @@ export class DocentePage implements OnDestroy {
       ]);
       this.contenido.set(contenido);
       this.reporte.set(reporte);
+      this.ajustes.set(contenido.examen);
+      this.avisoExamen.set('');
       this.programarRefresco();
     } catch {
       this.error.set('No se pudo cargar esta clase.');
+    }
+  }
+
+  /** Lo que el profesor está editando del examen; se copia de lo guardado al abrir la clase. */
+  readonly ajustes = signal<AjustesExamen | null>(null);
+  readonly guardandoExamen = signal(false);
+  readonly avisoExamen = signal('');
+
+  /** Hay cambios sin guardar respecto de lo que tiene el servidor. */
+  readonly examenCambiado = computed(
+    () => JSON.stringify(this.ajustes()) !== JSON.stringify(this.contenido()?.examen ?? null),
+  );
+
+  cambiarAjuste(cambio: Partial<AjustesExamen>): void {
+    const actual = this.ajustes();
+    if (!actual) return;
+
+    this.ajustes.set({ ...actual, ...cambio });
+    this.avisoExamen.set('');
+  }
+
+  /** Un campo numérico vacío o fuera de rango se queda en el límite más cercano. */
+  entero(valor: string, minimo: number, maximo: number): number {
+    const n = Math.round(Number(valor));
+    return Number.isFinite(n) ? Math.min(maximo, Math.max(minimo, n)) : minimo;
+  }
+
+  /** Fecha en el formato que usa `datetime-local`, en la hora del navegador. */
+  fechaLocal(iso: string | null): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const dos = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}T${dos(d.getHours())}:${dos(d.getMinutes())}`;
+  }
+
+  fechaIso(local: string): string | null {
+    return local ? new Date(local).toISOString() : null;
+  }
+
+  async guardarExamen(): Promise<void> {
+    const clase = this.activa();
+    const ajustes = this.ajustes();
+    const contenido = this.contenido();
+    if (!clase || !ajustes || !contenido) return;
+
+    this.guardandoExamen.set(true);
+    this.avisoExamen.set('');
+
+    try {
+      await this.docente.guardarExamen(clase.claseId, ajustes);
+      this.contenido.set({ ...contenido, examen: ajustes });
+      this.avisoExamen.set('Guardado. Vale para los intentos que empiecen desde ahora.');
+    } catch (e: any) {
+      this.avisoExamen.set(e?.error?.mensaje ?? 'No se pudo guardar. Revisa los valores y vuelve a intentarlo.');
+    } finally {
+      this.guardandoExamen.set(false);
     }
   }
 

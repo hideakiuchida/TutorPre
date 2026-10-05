@@ -132,7 +132,7 @@ con `POST /api/v1/acceso/desarrollo {"usuarioId":…}` y guárdala en la pestañ
 | RF-33 | Primer acceso como alumno (pruebas .NET y, con una cuenta nueva, en pantalla): tras Google sale directo *Elige a tu profesor*; como profesor entra directo a su panel |
 | RF-33 | Un Alumno o un Docente contra `GET /admin/usuarios` → **403** |
 | RF-34 | Un docente que no es dueño del curso contra `GET /clases/$CLA/contenido` → **403**; el dueño → 200 |
-| RF-34 | Como docente: cada clase muestra su material (estado *Listo*, páginas, tokens), la ventana del examen, el interruptor de ampliación (apagado) y el reporte |
+| RF-34 | Como docente: cada clase muestra su material (estado *Listo*, páginas, tokens), el interruptor de ampliación (apagado) y el reporte. En *Examen y tutor* hay un formulario con preguntas por examen, intentos, minutos por intento (o sin límite), cuándo se muestra la corrección y fecha límite (o sin fecha límite): cambia los intentos, pulsa *Guardar cambios* → sale *Guardado* y `GET /clases/$CLA/contenido` trae el valor nuevo en `examen`; un valor fuera de rango por API (`maxIntentos: 0`) responde **400**. Déjalo como estaba |
 | RF-32 | Al entrar como alumna sin ninguna IA conectada, con Gemini y OpenRouter habilitados, **no** hay redirección automática: se abre *Mi tutor* con las pestañas. Con una sola opción, la web va sola a autorizarla una vez por sesión |
 | RF-37 | *Entrar con Gemini (tu cuenta de Google)* lleva a `accounts.google.com` con `scope=…/cloud-platform …/generative-language.retriever`, `access_type=offline`, `code_challenge_method=S256` y `redirect_uri` a `/conectar/gemini`. La persona elige su Gmail y acepta el permiso (no tú) → vuelve y Gemini queda conectado. En *Mi tutor* → «Conversas con» se elige entre Gemini y OpenRouter; en el log sale `LLM gemini gemini-3.8-flash: primer token … ms`. Revocar el acceso en myaccount.google.com hace que el chat pida reconectar |
 
@@ -196,7 +196,8 @@ curl -s -H "X-Usuario-Id: $(python -c 'import uuid;print(uuid.uuid4())')" \
 | §6.4 | Di `termina el examen` con preguntas pendientes: se cierra. Sin pedirlo, el examen no se cierra antes de la sexta respuesta |
 | §5.4 | Al terminar, el tutor abre con una **evaluación final** breve: la nota, lo que dominó, los temas a reforzar y una recomendación; luego ofrece repasar los fallos. En el reporte del docente, esos temas aparecen en `temasDebiles` del alumno |
 | RNF-01 | El progreso se actualiza al instante, sin esperar al modelo |
-| RF-08 | Tras agotar los 3 intentos, iniciar otro responde `SinIntentosDisponibles` |
+| RF-08 | En la lista de clases, bajo la etiqueta del examen, sale el avance del alumno (`Nota 16.7 · 2 de 3 intentos`). Tras agotar los intentos la etiqueta dice *Sin intentos disponibles*, no hay botón *Comenzar examen* e iniciar otro por API responde `SinIntentosDisponibles` |
+| RF-17 | Si el tutor no responde (saturado, sin cupo, error o conexión perdida) aparece *"El tutor no llegó a responder tu último mensaje. Reintentar"*: al pulsarlo se reenvía sin duplicar el mensaje en el chat, y en `GET /conversaciones/$CONV/mensajes` queda una sola pregunta con su respuesta |
 
 ## Bloque E — Revisión
 
@@ -241,10 +242,8 @@ Dilo explícitamente al reportar; no los marques como aprobados:
 | Requisito | Estado |
 | --- | --- |
 | RF-31 | Google está registrado (proyecto `tutor-pre-clase`, modo prueba: solo entran los *Test users*). **Microsoft no**: la cuenta UPC de alumno no puede registrar apps (403); ver skill `setup-oauth`. Sin su `ClientId`, *Continuar con Microsoft* solo avisa que no está configurado |
-| RF-34 | El panel del docente todavía no ajusta ventana, intentos, tiempo ni modo de feedback: solo por `PUT /clases/$CLA/examen` |
 | RF-35 | El modelo del tutor se cambia solo por `PUT /admin/agentes/openrouter`; no hay pantalla |
 | RF-05 | La justificación cita el material, pero las **referencias** no se guardan aún en `pregunta_referencia` |
-| RF-17 | Reintentar tras un fallo no pierde el avance (el historial vive en la base), pero la web no ofrece todavía un botón de reintento: el alumno reenvía el mensaje |
 | RNF-11 | `data_collection: deny` se envía en cada llamada, pero que el modelo `:free` elegido tenga proveedores que lo cumplan solo se ve con la cuenta real conectada |
 | RF-23 | La IA todavía no ajusta la dificultad al nivel del alumno |
 | RNF-08 | No hay tope de mensajes por alumno y clase |

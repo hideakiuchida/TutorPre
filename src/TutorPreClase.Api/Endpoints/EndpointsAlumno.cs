@@ -79,16 +79,46 @@ public static class EndpointsAlumno
                     claseId = c.Id,
                     titulo = c.Titulo,
                     inicio = c.Inicio,
+                    examenId = c.Examen == null ? (Guid?)null : c.Examen.Id,
                     examen = c.Examen == null ? null : new
                     {
                         publicado = c.Examen.Publicado,
                         abreEn = c.Examen.AbreEn,
-                        cierraEn = c.Examen.CierraEn
+                        cierraEn = c.Examen.CierraEn,
+                        maxIntentos = c.Examen.MaxIntentos
                     }
                 })
                 .ToListAsync(ct);
 
-            return Results.Ok(clases);
+            // Cómo va el propio alumno en cada examen: cuántos intentos usó y su mejor nota.
+            var examenes = clases.Where(c => c.examenId != null).Select(c => c.examenId!.Value).ToList();
+            var intentos = await db.Intentos
+                .AsNoTracking()
+                .Where(i => i.AlumnoId == alumnoId && examenes.Contains(i.ExamenId))
+                .Select(i => new { i.ExamenId, i.Estado, i.Puntaje })
+                .ToListAsync(ct);
+
+            return Results.Ok(clases.Select(c =>
+            {
+                var suyos = intentos.Where(i => i.ExamenId == c.examenId).ToList();
+                var notas = suyos.Where(i => i.Estado != EstadoIntento.EnCurso && i.Puntaje.HasValue).Select(i => i.Puntaje!.Value).ToList();
+
+                return new
+                {
+                    c.claseId,
+                    c.titulo,
+                    c.inicio,
+                    examen = c.examen == null ? null : new
+                    {
+                        c.examen.publicado,
+                        c.examen.abreEn,
+                        c.examen.cierraEn,
+                        c.examen.maxIntentos,
+                        intentosUsados = suyos.Count,
+                        mejorNota = notas.Count == 0 ? (decimal?)null : notas.Max()
+                    }
+                };
+            }));
         });
 
         // El alumno ve solo los cursos del profesor que eligio (RF-33) y puede cambiarlo.

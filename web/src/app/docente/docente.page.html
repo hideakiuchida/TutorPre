@@ -126,16 +126,66 @@
 
         <section aria-labelledby="t-examen">
           <h2 id="t-examen">Examen y tutor</h2>
-          @if (clase.examen; as e) {
-            <p>
-              @if (e.cierraEn) {
-                Abierto del {{ e.abreEn | date: 'd MMM, HH:mm' }} al {{ e.cierraEn | date: 'd MMM, HH:mm' }}.
-              } @else {
-                Abierto desde el {{ e.abreEn | date: 'd MMM, HH:mm' }}, sin fecha límite.
-              }
-              La IA genera un examen distinto para cada alumno a partir del material.
-            </p>
+          <p class="ayuda">
+            La IA genera un examen distinto para cada alumno a partir del material. Tú decides las reglas;
+            lo que cambies vale para los intentos que empiecen desde ahora.
+          </p>
+
+          @if (ajustes(); as a) {
+            <form class="ajustes" (submit)="$event.preventDefault(); guardarExamen()">
+              <label class="campo">
+                <span>Preguntas por examen</span>
+                <input type="number" min="3" max="20" [value]="a.preguntasPorIntento"
+                       (change)="cambiarAjuste({ preguntasPorIntento: entero($any($event.target).value, 3, 20) })" />
+              </label>
+
+              <label class="campo">
+                <span>Intentos por alumno</span>
+                <input type="number" min="1" max="10" [value]="a.maxIntentos"
+                       (change)="cambiarAjuste({ maxIntentos: entero($any($event.target).value, 1, 10) })" />
+              </label>
+
+              <div class="campo">
+                <label for="minutos">Minutos por intento</label>
+                <input id="minutos" type="number" min="5" max="240" [value]="a.minutosLimite ?? ''" [disabled]="a.minutosLimite === null"
+                       (change)="cambiarAjuste({ minutosLimite: entero($any($event.target).value, 5, 240) })" />
+                <label class="opcion-campo">
+                  <input type="checkbox" [checked]="a.minutosLimite === null"
+                         (change)="cambiarAjuste({ minutosLimite: $any($event.target).checked ? null : 20 })" />
+                  Sin límite de tiempo
+                </label>
+              </div>
+
+              <label class="campo">
+                <span>La corrección se muestra</span>
+                <select [value]="a.modoFeedback" (change)="cambiarAjuste({ modoFeedback: $any($event.target).value })">
+                  <option value="AlFinal" [selected]="a.modoFeedback === 'AlFinal'">Al terminar el examen</option>
+                  <option value="Inmediato" [selected]="a.modoFeedback === 'Inmediato'">Tras cada respuesta</option>
+                </select>
+              </label>
+
+              <div class="campo ancho">
+                <label for="cierre">Fecha límite para rendirlo</label>
+                <input id="cierre" type="datetime-local" [value]="fechaLocal(a.cierraEn)" [disabled]="a.cierraEn === null"
+                       (change)="cambiarAjuste({ cierraEn: fechaIso($any($event.target).value) })" />
+                <label class="opcion-campo">
+                  <input type="checkbox" [checked]="a.cierraEn === null"
+                         (change)="cambiarAjuste({ cierraEn: $any($event.target).checked ? null : clase.inicio })" />
+                  Sin fecha límite
+                </label>
+              </div>
+
+              <div class="guardar">
+                <button type="submit" class="principal" [disabled]="!examenCambiado() || guardandoExamen()">
+                  {{ guardandoExamen() ? 'Guardando…' : 'Guardar cambios' }}
+                </button>
+                @if (avisoExamen()) {
+                  <span class="aviso-examen" role="status">{{ avisoExamen() }}</span>
+                }
+              </div>
+            </form>
           }
+
           @if (contenido(); as c) {
             <label class="interruptor">
               <input type="checkbox" [checked]="c.ampliacionPermitida" (change)="alternarAmpliacion($any($event.target).checked)" />

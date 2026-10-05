@@ -209,6 +209,29 @@ public class FlujoExamenTests
     }
 
     [Fact]
+    public async Task Reintentar_un_mensaje_que_el_tutor_no_contesto_no_lo_duplica()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+
+        banco.Proveedor.Responde(new ErrorProveedor("503", true, LimiteDeUso: true, Saturado: true));
+        await banco.EnviarAsync(conversacion.Id, "¿Qué es ReLU?");
+
+        banco.Proveedor.RespondeTexto("ReLU mantiene el gradiente [Clase03.pdf, p. 12].");
+        await banco.EnviarAsync(conversacion.Id, "¿Qué es ReLU?");
+
+        Assert.Equal(
+            [RolMensaje.Alumno, RolMensaje.Agente],
+            banco.Db.Mensajes.OrderBy(m => m.CreadoEn).ToList().Select(m => m.Rol));
+
+        // Repetir la pregunta después de una respuesta sí es un mensaje nuevo.
+        banco.Reloj.Ahora = banco.Reloj.Ahora.AddMinutes(1);
+        banco.Proveedor.RespondeTexto("Como te decía [Clase03.pdf, p. 12].");
+        await banco.EnviarAsync(conversacion.Id, "¿Qué es ReLU?");
+        Assert.Equal(2, banco.Db.Mensajes.Count(m => m.Rol == RolMensaje.Alumno));
+    }
+
+    [Fact]
     public async Task Una_duda_repetida_sale_una_sola_vez_en_el_reporte()
     {
         using var banco = new BancoDePruebas().Sembrar();
