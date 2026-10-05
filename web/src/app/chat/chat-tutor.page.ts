@@ -420,6 +420,10 @@ export class ChatTutorPage {
         } satisfies Mensaje;
       }),
     );
+
+    // Si lo último guardado es un mensaje suyo, el tutor no llegó a contestarlo (RF-17).
+    const ultimo = historial[historial.length - 1];
+    if (ultimo?.rol === 'Alumno') this.porReintentar.set(ultimo.texto);
   }
 
   async cambiarAgente(agenteId: string): Promise<void> {
