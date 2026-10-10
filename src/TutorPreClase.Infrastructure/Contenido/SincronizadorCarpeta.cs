@@ -228,8 +228,8 @@ public sealed class SincronizadorCarpeta(
     }
 
     /// <summary>
-    /// Toda clase de la carpeta tiene su examen publicado y sin fechas propias: se puede
-    /// rendir desde que la clase se habilita (al llegar su fecha). Las preguntas no se guardan aqui; la IA genera las de cada
+    /// Toda clase de la carpeta tiene su examen publicado y sin fechas: el alumno lo rinde
+    /// cuando quiera (la fecha de la clase es solo informativa). Las preguntas no se guardan aqui; la IA genera las de cada
     /// alumno al empezar cada intento (RF-04). Un examen existente no se toca: el docente
     /// puede haberlo ajustado.
     /// </summary>

@@ -22,7 +22,7 @@ Pregunta o deduce contra cuál se prueba, y dilo en el reporte.
 | API | http://localhost:5080 | https://api-production-9a65.up.railway.app |
 | Qué hay desplegado | Lo del árbol de trabajo | El último commit de `main` con CI y CD en verde: compruébalo en https://github.com/hideakiuchida/TutorPre/actions antes de empezar |
 | Cómo se actúa por API | `curl` con `X-Usuario-Id` / `X-Usuario-Rol`, y `/demo` para los ids | **No hay cabeceras de desarrollo ni `/demo`** (401). Solo la sesión real: la persona entra con Google en Chrome y las llamadas se hacen desde la página con `fetch` y el token de `sessionStorage['tutor.sesion']`. **Nunca muestres ni copies el token** |
-| Datos | De prueba (volumen `tutor-datos`) | **Reales**: no crees cursos ni alumnos de prueba, no borres nada y no cambies ajustes de clases sin decirlo; lo que cambies (ampliación, nivel, fecha de una clase), déjalo como estaba |
+| Datos | De prueba (volumen `tutor-datos`) | **Reales**: no crees cursos ni alumnos de prueba, no borres nada y no cambies ajustes de clases sin decirlo; lo que cambies (ampliación, nivel), déjalo como estaba |
 | Material | Copiar a `course-content/` | Viene en la imagen: cambiarlo es commit y CD. No lo pruebes en producción |
 | Logs | `docker logs tutor-api` | Railway → proyecto `tutor-preclase` → servicio `api` → *Deployments* → *View logs* (en Chrome) |
 | Cuentas de IA | Las conecta la persona | Igual: Gemini (o una clave de API) lo conecta **la persona** en la web de producción |
@@ -65,16 +65,11 @@ escribes contraseñas ni creas cuentas. **Nunca pidas la clave por el chat, ni l
 un archivo, un log o el resumen.** Sin ninguna IA conectada, salta los bloques C, D y E y
 dilo al reportar.
 
-**Clases habilitadas (RF-01).** El alumno solo abre las clases cuya fecha ya llegó. Antes de
-los bloques C a E mira `GET /alumno/clases` y usa una con `habilitada: true`. En una base
-local recién creada todas nacen con fecha futura: adelanta la de M1 como profesor con
-`PUT /clases/$CLA/fecha` y anótalo. En producción no muevas fechas sin decirlo y devuélvelas.
-
 ## Bloque A — El docente prepara la clase
 
 | Requisito | Cómo verificarlo |
 | --- | --- |
-| RF-01 | Cada subcarpeta de `course-content/alonso.uchida@gmail.com/MFEP - Finanzas empresariales/` es una clase del curso de ese profesor (`GET /alumno/clases`: M1…M7, 19:00 de Lima, una por semana). Cada clase trae `habilitada`: `true` si ya llegó su fecha. Una clase futura sale en la lista del alumno atenuada, con *Se habilita el …*, y no se puede abrir; por API, `POST /clases/<futura>/conversacion` y `GET /clases/<futura>/material` responden **409** `clase_no_habilitada`. `PUT /clases/$CLA/fecha {"inicio":…}` (profesor) la mueve; un alumno recibe 403. Si la mueves para probar, **devuélvela a su fecha** |
+| RF-01 | Cada subcarpeta de `course-content/alonso.uchida@gmail.com/MFEP - Finanzas empresariales/` es una clase del curso de ese profesor (`GET /alumno/clases`: M1…M7, 19:00 de Lima, una por semana). **La fecha es solo informativa**: todas las clases se abren, también las de fecha futura — ninguna sale atenuada ni dice *Se habilita el …*, y `POST /clases/<futura>/conversacion` y `GET /clases/<futura>/material` responden 200. La respuesta no trae `habilitada` |
 | RF-02 | Copia un `.md` a la carpeta de M2 → en ≤ 30 s aparece en `GET /clases/<M2>/contenido`; bórralo → desaparece. El `.xlsx` de M4 figura con 3 páginas (una por hoja) |
 | RF-03 | Todos los archivos en `"estado":"Listo"` con `paginas` ≥ 1; M1 con `contextoClase.tokens` ≈ 9 500 |
 | RF-04 | Cada clase de la carpeta tiene su examen publicado sin preguntas (las genera la IA); `POST /examenes/$EX/preguntas` ya no existe |
@@ -129,7 +124,7 @@ con `POST /api/v1/acceso/desarrollo {"usuarioId":…}` y guárdala en la pestañ
 
 | Requisito | Cómo verificarlo |
 | --- | --- |
-| RF-08 | El examen **no tiene fechas** (`examen` no trae `abreEn` ni `cierraEn`): una clase ya habilitada muestra *Examen disponible* aunque su fecha haya pasado hace semanas, y nunca dice *Examen cerrado* |
+| RF-08 | El examen **no tiene fechas** (`examen` no trae `abreEn` ni `cierraEn`): toda clase con examen publicado muestra *Examen disponible*, sea su fecha pasada o futura, y nunca dice *Examen cerrado*. En el panel del profesor no hay campo de fecha |
 | RF-31 | La entrada (franja roja UPC) pide primero *Soy alumno* / *Soy profesor*; luego *Entras como … Cambiar* y un solo botón, *Continuar con Google*, igual para alumno y profesor (no hay *Continuar con Microsoft*). `GET /acceso/proveedores` devuelve solo `google`, con `configurado: true` |
 | RF-31 | *Continuar con Google* lleva a `accounts.google.com` con `code_challenge_method=S256` y `redirect_uri=http://localhost:4200/entrar/google`. La persona elige su cuenta y vuelve: entra con el perfil elegido |
 | RF-31 | `POST /acceso/google/inicio {"perfil":"Admin"}` → `rol_invalido`; `POST /acceso/google/canje` con `code`/`state` inventados → error y ninguna sesión; `POST /acceso/microsoft/inicio` → error (proveedor retirado) |
@@ -138,7 +133,7 @@ con `POST /api/v1/acceso/desarrollo {"usuarioId":…}` y guárdala en la pestañ
 | RF-33 | Primer acceso como alumno (pruebas .NET y, con una cuenta nueva, en pantalla): tras Google sale directo *Elige a tu profesor*; como profesor entra directo a su panel |
 | RF-33 | Un Alumno o un Docente contra `GET /admin/usuarios` → **403** |
 | RF-34 | Un docente que no es dueño del curso contra `GET /clases/$CLA/contenido` → **403**; el dueño → 200 |
-| RF-34 | Como docente: cada clase muestra su material (estado *Listo*, páginas, tokens), el interruptor de ampliación (apagado) y el reporte. En *Examen y tutor* hay un formulario con preguntas por examen, intentos, minutos por intento (o sin límite), cuándo se muestra la corrección y la **fecha de la clase** (no hay fecha límite del examen): cambia los intentos, pulsa *Guardar cambios* → sale *Guardado* y `GET /clases/$CLA/contenido` trae el valor nuevo en `examen`; un valor fuera de rango por API (`maxIntentos: 0`) responde **400**. Déjalo como estaba |
+| RF-34 | Como docente: cada clase muestra su material (estado *Listo*, páginas, tokens), el interruptor de ampliación (apagado) y el reporte. En *Examen y tutor* hay un formulario con preguntas por examen, intentos, minutos por intento (o sin límite), cuándo se muestra la corrección (sin campos de fecha): cambia los intentos, pulsa *Guardar cambios* → sale *Guardado* y `GET /clases/$CLA/contenido` trae el valor nuevo en `examen`; un valor fuera de rango por API (`maxIntentos: 0`) responde **400**. Déjalo como estaba |
 | RF-32 | Al entrar como alumna sin ninguna IA conectada, con una sola opción por cuenta (Gemini), la web va sola a autorizarla una vez por sesión; si cancela, queda *Mi tutor* abierto con las pestañas y no la reenvía en bucle |
 | RF-37 | *Entrar con Gemini (tu cuenta de Google)* lleva a `accounts.google.com` con `scope=…/cloud-platform …/generative-language.retriever`, `access_type=offline`, `code_challenge_method=S256` y `redirect_uri` a `/conectar/gemini`. La persona elige su Gmail y acepta el permiso (no tú) → vuelve y Gemini queda conectado. En *Mi tutor* → «Conversas con» se elige entre las IA conectadas; en el log sale `LLM gemini gemini-3.8-flash: primer token … ms`. Revocar el acceso en myaccount.google.com hace que el chat pida reconectar |
 
@@ -152,7 +147,7 @@ con `POST /api/v1/acceso/desarrollo {"usuarioId":…}` y guárdala en la pestañ
 | RF-38 | Pestaña *Con tu clave de API*: en ChatGPT pega una clave **inventada** con la forma correcta (`sk-proj-…-0000`) → *Conectar* → aviso *rechazó esa credencial* (lo rechaza OpenAI real), el campo queda vacío y `GET /alumno/credenciales` no la tiene. En Claude pega una `sk-proj-…` → aviso *debería empezar por "sk-ant-"* sin llamar al proveedor. Enter en el campo también conecta |
 | RF-38 | Con una clave real que **pega la persona**: queda «Conectada: la clave termina en XXXX», aparece en «Conversas con» con su modelo y el chat responde con ese proveedor |
 | RF-39 | Pestaña *Desde tu asistente*: *Generar token* muestra `tpc_mcp_…` una sola vez con *Copiar*, la URL `…/mcp` y el comando de Claude Code; al recargar solo se ve «Termina en XXXX». *Revocar* lo invalida |
-| RF-39 | Con el token (en local, el de prueba): `initialize` y `tools/call listar_clases` a `/mcp` responden 200 con las clases del alumno, cada una con `habilitada`; `leer_material` de una clase futura responde que aún no está habilitada; sin token, con la sesión de la web o con el token revocado → 401. En producción, la persona conecta Claude Code con el comando y le pide «¿qué clases tengo?» y «tómame el examen de M1»: cita el material, una pregunta a la vez, y la nota coincide con `GET /intentos/{id}/resultado` |
+| RF-39 | Con el token (en local, el de prueba): `initialize` y `tools/call listar_clases` a `/mcp` responden 200 con las clases del alumno; `leer_material` funciona también en una clase de fecha futura; sin token, con la sesión de la web o con el token revocado → 401. En producción, la persona conecta Claude Code con el comando y le pide «¿qué clases tengo?» y «tómame el examen de M1»: cita el material, una pregunta a la vez, y la nota coincide con `GET /intentos/{id}/resultado` |
 | RF-29 | `/conectar/gemini?code=inventado&state=inventado` sin haber iniciado → se abre *Mi tutor* con el aviso *"venció o ya se usó"* (también con otra cuenta ya conectada), la URL queda en `/` y nada guardado |
 | RF-37 | **OpenRouter está retirado**: `GET /agentes` no lo trae, *Mi tutor* → *Con tu cuenta* solo muestra Gemini y «Conversas con» no lo lista aunque el usuario tuviera esa cuenta conectada; `POST /alumno/credenciales/openrouter/oauth/inicio` responde error. Un chat que quedó con OpenRouter se abre con la IA elegida ahora |
 | RF-25 | Un código inventado canjeado por la API (`POST /alumno/credenciales/gemini/oauth/canje`) responde error (lo rechaza Google real) y no se guarda |

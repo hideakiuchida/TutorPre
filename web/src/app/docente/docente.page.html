@@ -128,7 +128,8 @@
           <h2 id="t-examen">Examen y tutor</h2>
           <p class="ayuda">
             La IA genera un examen distinto para cada alumno a partir del material. Tú decides las reglas;
-            lo que cambies vale para los intentos que empiecen desde ahora.
+            lo que cambies vale para los intentos que empiecen desde ahora. El examen no tiene fechas: cada alumno
+            lo rinde cuando quiera.
           </p>
 
           @if (ajustes(); as a) {
@@ -163,16 +164,6 @@
                   <option value="Inmediato" [selected]="a.modoFeedback === 'Inmediato'">Tras cada respuesta</option>
                 </select>
               </label>
-
-              <div class="campo ancho">
-                <label for="fecha">Fecha de la clase</label>
-                <input id="fecha" type="datetime-local" [value]="fechaLocal(fecha())"
-                       (change)="cambiarFecha($any($event.target).value)" />
-                <span class="nota-campo">
-                  Los alumnos pueden abrir la clase y rendir el examen desde esta fecha; antes la ven bloqueada.
-                  El examen no tiene fecha límite.
-                </span>
-              </div>
 
               <div class="guardar">
                 <button type="submit" class="principal" [disabled]="!examenCambiado() || guardandoExamen()">

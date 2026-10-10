@@ -28,7 +28,7 @@
 
 | Tipo | Alcance | Herramientas |
 | --- | --- | --- |
-| Unitarias | Calificación, reglas de intentos y tiempo, habilitación de la clase por fecha, herramientas del agente, armado de prompts | xUnit, Jest |
+| Unitarias | Calificación, reglas de intentos y tiempo, herramientas del agente, armado de prompts | xUnit, Jest |
 | Integración | API + PostgreSQL + RabbitMQ reales; proveedores LLM simulados | Testcontainers, WebApplicationFactory, WireMock |
 | Contrato | Eventos SSE que consume Angular (`modo`, `token`, `progreso`, `fuentes`, `fin`); formato de tools de cada proveedor | Pact o snapshots JSON |
 | Paridad de modelos | Mismo guion con cada modelo candidato antes de habilitarlo: registra bien las respuestas, no filtra la respuesta, termina el examen, marca las ampliaciones y cuántas llamadas consume el guion completo (RNF-11) | Conversaciones guionadas + verificación de llamadas a herramientas |

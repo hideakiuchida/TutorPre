@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Server;
 using TutorPreClase.Api.Seguridad;
 using TutorPreClase.Application.Abstracciones;
-using TutorPreClase.Application.Academico;
 using TutorPreClase.Application.Contenido;
 using TutorPreClase.Application.Evaluacion;
 using TutorPreClase.Application.Llm;
@@ -27,8 +26,7 @@ public sealed class HerramientasMcp(
     IContextoClaseService contexto,
     IAgenteTutorService tutor,
     IEjecutorHerramientas ejecutor,
-    IBovedaCredenciales credenciales,
-    IRelojSistema reloj)
+    IBovedaCredenciales credenciales)
 {
     public const string Instrucciones = """
         Eres el tutor pre-clase del alumno. Usa solo estas herramientas y el material que devuelven.
@@ -50,7 +48,7 @@ public sealed class HerramientasMcp(
     private Guid AlumnoId => http.HttpContext!.User.Id();
 
     [McpServerTool(Name = "listar_clases", ReadOnly = true)]
-    [Description("Clases de los cursos del alumno, con su id, fecha, si ya está habilitada y si el examen está publicado.")]
+    [Description("Clases de los cursos del alumno, con su id, fecha y si el examen está publicado.")]
     public async Task<string> ListarClases(CancellationToken ct)
     {
         var alumnoId = AlumnoId;
@@ -68,11 +66,7 @@ public sealed class HerramientasMcp(
             })
             .ToListAsync(ct);
 
-        // Una clase se habilita al llegar su fecha: antes no se lee su material ni se rinde.
-        var ahora = reloj.Ahora;
-        return JsonSerializer.Serialize(
-            clases.Select(c => new { c.clase_id, c.titulo, c.inicio, habilitada = ClaseHabilitada.Es(c.inicio, ahora), c.examen_publicado }),
-            Json);
+        return JsonSerializer.Serialize(clases, Json);
     }
 
     [McpServerTool(Name = "leer_material", ReadOnly = true)]
@@ -201,10 +195,6 @@ public sealed class HerramientasMcp(
 
         if (!matriculado)
             throw new ModelContextProtocol.McpException("Esa clase no existe o no es de tus cursos.");
-
-        var inicio = await db.Clases.Where(c => c.Id == claseId).Select(c => c.Inicio).FirstAsync(ct);
-        if (!ClaseHabilitada.Es(inicio, reloj.Ahora))
-            throw new ModelContextProtocol.McpException("Esa clase todavía no está habilitada: se abre cuando llegue su fecha.");
     }
 
     /// <summary>La IA con la que se generan las preguntas: la que el alumno tiene conectada.</summary>

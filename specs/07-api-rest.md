@@ -15,7 +15,6 @@ API versionada bajo `/api/v1`, autenticada con la sesión que emite la propia AP
 | GET | /contenido/{archivoId}/paginas | Docente | Original y apuntes de cada página, con sus tokens, para compararlos |
 | PUT | /clases/{claseId}/examen | Docente | Crea o actualiza configuración del examen: intentos, minutos, preguntas y modo_feedback (sin fechas) |
 | DELETE | /clases/{claseId}/alumnos/{alumnoId}/intentos | Docente | Reinicia los intentos de un alumno en el examen de la clase: borra los que rindió (preguntas, respuestas y nota), quita su nivel calculado y deja su chat en consulta. No se puede deshacer; todavía no tiene botón en el panel |
-| PUT | /clases/{claseId}/fecha | Docente | Cambia la fecha de la clase, que es la que la habilita para los alumnos |
 | PUT | /clases/{claseId}/ampliacion | Docente | Activa o desactiva la ampliación del tutor en la clase (RF-20) |
 | POST | /examenes/{examenId}/publicar | Docente | Publica el examen (los de la carpeta ya nacen publicados) |
 | GET | /acceso/proveedores | Público | Proveedores de inicio de sesión configurados (hoy, solo Google) |
@@ -40,9 +39,9 @@ API versionada bajo `/api/v1`, autenticada con la sesión que emite la propia AP
 | POST | /alumno/credenciales/openrouter/oauth/canje | Alumno | Canjea `{ "code" }` por la clave, la valida y la guarda; devuelve agente, últimos 4, origen y estado |
 | GET | /admin/agentes | Admin | Agentes con su modelo y estado |
 | PUT | /admin/agentes/{agenteId} | Admin | Habilita/deshabilita el agente y define su modelo |
-| GET | /alumno/clases | Alumno, Docente | Clases de los cursos en que el usuario está matriculado, con `habilitada` (si ya llegó su fecha) y el estado del examen; el panel del docente también la usa |
-| GET | /clases/{claseId}/material | Alumno, Docente | Archivos de la clase (`archivoId`, `nombre`), para enlazar cada referencia con su descarga; 409 si la clase aún no está habilitada |
-| GET | /clases/{claseId}/material/{archivoId} | Alumno, Docente | Descarga el archivo original. Solo el alumno matriculado (con la clase habilitada) o el profesor del curso; otro usuario recibe 403 |
+| GET | /alumno/clases | Alumno, Docente | Clases de los cursos en que el usuario está matriculado, con su fecha (informativa) y el estado del examen; el panel del docente también la usa |
+| GET | /clases/{claseId}/material | Alumno, Docente | Archivos de la clase (`archivoId`, `nombre`), para enlazar cada referencia con su descarga |
+| GET | /clases/{claseId}/material/{archivoId} | Alumno, Docente | Descarga el archivo original. Solo el alumno matriculado o el profesor del curso; otro usuario recibe 403 |
 | POST | /clases/{claseId}/conversacion | Alumno | Abre (o recupera) el chat de la clase con `{ "agenteId": "openrouter" }` |
 | POST | /conversaciones/{conversacionId}/mensajes | Alumno | Envía un mensaje al tutor; respuesta por SSE (texto, herramientas, fuentes) |
 | GET | /conversaciones/{conversacionId}/mensajes | Alumno | Historial del chat (para recargar la página) |

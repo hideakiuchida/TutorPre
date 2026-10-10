@@ -15,13 +15,11 @@ El diseño completo está en [`specs/`](specs/SDD-Plataforma-Evaluacion-PreClase
 - **Entrada con Google y dos perfiles**: la persona elige *Soy alumno* o *Soy profesor* y
   entra con su cuenta de Google. El alumno elige a su profesor y ve solo sus cursos.
 - **Un solo chat por clase** para el alumno: consulta libre, examen y revisión de errores.
-- **Clases que se habilitan por fecha**: cada clase tiene su fecha; hasta que llega, el
-  alumno la ve bloqueada y no puede abrirla, leer su material ni rendir su examen. El
-  profesor cambia la fecha en su panel.
+- **Todo abierto para el alumno**: las clases de su curso, su material y sus exámenes están
+  disponibles siempre. La fecha de cada clase es solo informativa: no habilita ni cierra nada.
 - **Examen generado por la IA para cada alumno**, pregunta a pregunta, a partir del
-  material. No tiene fechas propias ni fecha límite: se rinde desde que la clase se
-  habilita, con los intentos y el tiempo que fije el profesor. El servidor registra las
-  respuestas y califica (0–20), nunca el modelo.
+  material. No tiene fechas: se rinde cuando el alumno quiera, con los intentos y el tiempo
+  que fije el profesor. El servidor registra las respuestas y califica (0–20), nunca el modelo.
 - **Respuestas ancladas al material**: el contenido de la clase viaja en el contexto con
   marcas `[archivo, p. N]`; las citas se validan contra la base y **cada referencia
   descarga el archivo citado**.
@@ -32,7 +30,7 @@ El diseño completo está en [`specs/`](specs/SDD-Plataforma-Evaluacion-PreClase
   su propio conocimiento en un bloque `Ampliación fuera del material:`. Viene apagada; el
   profesor la enciende por clase, y durante el examen está siempre bloqueada **en el servidor**.
 - **Panel del profesor**: estado del material, reglas del examen (preguntas, intentos,
-  minutos, cuándo se muestra la corrección) y fecha de cada clase, y los resultados: nota y
+  minutos, cuándo se muestra la corrección) y los resultados: nota y
   nivel por alumno (Inicial/Básico/Intermedio/Avanzado), temas a reforzar, preguntas más
   falladas y dudas que el material no cubrió.
 - **Credencial propia y cifrada**: se valida contra el proveedor antes de guardarla y nunca
@@ -81,9 +79,6 @@ npm start        # http://localhost:4200, con proxy a la API en :5080
 Con el cliente OAuth de Google en `secrets/` (skill `setup-oauth`) se entra con *Continuar
 con Google*. Sin él, en desarrollo `GET /demo` devuelve los identificadores sembrados y
 `POST /api/v1/acceso/desarrollo {"usuarioId":…}` da una sesión para ese usuario.
-
-Las clases que crea la carpeta se fechan una por semana a partir de mañana: para probar una
-como alumno hay que adelantar su fecha en el panel del profesor.
 
 ## Credenciales de IA (BYOK)
 
@@ -138,7 +133,7 @@ de los dos existe.
 dotnet test
 ```
 
-Cubren la calificación y el nivel, las reglas de intentos y tiempo, la habilitación de la clase por fecha, el corte de la
+Cubren la calificación y el nivel, las reglas de intentos y tiempo, el corte de la
 ampliación, el rechazo de herramientas fuera de modo, el examen completo por chat, el
 manejo de credenciales (cifrado, aislamiento entre alumnos, invalidación y reconexión) y
 la API real (roles, autorización por recurso y streaming SSE).

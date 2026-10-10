@@ -95,9 +95,9 @@ Ya conectado:
 
 ## 5.2 Examen conversacional
 
-**Cada alumno rinde un examen propio, generado por la IA** (RF-04). Toda clase de la carpeta tiene su examen publicado (6 preguntas, 20 minutos, 3 intentos, **sin fechas propias**: se puede rendir desde que la clase se habilita, al llegar su fecha, y no cierra nunca; la fecha la cambia el profesor con `PUT /clases/{id}/fecha`); lo que no existe de antemano son las preguntas:
+**Cada alumno rinde un examen propio, generado por la IA** (RF-04). Toda clase de la carpeta tiene su examen publicado (6 preguntas, 20 minutos, 3 intentos, **sin fechas**: el alumno lo rinde cuando quiera y no cierra nunca; la fecha de la clase es solo informativa); lo que no existe de antemano son las preguntas:
 
-1. Al pulsar *Comenzar examen*, el servidor comprueba que la clase ya esté habilitada (RF-01), los intentos (RF-08) y que la clase tenga material. Con la clase aún sin habilitar responde 409 `clase_no_habilitada`, igual que al abrir el chat, enviar un mensaje o pedir el material.
+1. Al pulsar *Comenzar examen*, el servidor comprueba los intentos (RF-08) y que la clase tenga material.
 2. **Pregunta a pregunta.** Con la cuenta de IA del alumno (Gemini u OpenRouter), pide a la IA **solo la primera pregunta**, de opción múltiple y basada únicamente en el material original de la clase: de comprensión y aplicación, con alternativas incorrectas plausibles y una justificación que cite `[archivo, p. N]`. Así el alumno empieza en segundos, en lugar de esperar a que la IA arme las seis. Es una llamada aparte del chat: la clave de respuestas nunca entra en la conversación del tutor (§6.4).
 3. El intento se crea con `preguntas_planeadas` = las del examen (6 por defecto) y la primera pregunta ligada a él (`pregunta.intento_id`).
 4. **La siguiente se prepara mientras responde.** Cada vez que el tutor entrega una pregunta, `PreparadorPreguntas` pide la siguiente en segundo plano, con la lista de lo ya preguntado para no repetir tema ni concepto. Cuando el tutor llama a `obtener_siguiente_pregunta`, casi siempre ya está lista; si no, `PreguntasDelIntento` la genera en ese momento. Un candado por intento evita que ambos caminos generen la misma pregunta, y nunca hay más de una preparada por delante (no se gasta cupo de más).
@@ -533,7 +533,7 @@ sequenceDiagram
 
     U->>W: Comenzar examen
     W->>T: POST /conversaciones/{id}/examen
-    T->>E: clase habilitada, intentos disponibles, material
+    T->>E: intentos disponibles, material
     E->>G: generar SOLO la pregunta 1 con el material original (no los apuntes)
     G->>O: llamada aparte del chat, sin herramientas, reasoning low, temperatura 0.7
     O-->>G: JSON con la pregunta, alternativas, correcta y justificación con cita
@@ -647,7 +647,7 @@ sequenceDiagram
     E-->>C: nota sobre 20 calculada por el servidor y fallos
 ```
 
-El asistente nunca recibe la clave de respuestas antes de finalizar ni puede escribir la nota: las herramientas son las del chat y pasan por el mismo `EjecutorHerramientas`, que comprueba el modo, que la clase esté habilitada y los intentos. El servidor MCP envía como instrucciones las reglas del tutor (§6.3): citar el material, marcar la ampliación y no dar pistas durante el examen. La sesión de la web no abre `/mcp`, y el token MCP no abre el resto de la API.
+El asistente nunca recibe la clave de respuestas antes de finalizar ni puede escribir la nota: las herramientas son las del chat y pasan por el mismo `EjecutorHerramientas`, que comprueba el modo y los intentos. El servidor MCP envía como instrucciones las reglas del tutor (§6.3): citar el material, marcar la ampliación y no dar pistas durante el examen. La sesión de la web no abre `/mcp`, y el token MCP no abre el resto de la API.
 
 ---
 

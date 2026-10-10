@@ -47,8 +47,6 @@ public sealed class AgenteTutorService(
     public async Task<Conversacion> AbrirConversacionAsync(
         Guid claseId, Guid alumnoId, string agenteId, CancellationToken ct = default)
     {
-        await ClaseHabilitada.ExigirAsync(db, claseId, reloj.Ahora, ct);
-
         var existente = await db.Conversaciones
             .FirstOrDefaultAsync(c => c.ClaseId == claseId && c.AlumnoId == alumnoId, ct);
 

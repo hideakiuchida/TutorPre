@@ -153,44 +153,33 @@ public class ApiTests
     }
 
     [Fact]
-    public async Task La_clase_no_se_habilita_hasta_su_fecha_y_el_profesor_la_reprograma()
+    public async Task Una_clase_con_fecha_futura_esta_abierta_y_solo_el_profesor_reinicia_intentos()
     {
         using var api = new ApiDePruebas();
         var (docenteId, alumnoId, _, claseId) = api.Sembrar();
         var docente = api.Como(docenteId, "Docente");
         var alumno = api.Como(alumnoId, "Alumno");
 
-        async Task<bool> Habilitada() =>
-            (await alumno.GetFromJsonAsync<JsonElement>("/api/v1/alumno/clases"))
-                .EnumerateArray().Single(c => c.GetProperty("claseId").GetGuid() == claseId)
-                .GetProperty("habilitada").GetBoolean();
+        // La fecha de la clase es informativa: aunque sea futura, el alumno entra y ve el material.
+        using (var db = api.NuevoContexto())
+        {
+            db.Clases.Single(c => c.Id == claseId).Inicio = DateTimeOffset.UtcNow.AddDays(30);
+            db.SaveChanges();
+        }
 
-        Assert.True(await Habilitada());
+        var clase = (await alumno.GetFromJsonAsync<JsonElement>("/api/v1/alumno/clases"))
+            .EnumerateArray().Single(c => c.GetProperty("claseId").GetGuid() == claseId);
+        Assert.False(clase.TryGetProperty("habilitada", out _));
 
-        // El profesor la mueve a mañana: el alumno la ve en su lista, pero no la puede abrir.
-        var fecha = await docente.PutAsJsonAsync($"/api/v1/clases/{claseId}/fecha", new { inicio = DateTimeOffset.UtcNow.AddDays(1) });
-        Assert.Equal(HttpStatusCode.OK, fecha.StatusCode);
-        Assert.False(await Habilitada());
+        Assert.Equal(HttpStatusCode.OK,
+            (await alumno.PostAsJsonAsync($"/api/v1/clases/{claseId}/conversacion", new { agenteId = "openrouter" })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await alumno.GetAsync($"/api/v1/clases/{claseId}/material")).StatusCode);
 
-        var abrir = await alumno.PostAsJsonAsync($"/api/v1/clases/{claseId}/conversacion", new { agenteId = "openrouter" });
-        Assert.Equal(HttpStatusCode.Conflict, abrir.StatusCode);
-        Assert.Equal("clase_no_habilitada", (await abrir.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("error").GetString());
-        Assert.Equal(HttpStatusCode.Conflict, (await alumno.GetAsync($"/api/v1/clases/{claseId}/material")).StatusCode);
-
-        // Ni la fecha ni los intentos son cosa del alumno.
+        // Los intentos no son cosa del alumno.
         Assert.Equal(HttpStatusCode.Forbidden,
             (await alumno.DeleteAsync($"/api/v1/clases/{claseId}/alumnos/{alumnoId}/intentos")).StatusCode);
         var reinicio = await docente.DeleteAsync($"/api/v1/clases/{claseId}/alumnos/{alumnoId}/intentos");
         Assert.Equal(0, (await reinicio.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("intentosBorrados").GetInt32());
-
-        Assert.Equal(HttpStatusCode.Forbidden,
-            (await alumno.PutAsJsonAsync($"/api/v1/clases/{claseId}/fecha", new { inicio = DateTimeOffset.UtcNow })).StatusCode);
-
-        // Al llegar la fecha, se abre.
-        await docente.PutAsJsonAsync($"/api/v1/clases/{claseId}/fecha", new { inicio = DateTimeOffset.UtcNow.AddMinutes(-1) });
-        Assert.True(await Habilitada());
-        Assert.Equal(HttpStatusCode.OK,
-            (await alumno.PostAsJsonAsync($"/api/v1/clases/{claseId}/conversacion", new { agenteId = "openrouter" })).StatusCode);
     }
 
     [Fact]

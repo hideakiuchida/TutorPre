@@ -6,14 +6,14 @@
 
 | ID | Requisito | Prioridad |
 | --- | --- | --- |
-| RF-01 | El docente crea una clase con fecha/hora de inicio. **La clase se habilita para el alumno al llegar esa fecha**: antes la ve en su lista, bloqueada, y no puede abrir el chat, leer el material ni rendir el examen. El examen no tiene fechas propias (ni apertura ni límite) | Alta |
+| RF-01 | El docente crea una clase con fecha/hora de inicio. La fecha es **solo informativa**: todas las clases del curso están abiertas para el alumno desde que existen (chat, material y examen), sin fechas que las habiliten ni las cierren | Alta |
 | RF-02 | El docente sube el contenido copiándolo a la carpeta de contenido, una subcarpeta por clase (PDF, PPTX, DOCX, XLSX, MD, TXT); lo que quita de la carpeta se retira de la clase | Alta |
 | RF-03 | El sistema extrae el texto del contenido automáticamente al subirlo, conservando archivo y página | Alta |
 | RF-04 | La IA genera un examen propio para cada alumno en cada intento, a partir del material de la clase y con su propio criterio, **pregunta a pregunta**: al empezar solo la primera, y cada siguiente mientras el alumno responde la anterior, sin repetir lo ya preguntado. El docente no escribe ni aprueba preguntas | Alta |
 | RF-05 | Cada pregunta generada tiene 4 alternativas con una sola correcta, un tema y una justificación que cita el material; el servidor descarta las que no cumplen | Alta |
 | RF-06 | El tutor usa el modelo que habilita el administrador; al iniciar el examen el modelo queda fijado en el intento | Alta |
 | RF-07 | El agente conduce el examen por chat: presenta cada pregunta, interpreta la respuesta en lenguaje natural y la registra mediante una herramienta del servidor | Alta |
-| RF-08 | El examen se rinde desde que la clase se habilita (RF-01), sin fecha límite, con un número configurable de intentos por el docente (por defecto 3) | Alta |
+| RF-08 | El examen **no tiene fechas**: se rinde en cualquier momento, sin apertura ni fecha límite, con un número configurable de intentos por el docente (por defecto 3). El docente puede devolverle a un alumno todos sus intentos | Alta |
 | RF-09 | El servidor calcula el puntaje (0–20, escala peruana) y el porcentaje; el agente solo lo comunica | Alta |
 | RF-10 | El agente explica cada pregunta fallada como tutor: por qué falló, el concepto correcto y una pregunta de comprobación | Alta |
 | RF-11 | El alumno puede repreguntar al agente sobre cualquier fallo o tema de la clase; el tutor responde primero con el contenido del docente y cita archivo y página. **Cada referencia permite descargar el archivo citado** | Alta |

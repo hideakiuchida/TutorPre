@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using TutorPreClase.Application.Abstracciones;
-using TutorPreClase.Application.Academico;
 using TutorPreClase.Application.Nivel;
 using TutorPreClase.Domain.Entidades;
 using TutorPreClase.Domain.Reglas;
@@ -49,8 +48,6 @@ public sealed class ServicioExamen(IAppDbContext db, IRelojSistema reloj, INivel
     {
         var examen = await CargarExamenPorClaseAsync(claseId, ct)
             ?? throw new ExamenException("sin_examen", "La clase no tiene examen publicado.");
-
-        await ClaseHabilitada.ExigirAsync(db, claseId, reloj.Ahora, ct);
 
         var previos = await db.Intentos
             .Where(i => i.ExamenId == examen.Id && i.AlumnoId == alumnoId)

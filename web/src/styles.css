@@ -154,12 +154,6 @@ input:focus {
   border-left-color: rgb(255 255 255 / 0.4);
 }
 
-/* Una clase que aún no llega a su fecha: se ve, pero no se abre. */
-.clase:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
 .clase.activa {
   border-left-color: #fff;
   background: var(--tapa-activa);

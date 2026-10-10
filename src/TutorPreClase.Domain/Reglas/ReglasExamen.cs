@@ -22,7 +22,7 @@ public readonly record struct Validacion(bool Permitido, MotivoRechazo Motivo)
 
 /// <summary>
 /// Reglas de intentos y tiempo (RF-08, SDD §6.4). El examen no tiene fechas: se puede rendir
-/// desde que la clase se habilita, y eso se comprueba antes de llegar aquí.
+/// en cualquier momento, mientras queden intentos.
 /// </summary>
 public static class ReglasExamen
 {

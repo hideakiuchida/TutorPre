@@ -12,7 +12,6 @@
         class="clase"
         [class.activa]="clase.claseId === claseActiva()?.claseId"
         [attr.aria-current]="clase.claseId === claseActiva()?.claseId ? 'page' : null"
-        [disabled]="!habilitada(clase)"
         (click)="abrir(clase)">
         <span class="titulo">{{ clase.titulo }}</span>
         <span class="fecha">{{ clase.inicio | date: 'EEE d MMM, HH:mm' }}</span>
@@ -23,9 +22,6 @@
           @case ('sin-intentos') {
             <span class="examen-fuera">Sin intentos disponibles</span>
           }
-        }
-        @if (!habilitada(clase)) {
-          <span class="examen-fuera">Se habilita el {{ clase.inicio | date: 'd MMM, HH:mm' }}</span>
         }
         <!-- Cómo va el alumno en este examen: su mejor nota y los intentos que le quedan. -->
         @if (clase.examen; as e) {

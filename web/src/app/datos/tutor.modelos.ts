@@ -35,11 +35,10 @@ export interface TokenMcp {
 export interface ClaseResumen {
   claseId: string;
   titulo: string;
-  /** La fecha de la clase: hasta que llega, el alumno no la puede abrir. */
+  /** La fecha de la clase, solo informativa: no bloquea nada. */
   inicio: string;
-  habilitada: boolean;
   /**
-   * El examen no tiene fechas propias: se rinde desde que la clase se habilita.
+   * El examen no tiene fechas: se rinde cuando el alumno quiera.
    * `intentosUsados` y `mejorNota` son del propio alumno; el profesor ve ceros.
    */
   examen: {
@@ -50,17 +49,12 @@ export interface ClaseResumen {
   } | null;
 }
 
-/** La clase ya llegó a su fecha (también si llega con la página abierta). */
-export function claseHabilitada(clase: ClaseResumen | null | undefined, ahora: number): boolean {
-  return !!clase && (clase.habilitada || ahora >= Date.parse(clase.inicio));
-}
-
 /** Si el examen de la clase se puede rendir ahora (RF-08): los intentos los fija el docente. */
 export type VentanaExamen = 'disponible' | 'sin-intentos';
 
 export function ventanaExamen(clase: ClaseResumen | null | undefined, ahora: number): VentanaExamen | null {
   const examen = clase?.examen;
-  if (!examen?.publicado || !claseHabilitada(clase, ahora)) return null;
+  if (!examen?.publicado) return null;
 
   return examen.intentosUsados >= examen.maxIntentos ? 'sin-intentos' : 'disponible';
 }

@@ -15,7 +15,6 @@ import {
   Progreso,
   separarAmpliacion,
   tramos,
-  claseHabilitada,
   ventanaExamen,
 } from '../datos/tutor.modelos';
 
@@ -163,11 +162,6 @@ export class ChatTutorPage {
 
   ventana(clase: ClaseResumen | null): ReturnType<typeof ventanaExamen> {
     return ventanaExamen(clase, this.ahora());
-  }
-
-  /** Una clase se abre cuando llega su fecha; antes solo se ve en la lista. */
-  habilitada(clase: ClaseResumen | null): boolean {
-    return claseHabilitada(clase, this.ahora());
   }
 
   /** Archivos de la clase abierta, por nombre: de ahí sale la descarga de cada referencia. */
@@ -346,11 +340,9 @@ export class ChatTutorPage {
         return;
       }
 
-      // Se abre la última que tenía abierta; si aún no llegó su fecha, la primera habilitada.
-      const abiertas = clases.filter((c) => this.habilitada(c));
-      if (abiertas.length > 0 && !this.sinAgente()) {
+      if (clases.length > 0 && !this.sinAgente()) {
         const ultima = leerClaseAbierta();
-        await this.abrir(abiertas.find((c) => c.claseId === ultima) ?? abiertas[0]);
+        await this.abrir(clases.find((c) => c.claseId === ultima) ?? clases[0]);
       }
     } catch {
       this.error.set('No se pudo cargar tus clases. ¿Está levantada la API?');
@@ -367,7 +359,7 @@ export class ChatTutorPage {
     await this.refrescarCredenciales();
     if (antes && !this.sinAgente()) {
       this.configuracionAbierta.set(false);
-      const clase = this.claseActiva() ?? this.clases().find((c) => this.habilitada(c));
+      const clase = this.claseActiva() ?? this.clases()[0];
       if (clase) await this.abrir(clase);
     }
   }
@@ -430,8 +422,6 @@ export class ChatTutorPage {
   }
 
   async abrir(clase: ClaseResumen): Promise<void> {
-    if (!this.habilitada(clase)) return;
-
     this.claseActiva.set(clase);
     this.archivos.set({});
     this.error.set('');

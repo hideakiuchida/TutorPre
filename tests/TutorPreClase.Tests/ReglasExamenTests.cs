@@ -69,14 +69,6 @@ public class ReglasExamenTests
     }
 
     [Fact]
-    public void La_clase_se_habilita_al_llegar_su_fecha()
-    {
-        Assert.False(TutorPreClase.Application.Academico.ClaseHabilitada.Es(Ahora.AddMinutes(1), Ahora));
-        Assert.True(TutorPreClase.Application.Academico.ClaseHabilitada.Es(Ahora, Ahora));
-        Assert.True(TutorPreClase.Application.Academico.ClaseHabilitada.Es(Ahora.AddDays(-7), Ahora));
-    }
-
-    [Fact]
     public void Rechaza_cuando_se_agotaron_los_intentos()
     {
         Intento[] previos = [

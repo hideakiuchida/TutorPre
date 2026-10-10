@@ -106,8 +106,6 @@ public static class EndpointsAlumno
                     c.claseId,
                     c.titulo,
                     c.inicio,
-                    // Antes de su fecha la clase se ve en la lista, pero no se puede abrir.
-                    habilitada = ClaseHabilitada.Es(c.inicio, reloj.Ahora),
                     examen = c.examen == null ? null : new
                     {
                         c.examen.publicado,
@@ -199,17 +197,16 @@ public static class EndpointsAlumno
         });
 
         // El archivo que cita el tutor, para descargarlo desde la referencia. Lo baja el alumno
-        // matriculado (con la clase ya habilitada) o el profesor del curso.
+        // matriculado o el profesor del curso.
         grupo.MapGet("/clases/{claseId:guid}/material/{archivoId:guid}", async (
             Guid claseId, Guid archivoId, HttpContext http, IAppDbContext db, IAlmacenArchivos almacen,
-            IRelojSistema reloj, CancellationToken ct) =>
+            CancellationToken ct) =>
         {
             var usuarioId = http.User.Id();
             var clase = await db.Clases.AsNoTracking()
                 .Where(c => c.Id == claseId)
                 .Select(c => new
                 {
-                    c.Inicio,
                     esProfesor = c.Curso!.DocenteId == usuarioId,
                     matriculado = db.Matriculas.Any(m => m.CursoId == c.CursoId && m.UsuarioId == usuarioId)
                 })
@@ -217,8 +214,6 @@ public static class EndpointsAlumno
 
             if (clase is null) return Results.NotFound();
             if (!clase.esProfesor && !clase.matriculado) return Results.Forbid();
-            if (!clase.esProfesor && !ClaseHabilitada.Es(clase.Inicio, reloj.Ahora))
-                return Results.Conflict(new { error = ClaseHabilitada.Codigo, mensaje = "Esta clase todavía no está habilitada." });
 
             var archivo = await db.Archivos.AsNoTracking()
                 .Where(a => a.Id == archivoId && a.ClaseId == claseId)
@@ -233,14 +228,13 @@ public static class EndpointsAlumno
 
         // Los archivos de la clase, para enlazar cada referencia con su descarga.
         grupo.MapGet("/clases/{claseId:guid}/material", async (
-            Guid claseId, HttpContext http, IAppDbContext db, IRelojSistema reloj, CancellationToken ct) =>
+            Guid claseId, HttpContext http, IAppDbContext db, CancellationToken ct) =>
         {
             var usuarioId = http.User.Id();
             var clase = await db.Clases.AsNoTracking()
                 .Where(c => c.Id == claseId)
                 .Select(c => new
                 {
-                    c.Inicio,
                     esProfesor = c.Curso!.DocenteId == usuarioId,
                     matriculado = db.Matriculas.Any(m => m.CursoId == c.CursoId && m.UsuarioId == usuarioId)
                 })
@@ -248,8 +242,6 @@ public static class EndpointsAlumno
 
             if (clase is null) return Results.NotFound();
             if (!clase.esProfesor && !clase.matriculado) return Results.Forbid();
-            if (!clase.esProfesor && !ClaseHabilitada.Es(clase.Inicio, reloj.Ahora))
-                return Results.Conflict(new { error = ClaseHabilitada.Codigo, mensaje = "Esta clase todavía no está habilitada." });
 
             return Results.Ok(await db.Archivos.AsNoTracking()
                 .Where(a => a.ClaseId == claseId)
@@ -295,14 +287,10 @@ public static class EndpointsAlumno
             HttpContext http,
             IAgenteTutorService tutor,
             IAppDbContext db,
-            IRelojSistema reloj,
             CancellationToken ct) =>
         {
             if (!await EsDueñoAsync(db, conversacionId, http.User.Id(), ct))
                 return Results.Forbid();
-
-            var claseId = await db.Conversaciones.Where(c => c.Id == conversacionId).Select(c => c.ClaseId).FirstAsync(ct);
-            await ClaseHabilitada.ExigirAsync(db, claseId, reloj.Ahora, ct);
 
             EscritorSse.PrepararCabeceras(http.Response);
 

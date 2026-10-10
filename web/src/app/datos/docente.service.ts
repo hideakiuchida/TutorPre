@@ -85,11 +85,6 @@ export class DocenteService {
     return firstValueFrom(this.http.get<ReporteClase>(`${API}/clases/${claseId}/reporte`));
   }
 
-  /** La fecha de la clase: desde ella los alumnos pueden abrirla y rendir su examen. */
-  guardarFecha(claseId: string, inicio: string) {
-    return firstValueFrom(this.http.put<{ inicio: string }>(`${API}/clases/${claseId}/fecha`, { inicio }));
-  }
-
   guardarExamen(claseId: string, ajustes: AjustesExamen) {
     return firstValueFrom(this.http.put<{ examenId: string }>(`${API}/clases/${claseId}/examen`, ajustes));
   }

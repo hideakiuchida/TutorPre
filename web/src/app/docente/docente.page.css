@@ -118,16 +118,6 @@ th {
   min-width: 0;
 }
 
-.campo.ancho {
-  grid-column: 1 / -1;
-  max-width: 20rem;
-}
-
-.nota-campo {
-  font-size: var(--t-pequeno);
-  color: var(--grafito);
-}
-
 .opcion-campo {
   display: flex;
   align-items: center;
