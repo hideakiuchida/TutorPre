@@ -64,7 +64,7 @@ for i in $(seq 1 60); do curl -s --max-time 2 http://localhost:5080/salud && bre
   `setup-oauth`. Nunca abras ni muestres esos archivos.
 - **Volúmenes:** `tutor-datos` guarda la base SQLite y el contenido subido; `tutor-claves`,
   las claves de cifrado de las credenciales. Sin ese segundo volumen, al recrear el
-  contenedor la cuenta de OpenRouter conectada ya no se podría descifrar y habría que
+  contenedor las cuentas de IA conectadas ya no se podrían descifrar y habría que
   reconectarla.
 - El primer arranque descarga la imagen del SDK (~1 GB) y compila: puede tardar un par de
   minutos. Si tras el bucle no responde, mira `docker logs tutor-api` en vez de reintentar
@@ -126,7 +126,7 @@ Informa al usuario de:
   `--env-file`). No hay que dar de alta a nadie: al entrar por primera vez cada persona
   elige si es alumno (y de qué profesor) o profesor. **Nunca pidas ni leas en voz alta esos
   secretos**: no los muestres con `cat`.
-- Que para conversar el alumno pulsa **Entrar con OpenRouter (gratis)** en el panel
+- Que para conversar el alumno pulsa **Entrar con Gemini (tu cuenta de Google)** o pega su clave de API en el panel
   "Conecta tu tutor" e inicia sesión él mismo (puede crear la cuenta con su Google). No hay
   claves que pegar. **Nunca inicies sesión ni crees la cuenta tú.**
 

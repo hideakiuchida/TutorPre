@@ -49,6 +49,8 @@ La página solo ofrece OAuth, con un único botón: *Continuar con Google*, igua
 
 ## 5.1 Conexión del agente
 
+> **OpenRouter está retirado (octubre de 2026).** Ya no se ofrece como opción de conexión: en producción su modelo gratuito compartido estaba saturado con frecuencia. La pasarela sigue en el código, deshabilitada por configuración (`Agentes:openrouter:Habilitado = false`; al arrancar, la API deja ese agente deshabilitado en la base). Lo que este documento describe de OpenRouter queda como referencia de esa pasarela; lo vigente es **Gemini con la cuenta de Google** (OAuth) y las **claves de API propias** de Claude, ChatGPT o Gemini. La conexión vigente está en los flujos 5 (Gemini) y 6 (clave de API) de §5.9.
+
 Hay tres formas de conectar, cada una en una pestaña de *Mi tutor* (§8), y el alumno puede tener varias cuentas y elegir con cuál conversar (RF-37):
 
 | Pestaña | Cómo | Agentes | Quién paga |
@@ -265,6 +267,8 @@ Adaptadores por tipo de agente:
 Los tres de tipo *Clave* comparten el adaptador en formato OpenAI; cada agente aporta su `RutaChat` y, si el proveedor lo admite, el `reasoning_effort` para apagar el razonamiento en el chat (OpenAI: `minimal`). La validación previa (RF-25) usa una llamada que no gasta cupo: `GET /v1/models` con `Bearer` (OpenAI), con `x-api-key` y `anthropic-version` (Anthropic), o `GET /v1beta/models` con `x-goog-api-key` (AI Studio).
 
 ## 5.9 Arquitectura con OpenRouter y flujos de extremo a extremo
+
+> OpenRouter está retirado (ver la nota de §5.1). Los flujos 1 a 4 valen igual con cualquier IA conectada: donde dicen OpenRouter, hoy responde Gemini o el proveedor de la clave del alumno.
 
 Esta sección reúne cómo usa la plataforma a OpenRouter y a Gemini en toda la app, y los flujos que los atraviesan. Describe la implementación v1 desplegada (Railway y Vercel). Las secciones 3 y 6 fijan el diseño de referencia.
 

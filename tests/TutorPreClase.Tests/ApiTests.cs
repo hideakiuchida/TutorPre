@@ -194,6 +194,24 @@ public class ApiTests
     }
 
     [Fact]
+    public async Task Un_agente_retirado_en_la_configuracion_no_se_ofrece_ni_se_puede_usar()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+
+        // Al arrancar, la API deshabilita los agentes con "Habilitado": false (hoy OpenRouter),
+        // también si ya existían en la base; los demás se siembran habilitados.
+        await TutorPreClase.Infrastructure.Persistencia.DatosIniciales.SembrarAsync(banco.Db, ["openrouter"]);
+
+        var agentes = banco.Db.Agentes.ToDictionary(a => a.Id, a => a.Habilitado);
+        Assert.False(agentes["openrouter"]);
+        Assert.True(agentes["gemini"]);
+
+        var error = await Assert.ThrowsAsync<TutorPreClase.Application.Evaluacion.ExamenException>(() => banco.Tutor.IniciarExamenAsync(conversacion.Id));
+        Assert.Equal("agente_no_disponible", error.Codigo);
+    }
+
+    [Fact]
     public async Task El_archivo_citado_se_descarga_y_solo_lo_baja_quien_lleva_el_curso()
     {
         using var api = new ApiDePruebas();

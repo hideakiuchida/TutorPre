@@ -37,7 +37,7 @@ export class DocentePage implements OnDestroy {
   readonly reporte = signal<ReporteClase | null>(null);
   readonly error = signal('');
 
-  /** Cuenta de IA del profesor (Gemini u OpenRouter): con ella la IA condensa su material. */
+  /** Cuenta de IA del profesor (Gemini): con ella la IA condensa su material. */
   readonly cuenta = signal<Credencial | null>(null);
   readonly agentes = signal<Agente[]>([]);
   readonly conectando = signal(false);
@@ -216,7 +216,7 @@ export class DocentePage implements OnDestroy {
     this.contenido.set({ ...contenido, ampliacionPermitida });
   }
 
-  /** La cuenta se conecta igual que la del alumno: OAuth con Google o con OpenRouter, sin claves. */
+  /** La cuenta se conecta igual que la del alumno: OAuth con Google, sin claves. */
   async conectar(agenteId: string): Promise<void> {
     this.conectando.set(true);
     try {
@@ -260,7 +260,7 @@ export class DocentePage implements OnDestroy {
       case 'Listo':
         return a.tokensCondensado < a.tokensOriginal ? 'Apuntes de la IA' : 'Original (ya era breve)';
       case 'SinCuenta':
-        return 'Original: conecta Gemini u OpenRouter para condensar';
+        return 'Original: conecta Gemini para condensar';
       case 'Error':
         return 'Original: no se pudo condensar';
       case 'Pendiente':
@@ -303,7 +303,7 @@ export class DocentePage implements OnDestroy {
   }
 
   /**
-   * Google u OpenRouter vuelven a /conectar/{agente}?code=…: se canjea el código y se piden
+   * El proveedor vuelve a /conectar/{agente}?code=…: se canjea el código y se piden
    * los apuntes de todas sus clases, que hasta ahora el tutor leía en original.
    */
   private async completarOAuth(): Promise<void> {

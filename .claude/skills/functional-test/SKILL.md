@@ -25,7 +25,7 @@ Pregunta o deduce contra cuál se prueba, y dilo en el reporte.
 | Datos | De prueba (volumen `tutor-datos`) | **Reales**: no crees cursos ni alumnos de prueba, no borres nada y no cambies ajustes de clases sin decirlo; lo que cambies (ampliación, nivel, fecha de una clase), déjalo como estaba |
 | Material | Copiar a `course-content/` | Viene en la imagen: cambiarlo es commit y CD. No lo pruebes en producción |
 | Logs | `docker logs tutor-api` | Railway → proyecto `tutor-preclase` → servicio `api` → *Deployments* → *View logs* (en Chrome) |
-| Cuentas de IA | Las conecta la persona | Igual: Gemini u OpenRouter las conecta **la persona** en la web de producción |
+| Cuentas de IA | Las conecta la persona | Igual: Gemini (o una clave de API) lo conecta **la persona** en la web de producción |
 | Claves de API y token MCP | Prueba el rechazo con claves **inventadas**; una real la pega **la persona** | Igual. El token MCP de producción lo genera y lo copia **la persona**; tú no lo leas ni lo pegues en ningún sitio y, si generaste uno para probar, revócalo al terminar |
 | Entrar en local sin Google | `POST /api/v1/acceso/desarrollo {usuarioId}` desde la página y guarda la respuesta en `sessionStorage['tutor.sesion']` | No existe |
 
@@ -59,7 +59,7 @@ Por `curl` se actúa con las cabeceras de desarrollo `X-Usuario-Id` / `X-Usuario
 en cambio, usa la sesión (`Authorization: Bearer`) que emite la API al entrar.
 
 **La IA del alumno (BYOK).** El tutor conversa con la cuenta o la clave que conecte cada
-persona en *Mi tutor*: Gemini u OpenRouter por OAuth (RF-24, RF-29, RF-37) o una clave de
+persona en *Mi tutor*: Gemini con su cuenta de Google, por OAuth (RF-24, RF-29, RF-37), o una clave de
 API de Claude, ChatGPT o Gemini (RF-38). La conecta **la persona** en el bloque B — tú no
 escribes contraseñas ni creas cuentas. **Nunca pidas la clave por el chat, ni la escribas en
 un archivo, un log o el resumen.** Sin ninguna IA conectada, salta los bloques C, D y E y
@@ -80,7 +80,7 @@ local recién creada todas nacen con fecha futura: adelanta la de M1 como profes
 | RF-04 | Cada clase de la carpeta tiene su examen publicado sin preguntas (las genera la IA); `POST /examenes/$EX/preguntas` ya no existe |
 | RF-14 | `PUT .../examen` con `"modoFeedback":"Inmediato"` y con `"AlFinal"`: ambos aceptados |
 | RF-18 | `PUT .../examen` con `"minutosLimite":10`; luego el chat emite `segundosRestantes` en `progreso` |
-| RF-36 | Con OpenRouter conectado por el profesor, cada archivo pasa a `"condensado":"Listo"` y `tokensCondensado` < `tokensOriginal`; `contextoClase.tokens` (lo que lee el tutor) < `contextoClase.tokensOriginal`. En el panel, *Comparar* muestra original y apuntes por página, y *Usar original* devuelve el original al tutor. Sin cuenta, el archivo queda `SinCuenta` y el chat funciona igual con el original. Si el modelo gratuito está saturado queda `Pendiente` con "se reintentará solo" (log: `se condensará en N min`); el examen se sigue generando con el original |
+| RF-36 | Con Gemini conectado por el profesor, cada archivo pasa a `"condensado":"Listo"` y `tokensCondensado` < `tokensOriginal`; `contextoClase.tokens` (lo que lee el tutor) < `contextoClase.tokensOriginal`. En el panel, *Comparar* muestra original y apuntes por página, y *Usar original* devuelve el original al tutor. Sin cuenta, el archivo queda `SinCuenta` y el chat funciona igual con el original. Si el modelo gratuito está saturado queda `Pendiente` con "se reintentará solo" (log: `se condensará en N min`); el examen se sigue generando con el original |
 
 ```bash
 M2="course-content/alonso.uchida@gmail.com/MFEP - Finanzas empresariales/M2 - Indicadores de gestión"
@@ -120,8 +120,8 @@ prueba de pantalla por `curl` en silencio; si decide seguir sin navegador, marca
 
 Con la conexión lista: `tabs_create_mcp` y navega a `http://localhost:4200`.
 
-**Entrada y roles.** La web solo ofrece OAuth con Google. Tú no inicias sesión en Google ni
-en OpenRouter: lo hace la persona (elige su cuenta y vuelve). Solo si ella te lo autoriza
+**Entrada y roles.** La web solo ofrece OAuth con Google. Tú no inicias sesión en Google:
+lo hace la persona (elige su cuenta y vuelve). Solo si ella te lo autoriza
 en el chat puedes pulsar *Continuar con Google* y elegir **su** cuenta en el selector; si
 Google pide contraseña o verificación, para y avisa. Para las pantallas por rol sin OAuth, en desarrollo pide una sesión
 con `POST /api/v1/acceso/desarrollo {"usuarioId":…}` y guárdala en la pestaña con
@@ -139,8 +139,8 @@ con `POST /api/v1/acceso/desarrollo {"usuarioId":…}` y guárdala en la pestañ
 | RF-33 | Un Alumno o un Docente contra `GET /admin/usuarios` → **403** |
 | RF-34 | Un docente que no es dueño del curso contra `GET /clases/$CLA/contenido` → **403**; el dueño → 200 |
 | RF-34 | Como docente: cada clase muestra su material (estado *Listo*, páginas, tokens), el interruptor de ampliación (apagado) y el reporte. En *Examen y tutor* hay un formulario con preguntas por examen, intentos, minutos por intento (o sin límite), cuándo se muestra la corrección y la **fecha de la clase** (no hay fecha límite del examen): cambia los intentos, pulsa *Guardar cambios* → sale *Guardado* y `GET /clases/$CLA/contenido` trae el valor nuevo en `examen`; un valor fuera de rango por API (`maxIntentos: 0`) responde **400**. Déjalo como estaba |
-| RF-32 | Al entrar como alumna sin ninguna IA conectada, con Gemini y OpenRouter habilitados, **no** hay redirección automática: se abre *Mi tutor* con las pestañas. Con una sola opción, la web va sola a autorizarla una vez por sesión |
-| RF-37 | *Entrar con Gemini (tu cuenta de Google)* lleva a `accounts.google.com` con `scope=…/cloud-platform …/generative-language.retriever`, `access_type=offline`, `code_challenge_method=S256` y `redirect_uri` a `/conectar/gemini`. La persona elige su Gmail y acepta el permiso (no tú) → vuelve y Gemini queda conectado. En *Mi tutor* → «Conversas con» se elige entre Gemini y OpenRouter; en el log sale `LLM gemini gemini-3.8-flash: primer token … ms`. Revocar el acceso en myaccount.google.com hace que el chat pida reconectar |
+| RF-32 | Al entrar como alumna sin ninguna IA conectada, con una sola opción por cuenta (Gemini), la web va sola a autorizarla una vez por sesión; si cancela, queda *Mi tutor* abierto con las pestañas y no la reenvía en bucle |
+| RF-37 | *Entrar con Gemini (tu cuenta de Google)* lleva a `accounts.google.com` con `scope=…/cloud-platform …/generative-language.retriever`, `access_type=offline`, `code_challenge_method=S256` y `redirect_uri` a `/conectar/gemini`. La persona elige su Gmail y acepta el permiso (no tú) → vuelve y Gemini queda conectado. En *Mi tutor* → «Conversas con» se elige entre las IA conectadas; en el log sale `LLM gemini gemini-3.8-flash: primer token … ms`. Revocar el acceso en myaccount.google.com hace que el chat pida reconectar |
 
 **Conexión de la cuenta.**
 
@@ -148,25 +148,25 @@ con `POST /api/v1/acceso/desarrollo {"usuarioId":…}` y guárdala en la pestañ
 | --- | --- |
 | RF-27 | Al entrar sin cuenta conectada, se abre **Mi tutor** encima del chat y el campo de mensaje está deshabilitado |
 | §8 | La cabecera dice **«Mi tutor: <agente>»** con *Cambiar* (sin combo); *Cambiar* abre *Mi tutor* como una hoja encima del chat (se cierra con *Volver al chat*, Esc o pulsando fuera; sin ninguna IA conectada no se cierra) con «Conversas con» (cada IA con su modelo, la elegida marcada *En uso*) y tres pestañas: *Con tu cuenta*, *Con tu clave de API*, *Desde tu asistente*. Las flechas del teclado cambian de pestaña. A ~400 px la cabecera cabe en una línea y las pestañas también. En examen, «Conversas con» queda deshabilitado |
-| RF-29 | `PUT /alumno/credenciales/openrouter` con una clave → 400 `conexion_por_oauth` y no guarda nada |
+| RF-29 | `PUT /alumno/credenciales/gemini` con una clave → 400 `conexion_por_oauth` y no guarda nada |
 | RF-38 | Pestaña *Con tu clave de API*: en ChatGPT pega una clave **inventada** con la forma correcta (`sk-proj-…-0000`) → *Conectar* → aviso *rechazó esa credencial* (lo rechaza OpenAI real), el campo queda vacío y `GET /alumno/credenciales` no la tiene. En Claude pega una `sk-proj-…` → aviso *debería empezar por "sk-ant-"* sin llamar al proveedor. Enter en el campo también conecta |
 | RF-38 | Con una clave real que **pega la persona**: queda «Conectada: la clave termina en XXXX», aparece en «Conversas con» con su modelo y el chat responde con ese proveedor |
 | RF-39 | Pestaña *Desde tu asistente*: *Generar token* muestra `tpc_mcp_…` una sola vez con *Copiar*, la URL `…/mcp` y el comando de Claude Code; al recargar solo se ve «Termina en XXXX». *Revocar* lo invalida |
 | RF-39 | Con el token (en local, el de prueba): `initialize` y `tools/call listar_clases` a `/mcp` responden 200 con las clases del alumno, cada una con `habilitada`; `leer_material` de una clase futura responde que aún no está habilitada; sin token, con la sesión de la web o con el token revocado → 401. En producción, la persona conecta Claude Code con el comando y le pide «¿qué clases tengo?» y «tómame el examen de M1»: cita el material, una pregunta a la vez, y la nota coincide con `GET /intentos/{id}/resultado` |
-| RF-29 | `/conectar/openrouter?code=inventado` sin haber iniciado → se abre *Mi tutor* con el aviso *"venció o ya se usó"* (también con otra cuenta ya conectada), la URL queda en `/` y nada guardado |
-| RF-24 | *Conectar con OpenRouter (gratis)* lleva a `openrouter.ai` con `code_challenge_method=S256` y `callback_url` a `/conectar/openrouter`. La persona inicia sesión y autoriza → vuelve, el panel se cierra y el chat queda listo; **Desconectar** lo revierte |
-| RF-25 | Un código inventado canjeado por la API responde `oauth_rechazado` (lo rechaza OpenRouter real) y no se guarda |
+| RF-29 | `/conectar/gemini?code=inventado&state=inventado` sin haber iniciado → se abre *Mi tutor* con el aviso *"venció o ya se usó"* (también con otra cuenta ya conectada), la URL queda en `/` y nada guardado |
+| RF-37 | **OpenRouter está retirado**: `GET /agentes` no lo trae, *Mi tutor* → *Con tu cuenta* solo muestra Gemini y «Conversas con» no lo lista aunque el usuario tuviera esa cuenta conectada; `POST /alumno/credenciales/openrouter/oauth/inicio` responde error. Un chat que quedó con OpenRouter se abre con la IA elegida ahora |
+| RF-25 | Un código inventado canjeado por la API (`POST /alumno/credenciales/gemini/oauth/canje`) responde error (lo rechaza Google real) y no se guarda |
 | RF-26 / RNF-10 | `GET /api/v1/alumno/credenciales` devuelve solo `agenteId`, `ultimos4`, `origen` (`OAuth`), `estado` y fechas. **Si aparece la clave completa, párate y repórtalo: es un fallo grave** |
 | RF-26 | Desde otro `X-Usuario-Id` el mismo endpoint devuelve `[]` |
 | RF-30 | Si el modelo gratuito devuelve 429, sale el aviso de cupo (`limite_de_uso`) y la credencial sigue `Valida` |
 
 ```bash
 curl -s -X POST -H "X-Usuario-Id: $ALU" -H "X-Usuario-Rol: Alumno" \
-  "http://localhost:5080/api/v1/alumno/credenciales/openrouter/oauth/inicio"   # { url }
+  "http://localhost:5080/api/v1/alumno/credenciales/gemini/oauth/inicio"   # { url }
 
 curl -s -X POST -H "X-Usuario-Id: $ALU" -H "X-Usuario-Rol: Alumno" \
   -H "Content-Type: application/json" -d '{"code":"codigo-inventado"}' \
-  "http://localhost:5080/api/v1/alumno/credenciales/openrouter/oauth/canje"    # oauth_rechazado
+  "http://localhost:5080/api/v1/alumno/credenciales/gemini/oauth/canje"    # error: código rechazado
 
 curl -s -H "X-Usuario-Id: $ALU" -H "X-Usuario-Rol: Alumno" \
   "http://localhost:5080/api/v1/alumno/credenciales"
@@ -184,7 +184,7 @@ curl -s -H "X-Usuario-Id: $(python -c 'import uuid;print(uuid.uuid4())')" \
 | RF-37 | Repite la pregunta del WACC **con Gemini**: usa una herramienta, así que comprueba que la firma de razonamiento vuelve bien (antes daba *400*). Si Google está saturado (503), el aviso dice *saturado* y no muestra el código |
 | RF-12 / RF-20 | `¿qué es el WACC?` (no está en el material de M1). Con la ampliación **apagada, que es lo que viene por defecto**: responde *"Esto no está en el material de la clase; pregúntalo en la sesión."* y no sale nada a lápiz |
 | RF-19 | `dame una receta de ceviche` → declina y reconduce al curso |
-| RNF-02 | El primer token aparece en menos de ~3 s, también con la ampliación apagada (el texto se ve mientras se escribe). Si tarda más de 2 s aparece *Pensando…*. En el log de la API, cada llamada deja `LLM openrouter <modelo>: primer token … ms, total … ms, entrada …, razonamiento …`; con el razonamiento desactivado, `razonamiento` debe ser 0 |
+| RNF-02 | El primer token aparece en menos de ~3 s, también con la ampliación apagada (el texto se ve mientras se escribe). Si tarda más de 2 s aparece *Pensando…*. En el log de la API, cada llamada deja `LLM <agente> <modelo>: primer token … ms, total … ms, entrada …, razonamiento …`; con el razonamiento desactivado, `razonamiento` debe ser 0 |
 
 ## Bloque D — Examen por chat
 
@@ -194,7 +194,7 @@ curl -s -H "X-Usuario-Id: $(python -c 'import uuid;print(uuid.uuid4())')" \
 | RF-04 | Tras cada respuesta, la siguiente llega casi al instante (se preparó en segundo plano) y la escribe **el servidor**, con el formato fijo `Pregunta N de 6` + alternativas A–D. Si no se pudo generar, sale *"No pude preparar la siguiente pregunta… Detuve el reloj del examen: escribe «siguiente»"*, la cabecera muestra el tiempo con la marca *en pausa* y no baja; al llegar la pregunta el reloj sigue desde donde quedó. Las respuestas ya registradas se conservan |
 | RF-05 | Cada pregunta trae 4 alternativas; la correcta no cae siempre en la misma letra. Tras el examen, `GET /intentos/$INT/resultado` muestra justificaciones que citan `[archivo, p. N]` |
 | RF-04 | Un segundo intento trae preguntas distintas a las del primero |
-| RF-06 | La cabecera pasa a *Examen en curso* y el intento guarda el modelo (`openrouter` en `usoPorAgente` del reporte) |
+| RF-06 | La cabecera pasa a *Examen en curso* y el intento guarda el modelo (el agente usado, p. ej. `gemini`, en `usoPorAgente` del reporte) |
 | RF-15 | Pide una pista o la respuesta: se niega en una línea, **sin citar ni recordar el material**, y no filtra la correcta |
 | RF-07 | Responde con una letra (`creo que es la A`): la registra el servidor al instante, sin llamar al modelo. Responde con el contenido (`el indicador financiero`): el tutor la interpreta y la registra. En ambos casos sale *Registrada.* y **la barra avanza una casilla por respuesta**: si el tutor dice que registró y la barra no se mueve, es un fallo grave |
 | RF-18 | Con `minutosLimite`, la cabecera muestra el tiempo restante y **el reloj corre solo**, segundo a segundo. Al recargar la página en pleno examen, la barra y el reloj reaparecen sin escribir nada |

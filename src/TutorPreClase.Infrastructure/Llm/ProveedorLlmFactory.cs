@@ -16,7 +16,7 @@ public sealed class ProveedorLlmFactory(
 {
     private readonly OpcionesAgentes _agentes = opciones.Value;
 
-    public bool Existe(string agenteId) => _agentes.ContainsKey(agenteId);
+    public bool Existe(string agenteId) => _agentes.TryGetValue(agenteId, out var agente) && agente.Habilitado;
 
     public ILlmProvider Obtener(string agenteId, string apiKey)
     {

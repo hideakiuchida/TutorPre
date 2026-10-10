@@ -1,5 +1,7 @@
 # Comparativa de las opciones de modelo
 
+> **Octubre de 2026:** OpenRouter se retiró de las opciones de conexión (su modelo gratuito compartido se saturaba con frecuencia). Sus filas quedan como referencia de lo medido; hoy se elige entre Gemini con la cuenta de Google y una clave de API propia.
+
 Con qué IA conviene que estudie un alumno, según lo medido en producción. Cada alumno
 conecta la suya en **Mi tutor** (cuenta, clave de API o su propio asistente por MCP); este
 documento compara esas opciones en tiempo de respuesta, coherencia y costo.

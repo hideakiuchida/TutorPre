@@ -4,9 +4,9 @@ using TutorPreClase.Domain.Entidades;
 namespace TutorPreClase.Infrastructure.Persistencia;
 
 /// <summary>
-/// Agente de fabrica (SDD §5.8): OpenRouter, la unica via para que el alumno conecte su
-/// cuenta. Se agrega si falta, sin tocar el existente: el administrador puede haber
-/// cambiado su modelo.
+/// Agentes de fabrica (SDD §5.8). Se agregan si faltan, sin tocar los existentes: el
+/// administrador puede haber cambiado su modelo. Los que la configuracion da por retirados
+/// (hoy OpenRouter) quedan deshabilitados: no se ofrecen ni se usan.
 /// </summary>
 public static class DatosIniciales
 {
@@ -20,15 +20,23 @@ public static class DatosIniciales
         ["gemini-2.5-flash"] = "gemini-3.8-flash"
     };
 
-    public static async Task SembrarAsync(AppDbContext db, CancellationToken ct = default)
+    public static async Task SembrarAsync(
+        AppDbContext db, IEnumerable<string>? retirados = null, CancellationToken ct = default)
     {
+        var fuera = (retirados ?? []).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var agentes = await db.Agentes.ToListAsync(ct);
 
         foreach (var agente in agentes)
             if (Retirados.TryGetValue(agente.Modelo, out var nuevo)) agente.Modelo = nuevo;
 
         var existentes = agentes.Select(a => a.Id).ToHashSet();
-        db.Agentes.AddRange(Fabrica().Where(a => !existentes.Contains(a.Id)));
+        var nuevos = Fabrica().Where(a => !existentes.Contains(a.Id)).ToList();
+        db.Agentes.AddRange(nuevos);
+
+        // Un agente con "Habilitado": false en la configuracion deja de ofrecerse, aunque
+        // ya existiera en la base con cuentas conectadas.
+        foreach (var agente in agentes.Concat(nuevos))
+            if (fuera.Contains(agente.Id)) agente.Habilitado = false;
 
         await db.SaveChangesAsync(ct);
     }

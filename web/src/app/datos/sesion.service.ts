@@ -21,7 +21,7 @@ export interface Sesion {
 
 const CLAVE = 'tutor.sesion';
 
-/** La sesión dura lo que la pestaña: sirve para ir a OpenRouter y volver sin perderla. */
+/** La sesión dura lo que la pestaña: sirve para ir al proveedor de IA y volver sin perderla. */
 function leer(): Sesion | null {
   try {
     const guardada = sessionStorage.getItem(CLAVE);

@@ -40,7 +40,7 @@ publica sin el CI en verde y no hay dos desplegadores compitiendo.
 2. Servicio vacío **`api`** (*Empty Service*), **sin repositorio conectado**.
 3. **Volumen** del servicio `api` montado en **`/datos`**: archivos subidos y claves de
    Data Protection, que cifran las credenciales de los alumnos. Sin volumen, cada
-   despliegue las pierde y los alumnos tienen que volver a conectar OpenRouter.
+   despliegue las pierde y los alumnos tienen que volver a conectar su IA.
 4. **Variables** del servicio `api`:
 
    | Variable | Valor | Quién la pone |
@@ -123,7 +123,7 @@ Mientras la app esté en **Testing** (*Google Auth Platform* → *Audience*), so
 el propietario del proyecto y los usuarios de prueba que se añadan ahí (hasta 100). Para
 abrirla a cualquier cuenta hay que completar *Branding* y pulsar *Publish app*.
 
-OpenRouter no necesita registro: la URL de retorno la manda la API.
+OpenRouter está retirado (`Agentes:openrouter:Habilitado = false`): sus variables pueden quedar, no se usan.
 
 ## 5. Desplegar
 

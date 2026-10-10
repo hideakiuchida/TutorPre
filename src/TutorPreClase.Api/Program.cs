@@ -150,7 +150,7 @@ if (!app.Environment.IsDevelopment() && app.Configuration.GetValue("Base:MigrarA
     using var ambito = app.Services.CreateScope();
     var db = ambito.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
-    await DatosIniciales.SembrarAsync(db);
+    await DatosIniciales.SembrarAsync(db, AgentesRetirados(app));
 }
 
 if (app.Environment.IsDevelopment())
@@ -182,7 +182,7 @@ if (app.Environment.IsDevelopment())
         await EsquemaSqlite.AgregarColumnaAsync(db, "intento", "SegundosEnPausa", "INTEGER NOT NULL DEFAULT 0");
     }
 
-    await DatosIniciales.SembrarAsync(db);
+    await DatosIniciales.SembrarAsync(db, AgentesRetirados(app));
 
     // Primero la carpeta, para que la demo encuentre los cursos y clases que crea.
     await ambito.ServiceProvider.GetRequiredService<ISincronizadorCarpeta>().SincronizarAsync();
@@ -196,5 +196,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.Run();
+
+// Los agentes que la configuracion marca con "Habilitado": false.
+static IEnumerable<string> AgentesRetirados(WebApplication app) =>
+    app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<OpcionesAgentes>>().Value
+        .Where(a => !a.Value.Habilitado)
+        .Select(a => a.Key)
+        .ToList();
 
 public partial class Program;

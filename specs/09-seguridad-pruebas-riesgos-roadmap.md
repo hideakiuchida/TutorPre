@@ -63,7 +63,7 @@
 | Dependencia de un solo gateway | Medio | `ILlmProvider` aísla al resto del sistema: otro gateway es una implementación más y una entrada de configuración |
 | Cupo gratuito insuficiente (el examen ahora usa IA) | Medio | Tope de mensajes, historial acotado y modelo que consuma pocas llamadas por pregunta (RNF-11); quien necesite más carga saldo en su cuenta de OpenRouter |
 | Fuga de la credencial de un alumno | Alto | Cifrado en reposo, nunca se devuelve ni se registra, descifrado solo para la llamada de su propia conversación, autorización por recurso |
-| El alumno no tiene cuenta de OpenRouter | Bajo | La crea en el mismo paso de conexión, con su Google y sin tarjeta |
+| El alumno no tiene cuenta de IA | Bajo | Gemini se conecta con la cuenta de Google con la que ya entró, sin tarjeta |
 | Fricción de conectar una cuenta antes de poder estudiar | Bajo | Un clic y un inicio de sesión, una sola vez; sin claves que copiar ni ajustes de privacidad que tocar |
 | Contenido de clase que excede la ventana de contexto | Medio | Aviso al docente con los tokens estimados y recomendación de dividir el material en más clases |
 | PDF escaneados sin texto | Medio | Detectar y avisar al docente; OCR en fase 3 |
@@ -107,7 +107,8 @@ Estado a 2026-09-30, con el examen pregunta a pregunta, Gemini con Google, las c
 | 13 | Dificultad adaptativa por nivel | RF-23 | Sin implementar |
 | 14 | Carga, volumen y disponibilidad | RNF-03 a RNF-05 | Medir con k6 en un despliegue |
 | 15 | Medir la condensación con el modelo real | RF-36 | Primera prueba local: la infografía "Costo vs Gasto" pasó de 409 a 267 tokens (−35 %). Falta completar M1 (el pool gratuito estaba saturado, se reintenta solo) y revisar la fidelidad de los apuntes con el profesor |
-| 16 | Profesor sin cuenta de IA en producción | RF-36 | En producción el profesor tiene que entrar a su panel y conectar Gemini u OpenRouter; hasta entonces el tutor lee el original |
+| 16 | Profesor sin cuenta de IA en producción | RF-36 | En producción el profesor tiene que entrar a su panel y conectar Gemini; hasta entonces el tutor lee el original |
+| 17 | Cuentas y chats que quedaron con OpenRouter | RF-37 | Al retirarlo, las cuentas conectadas siguen guardadas pero no se usan; el chat pasa a la IA que el alumno elija. Un examen que estuviera en curso con OpenRouter no puede seguir: el profesor reinicia los intentos de ese alumno |
 | 17 | Cuentas de IA propias, fase 2 | RF-37, RF-39 | OAuth 2.1 con registro dinámico de clientes en `/mcp` para conectar el Tutor desde los conectores web de Claude.ai y ChatGPT (hoy solo con token en clientes que aceptan cabeceras); *sampling* de MCP para que el asistente del alumno genere las preguntas; proyecto de Google propio (`x-goog-user-project`) para cargar el uso de Gemini a la cuenta del alumno |
 | 20 | Probar las claves propias con cuentas reales | RF-38 | Verificado en local que OpenAI rechaza una clave inventada; falta una conversación y un examen con una clave real de cada proveedor (la pega la persona) |
 | 19 | Medir el examen pregunta a pregunta con el modelo real | RF-04 | Tiempo hasta la primera pregunta y cuántas veces el alumno espera porque la siguiente no llegó a prepararse; calidad y variedad de las preguntas generadas de a una |

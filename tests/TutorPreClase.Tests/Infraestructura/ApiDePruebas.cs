@@ -41,6 +41,9 @@ public sealed class ApiDePruebas : WebApplicationFactory<Program>
         // La API se configura para Sqlite; la conexion en memoria la comparte el test.
         builder.UseSetting("Base:Proveedor", "Sqlite");
         builder.UseSetting("ConnectionStrings:Sqlite", _conexion.ConnectionString);
+        // OpenRouter está retirado en la configuración real; las pruebas siguen ejercitando
+        // su pasarela, que se puede volver a habilitar.
+        builder.UseSetting("Agentes:openrouter:Habilitado", "true");
         foreach (var (clave, valor) in _ajustes) builder.UseSetting(clave, valor);
 
         builder.ConfigureServices(servicios =>

@@ -4,6 +4,8 @@
 
 El diseño está repartido en un documento por sección. Este es el documento principal: enlaza cada parte y dice qué contiene. Las referencias del código y de los skills con la forma `SDD §5.2` apuntan a la sección 5, apartado 5.2.
 
+> **OpenRouter está retirado (octubre de 2026).** Ya no se ofrece como opción de conexión: en producción su modelo gratuito compartido estaba saturado con frecuencia. La pasarela sigue en el código, deshabilitada por configuración (`Agentes:openrouter:Habilitado = false`; al arrancar, la API deja ese agente deshabilitado en la base). Lo que este documento describe de OpenRouter queda como referencia de esa pasarela; lo vigente es **Gemini con la cuenta de Google** (OAuth) y las **claves de API propias** de Claude, ChatGPT o Gemini.
+
 | § | Documento | Contenido |
 | --- | --- | --- |
 | 1 | [Introducción](01-introduccion.md) | Qué es el producto, alcance, cómo se conecta la IA de cada alumno y glosario. |

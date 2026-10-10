@@ -76,7 +76,7 @@ public sealed class CondensadorMaterial(
         if (cuentas.Count == 0)
         {
             await TerminarAsync(archivo, EstadoCondensado.SinCuenta,
-                "Conecta Gemini u OpenRouter en tu panel para que la IA condense el material.", ct);
+                "Conecta tu cuenta de Gemini en tu panel para que la IA condense el material.", ct);
             return ResultadoCondensacion.SinCuenta;
         }
 

@@ -338,7 +338,7 @@ export class ChatTutorPage {
 
       // RF-32: al entrar sin IA conectada se le lleva directo a autorizarla, una sola vez por
       // sesión: si cancela o falla, se queda el botón y no se le reenvía en bucle. Con más de
-      // una opción (Gemini y OpenRouter, RF-37) elige él en el panel.
+      // una opción por cuenta elige él en el panel.
       const oauth = this.agentesOAuth().length === 1 ? this.agentesOAuth()[0] : undefined;
       if (this.sinAgente() && oauth && !this.errorCredencial() && !sessionStorage.getItem(AUTOMATICO)) {
         sessionStorage.setItem(AUTOMATICO, '1');

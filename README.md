@@ -1,7 +1,7 @@
 # Tutor Pre-Clase
 
 Chatbot que actúa de intermediario entre el alumno y la IA que él conecte (Gemini,
-OpenRouter, Claude o ChatGPT). La plataforma convierte ese modelo genérico en el **tutor del
+Claude o ChatGPT). La plataforma convierte ese modelo genérico en el **tutor del
 curso**: le pone delante el material que subió el profesor, las herramientas del examen y
 las reglas de qué puede decir en cada momento.
 
@@ -92,7 +92,7 @@ el chat, en **Mi tutor** (*Cambiar* en la cabecera), de una de tres formas:
 
 | Pestaña | Cómo se conecta | Opciones |
 | --- | --- | --- |
-| Con tu cuenta | Iniciando sesión en el proveedor (OAuth con PKCE), sin copiar claves | OpenRouter (modelo gratuito) y Gemini con la cuenta de Google |
+| Con tu cuenta | Iniciando sesión en el proveedor (OAuth con PKCE), sin copiar claves | Gemini con la cuenta de Google |
 | Con tu clave de API | Pegando una clave propia, que se comprueba con el proveedor antes de guardarla | Claude (Anthropic), ChatGPT (OpenAI) y Gemini (AI Studio) |
 | Desde tu asistente | Con un token personal, el Tutor se usa como servidor MCP desde Claude Code, Claude Desktop o Cursor | `/mcp` |
 
@@ -111,7 +111,9 @@ Conviene conectar más de una: si la IA del examen se queda sin cupo a mitad de 
 la siguiente pregunta se genera con otra de las conectadas.
 
 `appsettings.json` solo describe qué proveedores se pueden conectar, con qué modelo y
-contra qué `BaseUrl`.
+contra qué `BaseUrl`. Uno con `"Habilitado": false` no se ofrece ni se usa: así está
+**OpenRouter**, retirado porque su modelo gratuito compartido se saturaba; su pasarela sigue
+en el código y se reactiva con ese ajuste.
 
 Qué opción conviene —tiempos de respuesta, coherencia en el examen y en las dudas, límites
 gratuitos y costo por uso, medidos en producción— está en
