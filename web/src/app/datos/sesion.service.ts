@@ -53,7 +53,6 @@ export class SesionService {
     this.sesion.set(null);
     this.eligiendoProfesor.set(false);
     sessionStorage.removeItem(CLAVE);
-    sessionStorage.removeItem('tutor.openrouter.automatico');
     history.replaceState(null, '', '/');
   }
 

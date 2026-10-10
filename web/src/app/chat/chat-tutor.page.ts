@@ -19,7 +19,6 @@ import {
 } from '../datos/tutor.modelos';
 
 /** Marca de que ya se intentó conectar la IA automáticamente en esta sesión. */
-const AUTOMATICO = 'tutor.openrouter.automatico';
 
 /** El tutor que eligió en "Mi tutor": al volver a entrar sigue con el mismo. */
 const TUTOR_ELEGIDO = 'tutor.agente';
@@ -125,7 +124,6 @@ export class ChatTutorPage {
   readonly sinAgente = computed(() => this.agentesConectados().length === 0);
 
   /** Agentes que se conectan iniciando sesión en el proveedor (RF-29, RF-37). */
-  readonly agentesOAuth = computed(() => this.agentes().filter((a) => a.conexion === 'OAuth'));
 
   /** El tutor con el que conversa, para la cabecera. */
   readonly tutorActivo = computed(() => this.agentesConectados().find((a) => a.id === this.agenteActivo()));
@@ -330,15 +328,8 @@ export class ChatTutorPage {
       // conexión que acaba de intentar falló, el aviso está en ese panel: se abre para que lo vea.
       this.configuracionAbierta.set(this.sinAgente() || !!this.errorCredencial());
 
-      // RF-32: al entrar sin IA conectada se le lleva directo a autorizarla, una sola vez por
-      // sesión: si cancela o falla, se queda el botón y no se le reenvía en bucle. Con más de
-      // una opción por cuenta elige él en el panel.
-      const oauth = this.agentesOAuth().length === 1 ? this.agentesOAuth()[0] : undefined;
-      if (this.sinAgente() && oauth && !this.errorCredencial() && !sessionStorage.getItem(AUTOMATICO)) {
-        sessionStorage.setItem(AUTOMATICO, '1');
-        await this.entrarCon(oauth.id);
-        return;
-      }
+      // RF-32: sin IA conectada no se le reenvía solo a ningún proveedor; elige él en el panel
+      // cómo conectarla (lo habitual, con su clave de API gratuita).
 
       if (clases.length > 0 && !this.sinAgente()) {
         const ultima = leerClaseAbierta();

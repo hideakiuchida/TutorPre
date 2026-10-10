@@ -87,8 +87,8 @@ el chat, en **Mi tutor** (*Cambiar* en la cabecera), de una de tres formas:
 
 | Pestaña | Cómo se conecta | Opciones |
 | --- | --- | --- |
-| Con tu cuenta | Iniciando sesión en el proveedor (OAuth con PKCE), sin copiar claves | Gemini con la cuenta de Google |
-| Con tu clave de API | Pegando una clave propia, que se comprueba con el proveedor antes de guardarla | Claude (Anthropic), ChatGPT (OpenAI) y Gemini (AI Studio) |
+| Con tu clave de API (la recomendada) | Pegando una clave propia, que se comprueba con el proveedor antes de guardarla. La de Gemini es gratis y se crea en un minuto en Google AI Studio | Gemini (AI Studio), Claude (Anthropic) y ChatGPT (OpenAI) |
+| Con tu cuenta | Iniciando sesión en el proveedor (OAuth con PKCE), sin copiar claves. Mientras Google no verifique la app, solo para las cuentas dadas de alta como usuarios de prueba | Gemini con la cuenta de Google |
 | Desde tu asistente | Con un token personal, el Tutor se usa como servidor MCP desde Claude Code, Claude Desktop o Cursor | `/mcp` |
 
 La credencial se cifra con ASP.NET Data Protection con un propósito distinto por usuario y

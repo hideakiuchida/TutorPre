@@ -34,16 +34,22 @@ export class ConfiguracionTutor {
   readonly cambio = output<void>();
   readonly cerrar = output<void>();
 
-  readonly pestana = signal<Pestana>('cuenta');
+  /** La clave de API va primero: es la vía que funciona para cualquier cuenta. */
+  readonly pestana = signal<Pestana>('clave');
   readonly pestanas: { id: Pestana; titulo: string }[] = [
-    { id: 'cuenta', titulo: 'Con tu cuenta' },
     { id: 'clave', titulo: 'Con tu clave de API' },
+    { id: 'cuenta', titulo: 'Con tu cuenta' },
     { id: 'asistente', titulo: 'Desde tu asistente' },
   ];
 
   readonly conectados = computed(() => this.agentes().filter((a) => a.conectado));
   readonly porCuenta = computed(() => this.agentes().filter((a) => a.conexion === 'OAuth'));
-  readonly porClave = computed(() => this.agentes().filter((a) => a.conexion === 'Clave'));
+  /** Primero la opción gratuita (Gemini de AI Studio); luego las de pago. */
+  readonly porClave = computed(() =>
+    this.agentes()
+      .filter((a) => a.conexion === 'Clave')
+      .sort((a, b) => Number(b.id === 'gemini-clave') - Number(a.id === 'gemini-clave')),
+  );
 
   /** Lo escrito en cada campo de clave; se borra en cuanto se envía. */
   readonly claves = signal<Partial<Record<string, string>>>({});

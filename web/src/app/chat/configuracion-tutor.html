@@ -69,7 +69,9 @@
   @if (pestana() === 'cuenta') {
     <div class="panel" role="tabpanel" id="panel-cuenta" aria-labelledby="pestana-cuenta">
       <p class="ayuda">
-        Entras con tu cuenta de Google y listo, sin copiar ninguna clave ni poner tarjeta.
+        Entras con tu cuenta de Google, sin copiar ninguna clave. Por ahora solo funciona con las cuentas que
+        el administrador autorizó en Google: si te sale «Acceso bloqueado», conecta tu tutor en
+        <strong>Con tu clave de API</strong>.
       </p>
 
       <div class="proveedores">
@@ -114,9 +116,14 @@
   @if (pestana() === 'clave') {
     <div class="panel" role="tabpanel" id="panel-clave" aria-labelledby="pestana-clave">
       <p class="ayuda">
-        Usa el modelo de tu propia cuenta de desarrollador. La clave se comprueba con el proveedor,
-        se guarda cifrada y nadie puede volver a verla: aquí solo verás sus últimos 4 caracteres.
-        Las suscripciones de ChatGPT Plus o Claude Pro no incluyen claves de API.
+        <strong>La forma gratuita, en un minuto:</strong> abre
+        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>
+        con tu Gmail, pulsa <em>Crear clave de API</em>, cópiala y pégala abajo en Gemini. No pide tarjeta.
+      </p>
+      <p class="ayuda">
+        La clave se comprueba con el proveedor, se guarda cifrada y nadie puede volver a verla: aquí solo
+        verás sus últimos 4 caracteres. ChatGPT y Claude son de pago: sus suscripciones (Plus, Pro) no
+        incluyen claves de API.
       </p>
 
       <div class="proveedores una-columna">
