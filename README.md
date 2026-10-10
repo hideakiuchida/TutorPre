@@ -8,7 +8,7 @@ las reglas de qué puede decir en cada momento.
 Cada persona conecta **su propia cuenta o clave de IA** (BYOK): el tutor conversa con ella
 y el consumo corre por ella. La plataforma no guarda una clave compartida.
 
-El diseño completo está en [`specs/SDD-Plataforma-Evaluacion-PreClase.md`](specs/SDD-Plataforma-Evaluacion-PreClase.md).
+El diseño completo está en [`specs/`](specs/SDD-Plataforma-Evaluacion-PreClase.md): un documento principal que enlaza una parte por sección (requisitos, arquitectura, datos, flujos, contenido, API, UI y seguridad).
 
 ## Qué hace
 

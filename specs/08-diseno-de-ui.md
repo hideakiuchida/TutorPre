@@ -1,0 +1,33 @@
+# 8. Diseño de UI
+
+[← 7. API REST](07-api-rest.md) · [Índice del SDD](SDD-Plataforma-Evaluacion-PreClase.md) · [9. Seguridad, pruebas, riesgos y roadmap →](09-seguridad-pruebas-riesgos-roadmap.md)
+
+Todos entran por la misma página y cada rol tiene **una sola pantalla**: el alumno, el chat; el docente, su panel (material, ajustes y reporte de cada clase, RF-34); el administrador, la gestión de usuarios (RF-33). Todas comparten la cabecera roja UPC con el nombre y *Salir*, y la barra lateral azul con las clases. No hay pantalla de examen, ni formularios de respuesta, ni panel de resultados: todo lo que el alumno necesita se lo da el tutor dentro de la conversación.
+
+| Pantalla | Rol | Contenido principal |
+| --- | --- | --- |
+| Entrada | Todos | Franja roja UPC; primero *Soy alumno* / *Soy profesor*, luego *Continuar con Google*; lleva a cada rol a su pantalla |
+| Tu profesor | Alumno | Lista de profesores con sus cursos para elegir o cambiar; se abre desde *Cambiar* en la barra lateral del chat o si aún no tiene profesor |
+| Administración | Admin | Alta o edición de una persona (correo, nombre, rol, cursos), alta por lista y tabla de usuarios registrados |
+| Chat del tutor | Alumno | Lista lateral de clases (con estado del examen y cuenta regresiva) y el chat en streaming, **como una conversación: los mensajes del alumno a la izquierda y las respuestas del tutor a la derecha**, cada uno en su globo; debajo del globo del tutor, sus fuentes (resaltadas) y la ampliación (a lápiz). Las negritas de Markdown del tutor se muestran como negritas. En la cabecera: clase, modo (Consulta / Examen / Revisión), **«Mi tutor: Gemini (tu cuenta de Google)» con *Cambiar*** y, durante el examen, progreso y temporizador. En el cuerpo: mensajes, chips de fuente que abren el archivo en la página citada y bloques de ampliación con estilo diferenciado. Aviso cuando el docente actualiza el material (§6.1). Sin ninguna IA conectada, se abre *Mi tutor* |
+| Mi tutor | Alumno | Se abre encima del chat con *Cambiar*. Arriba, **«Conversas con»**: las IA conectadas como opciones, cada una con su modelo (bloqueado durante el examen). Debajo, tres pestañas: **Con tu cuenta** (Gemini y OpenRouter: *Entrar con…*, *Volver a entrar*, *Desconectar*), **Con tu clave de API** (ChatGPT, Claude y Gemini de AI Studio: campo de clave oculto, *Conectar*, enlace a la consola para crearla, «termina en XXXX» y *Desconectar*) y **Desde tu asistente** (URL del servidor MCP, *Generar token* que se muestra una sola vez con *Copiar*, *Revocar*, último uso y los pasos para Claude Code, Claude Desktop y otros clientes). Pestañas accesibles con el teclado (flechas) |
+| Panel del docente: material | Docente | Estado de extracción de lo que copió a la carpeta y tokens del contexto de clase, interruptor de ampliación. Por archivo, qué lee el tutor (*Apuntes de la IA*, *Original*, *Condensando…*, o por qué no se condensó) y los tokens antes y después. *Comparar* muestra original y apuntes página por página; *Usar original* / *Usar apuntes* elige por archivo. Sin cuenta, *Conectar OpenRouter* (al volver se condensan todas sus clases); con cuenta, *Condensar de nuevo*. El panel se refresca solo mientras hay apuntes en camino. En *Examen y tutor* el profesor ajusta el examen de la clase: preguntas por examen (3–20), intentos por alumno (1–10), minutos por intento (5–240 o sin límite), cuándo se muestra la corrección (al terminar o tras cada respuesta) y la **fecha de la clase**, desde la que los alumnos pueden abrirla y rendir el examen (el examen no tiene fecha límite); el servidor valida los rangos y los cambios valen para los intentos que empiecen después. No hay botón de publicar: las clases de la carpeta nacen con el examen publicado |
+| Panel del docente: resultados por alumno | Docente | En *Resultados del examen*, una ficha por alumno que rindió: la nota vigente (la misma con la que el servidor fijó su nivel), el nivel (con la marca *corregido por ti* si el docente lo cambió), aciertos del último intento, número de intentos y los temas a reforzar que propuso el tutor tras el último examen (cada intento nuevo empieza su diagnóstico de cero); el docente puede quitar los que no correspondan (`PUT /clases/{id}/niveles/{alumnoId}/temas`). Nadie carga estos datos: el servidor califica y fija el nivel al registrar la última respuesta (RF-09, RF-21, RF-22) |
+| Panel del docente: reporte | Docente | Promedio, histograma de notas, distribución de niveles y nivel por alumno (editable), temas más fallados (porcentaje de respuestas erradas por tema), temas débiles del grupo, dudas que el material no cubrió y uso por agente |
+
+## 8.1 Componentes Angular (librerías Nx)
+
+- `libs/alumno/feature-chat`: `ChatTutorPageComponent` (única pantalla del alumno), `ListaClasesComponent`, `CabeceraChatComponent` (modo, progreso y temporizador), `MensajeAgenteComponent`, `BloqueAmpliacionComponent`, `FuenteChipComponent`, `ConfiguracionTutor` (*Mi tutor* con sus pestañas).
+- `libs/docente/feature-clase`: `EstadoContenidoComponent`, `AjustesClaseComponent`.
+- `libs/docente/feature-reporte`: `ReporteClaseComponent`, `NivelAlumnoComponent`.
+- `libs/acceso`: `EntradaPageComponent` y `SesionService` (guarda la sesión, agrega `Authorization: Bearer` y vuelve a la entrada ante un 401).
+- `libs/admin`: `AdminPageComponent`.
+- `libs/shared/data-access`: servicios HTTP y un `TutorStreamService` que consume los eventos SSE (`modo`, `token`, `herramienta`, `progreso`, `fuentes`, `fin`) y el flujo de novedades con `fetch` streaming.
+
+Principios: accesibilidad WCAG 2.1 AA, colores con icono además de color (acierto/error), textos de IA siempre marcados como "Generado con IA a partir del material de clase", y las ampliaciones visualmente separadas del material del docente — un recuadro propio con la etiqueta "Fuera del material", nunca con chip de fuente.
+
+La web nunca ve ni guarda la clave: la ruta `/conectar/openrouter` toma el `code` de la URL, lo entrega a la API y reemplaza la URL para que el código no quede en el historial.
+
+---
+
+[← 7. API REST](07-api-rest.md) · [Índice del SDD](SDD-Plataforma-Evaluacion-PreClase.md) · [9. Seguridad, pruebas, riesgos y roadmap →](09-seguridad-pruebas-riesgos-roadmap.md)
