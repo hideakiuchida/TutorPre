@@ -212,6 +212,21 @@ public class ApiTests
     }
 
     [Fact]
+    public async Task Un_agente_retirado_no_se_puede_conectar_por_la_api()
+    {
+        using var api = new ApiDePruebas(new Dictionary<string, string> { ["Agentes:openrouter:Habilitado"] = "false" });
+        var (_, alumnoId, _, _) = api.Sembrar();
+        var alumno = api.Como(alumnoId, "Alumno");
+
+        var inicio = await alumno.PostAsync("/api/v1/alumno/credenciales/openrouter/oauth/inicio", null);
+        Assert.Equal(HttpStatusCode.BadRequest, inicio.StatusCode);
+        Assert.Equal("agente_no_disponible", (await inicio.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("error").GetString());
+
+        var canje = await alumno.PostAsJsonAsync("/api/v1/alumno/credenciales/openrouter/oauth/canje", new { code = "inventado" });
+        Assert.Equal(HttpStatusCode.BadRequest, canje.StatusCode);
+    }
+
+    [Fact]
     public async Task El_archivo_citado_se_descarga_y_solo_lo_baja_quien_lleva_el_curso()
     {
         using var api = new ApiDePruebas();

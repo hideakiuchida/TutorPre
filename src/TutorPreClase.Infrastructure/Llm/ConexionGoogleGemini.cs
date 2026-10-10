@@ -126,8 +126,12 @@ public sealed class ConexionesOAuth(
     public Task<CredencialResumen> CanjearAsync(Guid usuarioId, string agenteId, string codigo, CancellationToken ct = default) =>
         Para(agenteId).CanjearAsync(usuarioId, agenteId, codigo, ct);
 
-    private IConexionOAuth Para(string agenteId) =>
-        agentes.Value.TryGetValue(agenteId, out var opciones) && opciones.Conexion == ConexionAgente.OAuthGoogle
-            ? google
-            : openRouter;
+    private IConexionOAuth Para(string agenteId)
+    {
+        // Un agente retirado en la configuración (hoy OpenRouter) no se puede conectar.
+        if (!agentes.Value.TryGetValue(agenteId, out var opciones) || !opciones.Habilitado)
+            throw new CredencialException("agente_no_disponible", "Esa opción de conexión ya no está disponible.");
+
+        return opciones.Conexion == ConexionAgente.OAuthGoogle ? google : openRouter;
+    }
 }
