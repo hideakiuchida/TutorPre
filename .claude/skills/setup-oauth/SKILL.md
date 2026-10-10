@@ -83,7 +83,12 @@ apunta a la web publicada.
 Google aplica los límites de la API de Gemini **por proyecto**: todos los usuarios conectados
 comparten el plan gratuito de este proyecto.
 
-## 2. Microsoft Entra
+## 2. Microsoft Entra (retirado)
+
+> **La entrada con Microsoft se retiró**: la web solo ofrece *Continuar con Google* y la API
+> ya no define ese proveedor. No registres nada en Entra salvo que pidan volver a ofrecerlo;
+> en ese caso, además de estos pasos, hay que devolver el bloque `microsoft` a
+> `Acceso:Proveedores` en `appsettings.json` (con sus direcciones de autorización y token).
 
 1. `https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/CreateApplicationBlade/quickStartType~/null/isMSAApp~/false`
    - **Si responde "No tiene acceso" (403)**: la cuenta es de una organización que no deja a sus

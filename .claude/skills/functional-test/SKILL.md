@@ -22,7 +22,7 @@ Pregunta o deduce contra cuál se prueba, y dilo en el reporte.
 | API | http://localhost:5080 | https://api-production-9a65.up.railway.app |
 | Qué hay desplegado | Lo del árbol de trabajo | El último commit de `main` con CI y CD en verde: compruébalo en https://github.com/hideakiuchida/TutorPre/actions antes de empezar |
 | Cómo se actúa por API | `curl` con `X-Usuario-Id` / `X-Usuario-Rol`, y `/demo` para los ids | **No hay cabeceras de desarrollo ni `/demo`** (401). Solo la sesión real: la persona entra con Google en Chrome y las llamadas se hacen desde la página con `fetch` y el token de `sessionStorage['tutor.sesion']`. **Nunca muestres ni copies el token** |
-| Datos | De prueba (volumen `tutor-datos`) | **Reales**: no crees cursos ni alumnos de prueba, no borres nada y no cambies ajustes de clases sin decirlo; lo que cambies (ampliación, nivel), déjalo como estaba |
+| Datos | De prueba (volumen `tutor-datos`) | **Reales**: no crees cursos ni alumnos de prueba, no borres nada y no cambies ajustes de clases sin decirlo; lo que cambies (ampliación, nivel, fecha de una clase), déjalo como estaba |
 | Material | Copiar a `course-content/` | Viene en la imagen: cambiarlo es commit y CD. No lo pruebes en producción |
 | Logs | `docker logs tutor-api` | Railway → proyecto `tutor-preclase` → servicio `api` → *Deployments* → *View logs* (en Chrome) |
 | Cuentas de IA | Las conecta la persona | Igual: Gemini u OpenRouter las conecta **la persona** en la web de producción |
@@ -58,12 +58,17 @@ Toma los identificadores: `curl -s http://localhost:5080/demo` → `$DOC`, `$ALU
 Por `curl` se actúa con las cabeceras de desarrollo `X-Usuario-Id` / `X-Usuario-Rol`; la web,
 en cambio, usa la sesión (`Authorization: Bearer`) que emite la API al entrar.
 
-**La cuenta del alumno (BYOK).** La única vía para que el tutor converse es la cuenta de
-OpenRouter del alumno, conectada con *Conectar con OpenRouter (gratis)* (RF-24, RF-29); no
-hay campo para pegar claves. La conecta la persona en el bloque B iniciando sesión ella
-misma en OpenRouter — tú no escribes contraseñas ni creas cuentas. **Nunca pidas la clave
-por el chat, ni la escribas en un archivo, un log o el resumen.** Sin cuenta conectada, salta
-los bloques C, D y E y dilo al reportar.
+**La IA del alumno (BYOK).** El tutor conversa con la cuenta o la clave que conecte cada
+persona en *Mi tutor*: Gemini u OpenRouter por OAuth (RF-24, RF-29, RF-37) o una clave de
+API de Claude, ChatGPT o Gemini (RF-38). La conecta **la persona** en el bloque B — tú no
+escribes contraseñas ni creas cuentas. **Nunca pidas la clave por el chat, ni la escribas en
+un archivo, un log o el resumen.** Sin ninguna IA conectada, salta los bloques C, D y E y
+dilo al reportar.
+
+**Clases habilitadas (RF-01).** El alumno solo abre las clases cuya fecha ya llegó. Antes de
+los bloques C a E mira `GET /alumno/clases` y usa una con `habilitada: true`. En una base
+local recién creada todas nacen con fecha futura: adelanta la de M1 como profesor con
+`PUT /clases/$CLA/fecha` y anótalo. En producción no muevas fechas sin decirlo y devuélvelas.
 
 ## Bloque A — El docente prepara la clase
 
@@ -97,7 +102,7 @@ curl -s -H "X-Usuario-Id: $DOC" -H "X-Usuario-Rol: Docente" -H "Content-Type: ap
 docker logs --since 10m tutor-api 2>&1 | grep -E "Material condensado|se condensará"
 ```
 
-## Bloque B — Entrada, roles y conexión de la cuenta (OpenRouter)
+## Bloque B — Entrada, roles y conexión de la IA
 
 Los bloques B a G se prueban **en la pantalla, con Chrome**; el `curl` solo complementa.
 Invoca el skill `claude-in-chrome` y carga las herramientas en **una sola** llamada a ToolSearch:
@@ -115,9 +120,10 @@ prueba de pantalla por `curl` en silencio; si decide seguir sin navegador, marca
 
 Con la conexión lista: `tabs_create_mcp` y navega a `http://localhost:4200`.
 
-**Entrada y roles.** La web solo ofrece OAuth. Tú no inicias sesión en Google ni
-OpenRouter: la extensión no puede actuar en `accounts.google.com` y además lo hace la persona
-(elige su cuenta y vuelve). Para las pantallas por rol sin OAuth, en desarrollo pide una sesión
+**Entrada y roles.** La web solo ofrece OAuth con Google. Tú no inicias sesión en Google ni
+en OpenRouter: lo hace la persona (elige su cuenta y vuelve). Solo si ella te lo autoriza
+en el chat puedes pulsar *Continuar con Google* y elegir **su** cuenta en el selector; si
+Google pide contraseña o verificación, para y avisa. Para las pantallas por rol sin OAuth, en desarrollo pide una sesión
 con `POST /api/v1/acceso/desarrollo {"usuarioId":…}` y guárdala en la pestaña con
 `sessionStorage.setItem('tutor.sesion', JSON.stringify(sesion))` antes de recargar.
 
@@ -146,7 +152,7 @@ con `POST /api/v1/acceso/desarrollo {"usuarioId":…}` y guárdala en la pestañ
 | RF-38 | Pestaña *Con tu clave de API*: en ChatGPT pega una clave **inventada** con la forma correcta (`sk-proj-…-0000`) → *Conectar* → aviso *rechazó esa credencial* (lo rechaza OpenAI real), el campo queda vacío y `GET /alumno/credenciales` no la tiene. En Claude pega una `sk-proj-…` → aviso *debería empezar por "sk-ant-"* sin llamar al proveedor. Enter en el campo también conecta |
 | RF-38 | Con una clave real que **pega la persona**: queda «Conectada: la clave termina en XXXX», aparece en «Conversas con» con su modelo y el chat responde con ese proveedor |
 | RF-39 | Pestaña *Desde tu asistente*: *Generar token* muestra `tpc_mcp_…` una sola vez con *Copiar*, la URL `…/mcp` y el comando de Claude Code; al recargar solo se ve «Termina en XXXX». *Revocar* lo invalida |
-| RF-39 | Con el token (en local, el de prueba): `initialize` y `tools/call listar_clases` a `/mcp` responden 200 con las clases del alumno; sin token, con la sesión de la web o con el token revocado → 401. En producción, la persona conecta Claude Code con el comando y le pide «¿qué clases tengo?» y «tómame el examen de M1»: cita el material, una pregunta a la vez, y la nota coincide con `GET /intentos/{id}/resultado` |
+| RF-39 | Con el token (en local, el de prueba): `initialize` y `tools/call listar_clases` a `/mcp` responden 200 con las clases del alumno, cada una con `habilitada`; `leer_material` de una clase futura responde que aún no está habilitada; sin token, con la sesión de la web o con el token revocado → 401. En producción, la persona conecta Claude Code con el comando y le pide «¿qué clases tengo?» y «tómame el examen de M1»: cita el material, una pregunta a la vez, y la nota coincide con `GET /intentos/{id}/resultado` |
 | RF-29 | `/conectar/openrouter?code=inventado` sin haber iniciado → se abre *Mi tutor* con el aviso *"venció o ya se usó"* (también con otra cuenta ya conectada), la URL queda en `/` y nada guardado |
 | RF-24 | *Conectar con OpenRouter (gratis)* lleva a `openrouter.ai` con `code_challenge_method=S256` y `callback_url` a `/conectar/openrouter`. La persona inicia sesión y autoriza → vuelve, el panel se cierra y el chat queda listo; **Desconectar** lo revierte |
 | RF-25 | Un código inventado canjeado por la API responde `oauth_rechazado` (lo rechaza OpenRouter real) y no se guarda |
@@ -204,7 +210,7 @@ curl -s -H "X-Usuario-Id: $(python -c 'import uuid;print(uuid.uuid4())')" \
 | Requisito | Cómo verificarlo |
 | --- | --- |
 | RF-10 | `revisemos mis errores` → explica por qué falló, el concepto correcto y una pregunta de comprobación |
-| RF-11 | Esa explicación cita el material con **chip de fuente válido** |
+| RF-11 | Esa explicación cita el material con **fuente válida** (resaltada, con la flecha ↓ de descarga); una cita que no está en el material sale tachada y sin descarga |
 | RF-12 | Una repregunta fuera del material recibe el mismo aviso: el tutor no sale del material |
 | RF-13 | `GET /api/v1/clases/$CLA/reporte` → `dudasFueraDelMaterial` incluye la consulta sobre el WACC con `conAmpliacion: false` |
 
@@ -215,6 +221,7 @@ curl -s -H "X-Usuario-Id: $(python -c 'import uuid;print(uuid.uuid4())')" \
 | RF-21 | El reporte trae el nivel del alumno acorde a su nota (0–10,9 Inicial · 11–14,9 Básico · 15–17,9 Intermedio · 18–20 Avanzado) |
 | RF-22 | El reporte trae `distribucionNiveles`, nivel por alumno y `temasDebilesDelGrupo`. En el panel del profesor, *Resultados por alumno* muestra de cada uno la nota, el nivel, los aciertos, los intentos y los temas a reforzar; la nota y el nivel aparecen solos al terminar el examen, sin que nadie los cargue |
 | RF-16 | El reporte trae `promedioNota`, `distribucionNotas`, `temasMasFallados` y `usoPorAgente` |
+| RF-08 | Reiniciar intentos (solo en local, o en producción si la persona lo pide para un alumno concreto: **borra sus notas y no se deshace**): `DELETE /clases/$CLA/alumnos/$ALU/intentos` como profesor responde `intentosBorrados`; después `GET /alumno/clases` da `intentosUsados: 0` y `mejorNota: null`, el alumno deja de salir en el reporte y vuelve a ver *Examen disponible*. Como alumno, **403** |
 | RF-21 | `PUT /clases/$CLA/niveles/$ALU` con `{"nivel":"Avanzado"}` responde `"origen":"Docente"` y el cálculo no lo pisa |
 | RF-20 | `PUT /clases/$CLA/ampliacion` con `{"permitida":true}`; recarga el chat y repite `¿qué es el WACC?`: ahora lo dice y amplía **a lápiz debajo de la respuesta** ("Fuera del material"). Vuelve a `{"permitida":false}` al terminar: apagada, el corte lo hace el servidor, no el prompt |
 | RF-02 / §6.1 | Con el chat abierto en M2, copia el archivo de prueba del bloque A a esa carpeta: en ≤ 30 s sale *"Tu docente actualizó el material de esta clase"* sin recargar. Sin cambios en la carpeta, `read_network_requests` no muestra pedidos periódicos a `/alumno/clases` (solo la conexión abierta a `/alumno/novedades`) |
@@ -241,8 +248,8 @@ Dilo explícitamente al reportar; no los marques como aprobados:
 
 | Requisito | Estado |
 | --- | --- |
-| RF-31 | Google está registrado (proyecto `tutor-pre-clase`). La entrada con Microsoft se retiró: solo se entra con Google |
-| RF-35 | El modelo del tutor se cambia solo por `PUT /admin/agentes/openrouter`; no hay pantalla |
+| RF-35 | El modelo de cada IA se cambia solo por `PUT /admin/agentes/{id}`; no hay pantalla |
+| RF-08 | Reiniciar los intentos de un alumno existe solo por API; el panel del profesor no tiene botón |
 | RF-05 | La justificación cita el material, pero las **referencias** no se guardan aún en `pregunta_referencia` |
 | RNF-11 | `data_collection: deny` se envía en cada llamada, pero que el modelo `:free` elegido tenga proveedores que lo cumplan solo se ve con la cuenta real conectada |
 | RF-23 | La IA todavía no ajusta la dificultad al nivel del alumno |

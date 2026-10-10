@@ -1,33 +1,44 @@
 # Tutor Pre-Clase
 
-Chatbot que actúa de intermediario entre el alumno y el agente de IA que él elija
-(Claude, ChatGPT o Kimi). La plataforma convierte ese modelo genérico en el **tutor del
-curso**: le pone delante el material que subió el docente, las herramientas del examen y
+Chatbot que actúa de intermediario entre el alumno y la IA que él conecte (Gemini,
+OpenRouter, Claude o ChatGPT). La plataforma convierte ese modelo genérico en el **tutor del
+curso**: le pone delante el material que subió el profesor, las herramientas del examen y
 las reglas de qué puede decir en cada momento.
 
-Cada alumno conecta **su propia credencial de IA** (BYOK): el tutor conversa con su cuenta
+Cada persona conecta **su propia cuenta o clave de IA** (BYOK): el tutor conversa con ella
 y el consumo corre por ella. La plataforma no guarda una clave compartida.
 
 El diseño completo está en [`specs/SDD-Plataforma-Evaluacion-PreClase.md`](specs/SDD-Plataforma-Evaluacion-PreClase.md).
 
 ## Qué hace
 
+- **Entrada con Google y dos perfiles**: la persona elige *Soy alumno* o *Soy profesor* y
+  entra con su cuenta de Google. El alumno elige a su profesor y ve solo sus cursos.
 - **Un solo chat por clase** para el alumno: consulta libre, examen y revisión de errores.
-- **Evaluación pre-clase**: el agente conduce el examen por chat; el servidor registra y
-  califica (0–20), nunca el modelo.
+- **Clases que se habilitan por fecha**: cada clase tiene su fecha; hasta que llega, el
+  alumno la ve bloqueada y no puede abrirla, leer su material ni rendir su examen. El
+  profesor cambia la fecha en su panel.
+- **Examen generado por la IA para cada alumno**, pregunta a pregunta, a partir del
+  material. No tiene fechas propias ni fecha límite: se rinde desde que la clase se
+  habilita, con los intentos y el tiempo que fije el profesor. El servidor registra las
+  respuestas y califica (0–20), nunca el modelo.
 - **Respuestas ancladas al material**: el contenido de la clase viaja en el contexto con
-  marcas `[archivo, p. N]`; las citas se validan contra la base.
+  marcas `[archivo, p. N]`; las citas se validan contra la base y **cada referencia
+  descarga el archivo citado**.
 - **Material condensado por IA**: al subir un archivo, la IA reescribe cada página como
-  apuntes compactos con la cuenta de OpenRouter del profesor, una sola vez. El tutor lee
-  menos y responde antes. El examen sale del original, y el profesor compara y elige en
-  su panel.
+  apuntes compactos con la cuenta de IA del profesor, una sola vez. El tutor lee menos y
+  responde antes. El examen sale del original, y el profesor compara y elige en su panel.
 - **Ampliación marcada**: si el material no cubre la duda, el tutor puede profundizar con
-  su propio conocimiento en un bloque `Ampliación fuera del material:`. El docente puede
-  apagarla por clase, y durante el examen está siempre bloqueada **en el servidor**.
-- **Reporte para el docente**: notas, nivel por alumno (Inicial/Básico/Intermedio/Avanzado),
-  temas débiles, preguntas más falladas y dudas que el material no cubrió.
-- **Credencial propia y cifrada**: el alumno la conecta desde el chat, se valida contra el
-  proveedor antes de guardarla y nunca se devuelve — la web solo ve los últimos 4 caracteres.
+  su propio conocimiento en un bloque `Ampliación fuera del material:`. Viene apagada; el
+  profesor la enciende por clase, y durante el examen está siempre bloqueada **en el servidor**.
+- **Panel del profesor**: estado del material, reglas del examen (preguntas, intentos,
+  minutos, cuándo se muestra la corrección) y fecha de cada clase, y los resultados: nota y
+  nivel por alumno (Inicial/Básico/Intermedio/Avanzado), temas a reforzar, preguntas más
+  falladas y dudas que el material no cubrió.
+- **Credencial propia y cifrada**: se valida contra el proveedor antes de guardarla y nunca
+  se devuelve — la web solo ve los últimos 4 caracteres.
+- **Servidor MCP**: con un token personal, el alumno estudia y rinde el examen desde su
+  propio asistente (Claude Code, Claude Desktop, Cursor).
 
 ## Estructura
 
@@ -35,44 +46,44 @@ El diseño completo está en [`specs/SDD-Plataforma-Evaluacion-PreClase.md`](spe
 | --- | --- |
 | `src/TutorPreClase.Domain` | Entidades y reglas puras: calificación, nivel, intentos y tiempo del examen, salvaguardas |
 | `src/TutorPreClase.Application` | Contexto de clase, prompt, herramientas, orquestación del tutor, nivel, reportes |
-| `src/TutorPreClase.Infrastructure` | EF Core, proveedores LLM (Claude / OpenAI / Kimi), extracción de texto, cola |
-| `src/TutorPreClase.Api` | REST + SSE |
+| `src/TutorPreClase.Infrastructure` | EF Core, proveedores LLM (OpenRouter, Gemini, OpenAI, Anthropic), extracción de texto, cola |
+| `src/TutorPreClase.Api` | REST + SSE, inicio de sesión (OIDC) y servidor MCP |
 | `src/TutorPreClase.Worker` | Extracción de texto fuera del proceso de la API |
-| `web` | Angular: la pantalla única de chat del alumno |
+| `web` | Angular: entrada, chat del alumno, panel del profesor y administración |
 | `tests/TutorPreClase.Tests` | Reglas, orquestación del tutor y API sobre el pipeline HTTP real |
 
 ## Levantar en local
 
-### 1. Base de datos
+El skill [`start-local`](.claude/skills/start-local/SKILL.md) tiene los comandos completos
+(API en Docker en `:5080`, web en `:4200`). En resumen:
 
-Con Docker (PostgreSQL, lo que usa producción):
+### 1. API
 
-```bash
-docker compose up -d
-dotnet dotnet-ef database update --project src/TutorPreClase.Infrastructure --startup-project src/TutorPreClase.Api
-```
-
-Sin Docker, la API puede correr sobre SQLite: ya viene configurado así en
-`appsettings.Development.json` (`Base:Proveedor = "Sqlite"`), que además siembra datos de
-demo.
-
-### 2. API
+En desarrollo corre sobre SQLite (`appsettings.Development.json`, `Base:Proveedor = "Sqlite"`),
+crea el esquema sola y sincroniza las clases desde `course-content/`:
 
 ```bash
 dotnet run --project src/TutorPreClase.Api --urls http://localhost:5080
 ```
 
-En desarrollo, `GET /demo` devuelve los identificadores sembrados (docente, alumna, curso,
-clase) para probar sin montar un login.
+Con PostgreSQL, que es lo que usa producción: `docker compose up -d` y
+`dotnet dotnet-ef database update --project src/TutorPreClase.Infrastructure --startup-project src/TutorPreClase.Api`.
 
-### 3. Frontend
+### 2. Frontend
 
 ```bash
 cd web
 npm start        # http://localhost:4200, con proxy a la API en :5080
 ```
 
-Pega el `alumnoId` de `/demo` en la pantalla de entrada.
+### 3. Entrar
+
+Con el cliente OAuth de Google en `secrets/` (skill `setup-oauth`) se entra con *Continuar
+con Google*. Sin él, en desarrollo `GET /demo` devuelve los identificadores sembrados y
+`POST /api/v1/acceso/desarrollo {"usuarioId":…}` da una sesión para ese usuario.
+
+Las clases que crea la carpeta se fechan una por semana a partir de mañana: para probar una
+como alumno hay que adelantar su fecha en el panel del profesor.
 
 ## Credenciales de IA (BYOK)
 

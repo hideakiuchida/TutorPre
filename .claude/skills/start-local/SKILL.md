@@ -60,7 +60,7 @@ for i in $(seq 1 60); do curl -s --max-time 2 http://localhost:5080/salud && bre
   Nombre del curso>/<N - Título de la clase>/<archivos>` (PDF, PPTX, DOCX, XLSX, MD, TXT).
   Cada profesor administra solo su carpeta.
 - **`secrets/` se monta solo lectura** (`/secrets`, ignorada por git): de ahí la API lee las
-  credenciales OAuth (el JSON de Google y `microsoft.json`). Para registrarlas, skill
+  credenciales OAuth (el JSON de Google, tal como lo descarga la consola). Para registrarlas, skill
   `setup-oauth`. Nunca abras ni muestres esos archivos.
 - **Volúmenes:** `tutor-datos` guarda la base SQLite y el contenido subido; `tutor-claves`,
   las claves de cifrado de las credenciales. Sin ese segundo volumen, al recrear el
@@ -102,8 +102,9 @@ Si `node_modules` no existe, primero `cd web && npm ci`. El servidor de desarrol
 curl -s http://localhost:5080/demo
 ```
 
-Devuelve `docenteId`, `alumnoId`, `cursoId` y `claseId` del curso sembrado. El `alumnoId` es
-lo que se pega en la pantalla de entrada de la web. Los IDs cambian cada vez que se borra el
+Devuelve `docenteId`, `alumnoId`, `cursoId` y `claseId` del curso sembrado. La web no los
+pide: se entra con Google o, para probar sin OAuth, con una sesión de
+`POST /api/v1/acceso/desarrollo {"usuarioId":…}`. Los IDs cambian cada vez que se borra el
 volumen `tutor-datos`.
 
 Informa al usuario de:
