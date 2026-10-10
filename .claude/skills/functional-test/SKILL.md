@@ -197,7 +197,7 @@ curl -s -H "X-Usuario-Id: $(python -c 'import uuid;print(uuid.uuid4())')" \
 | §6.4 | Di `termina el examen` con preguntas pendientes: se cierra. Sin pedirlo, el examen no se cierra antes de la sexta respuesta |
 | §5.4 | Al terminar, el tutor abre con una **evaluación final** breve: la nota, lo que dominó, los temas a reforzar y una recomendación; luego ofrece repasar los fallos. En el reporte del docente, esos temas aparecen en `temasDebiles` del alumno |
 | RNF-01 | El progreso se actualiza al instante, sin esperar al modelo |
-| RF-08 | En la lista de clases, bajo la etiqueta del examen, sale el avance del alumno (`Nota 16.7 · 2 de 3 intentos`). Tras agotar los intentos la etiqueta dice *Sin intentos disponibles*, no hay botón *Comenzar examen* e iniciar otro por API responde `SinIntentosDisponibles` |
+| RF-08 | En la lista de clases, bajo la etiqueta del examen, sale siempre el avance del alumno: `0 de 3 intentos` antes de rendir y `Nota 16.7 · 2 de 3 intentos` después (el tope son los intentos que fijó el profesor, 3 por defecto, y es por cada clase). Tras agotar los intentos la etiqueta dice *Sin intentos disponibles*, no hay botón *Comenzar examen* e iniciar otro por API responde `SinIntentosDisponibles` |
 | RF-17 | Si el tutor no responde (saturado, sin cupo, error o conexión perdida) aparece *"El tutor no llegó a responder tu último mensaje. Reintentar"*: al pulsarlo se reenvía sin duplicar el mensaje en el chat, y en `GET /conversaciones/$CONV/mensajes` queda una sola pregunta con su respuesta |
 
 ## Bloque E — Revisión

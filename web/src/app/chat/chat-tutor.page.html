@@ -23,9 +23,10 @@
             <span class="examen-fuera">Sin intentos disponibles</span>
           }
         }
-        <!-- Cómo va el alumno en este examen: su mejor nota y los intentos que le quedan. -->
+        <!-- Cómo va el alumno en este examen: su mejor nota y cuántos intentos lleva del tope
+             que fijó el profesor. Se ve siempre, también antes del primer intento. -->
         @if (clase.examen; as e) {
-          @if (e.intentosUsados > 0) {
+          @if (e.publicado) {
             <span class="mi-avance">
               @if (e.mejorNota !== null) {
                 Nota {{ e.mejorNota | number: '1.1-1' }} ·
