@@ -177,7 +177,12 @@ public class ApiTests
         Assert.Equal("clase_no_habilitada", (await abrir.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("error").GetString());
         Assert.Equal(HttpStatusCode.Conflict, (await alumno.GetAsync($"/api/v1/clases/{claseId}/material")).StatusCode);
 
-        // Un alumno no cambia la fecha.
+        // Ni la fecha ni los intentos son cosa del alumno.
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await alumno.DeleteAsync($"/api/v1/clases/{claseId}/alumnos/{alumnoId}/intentos")).StatusCode);
+        var reinicio = await docente.DeleteAsync($"/api/v1/clases/{claseId}/alumnos/{alumnoId}/intentos");
+        Assert.Equal(0, (await reinicio.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("intentosBorrados").GetInt32());
+
         Assert.Equal(HttpStatusCode.Forbidden,
             (await alumno.PutAsJsonAsync($"/api/v1/clases/{claseId}/fecha", new { inicio = DateTimeOffset.UtcNow })).StatusCode);
 

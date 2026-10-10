@@ -142,6 +142,35 @@ public class ExamenPorAlumnoTests
     }
 
     [Fact]
+    public async Task Reiniciar_los_intentos_de_un_alumno_le_devuelve_todos_y_el_chat_vuelve_a_consulta()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        await banco.Tutor.IniciarExamenAsync(conversacion.Id);
+
+        var intento = banco.Db.Intentos.Single();
+        var pregunta = banco.Db.Preguntas.First(p => p.IntentoId == intento.Id);
+        await banco.Examen.RegistrarRespuestaAsync(intento.Id, pregunta.Id, "A", "la A");
+
+        // Los de otro alumno no se tocan.
+        Assert.Equal(0, await banco.Examen.ReiniciarIntentosAsync(banco.ClaseId, Guid.NewGuid()));
+        Assert.Single(banco.Db.Intentos);
+
+        Assert.Equal(1, await banco.Examen.ReiniciarIntentosAsync(banco.ClaseId, banco.AlumnoId));
+
+        Assert.Empty(banco.Db.Intentos);
+        Assert.Empty(banco.Db.Respuestas);
+        Assert.Empty(banco.Db.Preguntas);
+        banco.Db.ChangeTracker.Clear();
+        var chat = banco.Db.Conversaciones.Single();
+        Assert.Equal((ModoConversacion.Consulta, (Guid?)null), (chat.Modo, chat.IntentoId));
+
+        // Y puede volver a empezar.
+        await banco.Tutor.IniciarExamenAsync(conversacion.Id);
+        Assert.Single(banco.Db.Intentos);
+    }
+
+    [Fact]
     public async Task Si_la_generacion_falla_no_se_gasta_el_intento()
     {
         using var banco = new BancoDePruebas().Sembrar();

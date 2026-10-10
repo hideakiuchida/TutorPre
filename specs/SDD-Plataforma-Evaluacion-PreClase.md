@@ -1104,6 +1104,7 @@ API versionada bajo `/api/v1`, autenticada con la sesión que emite la propia AP
 | PUT | /contenido/{archivoId}/condensado | Docente | `{ "usarOriginal": true }`: el tutor lee el original de ese archivo; `false` vuelve a los apuntes |
 | GET | /contenido/{archivoId}/paginas | Docente | Original y apuntes de cada página, con sus tokens, para compararlos |
 | PUT | /clases/{claseId}/examen | Docente | Crea o actualiza configuración del examen: intentos, minutos, preguntas y modo_feedback (sin fechas) |
+| DELETE | /clases/{claseId}/alumnos/{alumnoId}/intentos | Docente | Reinicia los intentos de un alumno en el examen de la clase: borra los que rindió (preguntas, respuestas y nota), quita su nivel calculado y deja su chat en consulta. No se puede deshacer; todavía no tiene botón en el panel |
 | PUT | /clases/{claseId}/fecha | Docente | Cambia la fecha de la clase, que es la que la habilita para los alumnos |
 | PUT | /clases/{claseId}/ampliacion | Docente | Activa o desactiva la ampliación del tutor en la clase (RF-20) |
 | POST | /examenes/{examenId}/publicar | Docente | Publica el examen (los de la carpeta ya nacen publicados) |

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using TutorPreClase.Api.Seguridad;
 using TutorPreClase.Application.Abstracciones;
 using TutorPreClase.Application.Contenido;
+using TutorPreClase.Application.Evaluacion;
 using TutorPreClase.Application.Nivel;
 using TutorPreClase.Application.Reportes;
 using TutorPreClase.Domain.Entidades;
@@ -297,6 +298,12 @@ public static class EndpointsDocente
 
             return Results.Ok(new { nivel = registro.Nivel.ToString(), origen = registro.Origen.ToString() });
         });
+
+        // El profesor le devuelve a un alumno todos sus intentos del examen de la clase: se
+        // borran los que rindió, con su nota. No se puede deshacer.
+        grupo.MapDelete("/clases/{claseId:guid}/alumnos/{alumnoId:guid}/intentos", async (
+            Guid claseId, Guid alumnoId, IServicioExamen examen, CancellationToken ct) =>
+            Results.Ok(new { intentosBorrados = await examen.ReiniciarIntentosAsync(claseId, alumnoId, ct) }));
 
         // Los temas a reforzar los propone el tutor; el docente puede dejar solo los que valen.
         grupo.MapPut("/clases/{claseId:guid}/niveles/{alumnoId:guid}/temas", async (

@@ -22,6 +22,12 @@ public interface IServicioExamen
     Task<ProgresoDto> ProgresoAsync(Guid intentoId, CancellationToken ct = default);
 
     /// <summary>
+    /// Borra los intentos de un alumno en el examen de una clase, con sus preguntas y
+    /// respuestas, para que vuelva a tener todos sus intentos. Devuelve cuántos borró.
+    /// </summary>
+    Task<int> ReiniciarIntentosAsync(Guid claseId, Guid alumnoId, CancellationToken ct = default);
+
+    /// <summary>
     /// Detiene el reloj del intento (la siguiente pregunta no se pudo preparar) o lo pone a
     /// correr otra vez (ya hay pregunta). El tiempo en pausa no se le descuenta al alumno.
     /// </summary>
@@ -139,6 +145,45 @@ public sealed class ServicioExamen(IAppDbContext db, IRelojSistema reloj, INivel
         return examen.ModoFeedback == ModoFeedback.Inmediato
             ? new RegistroRespuestaDto(true, alternativa.EsCorrecta, pregunta.Justificacion, quedan)
             : new RegistroRespuestaDto(true, null, null, quedan);
+    }
+
+    public async Task<int> ReiniciarIntentosAsync(Guid claseId, Guid alumnoId, CancellationToken ct = default)
+    {
+        var intentos = await db.Intentos
+            .Include(i => i.Respuestas)
+            .Where(i => i.AlumnoId == alumnoId && i.Examen!.ClaseId == claseId)
+            .ToListAsync(ct);
+
+        if (intentos.Count == 0) return 0;
+
+        var ids = intentos.Select(i => i.Id).ToList();
+
+        // El chat vuelve a consulta: sin intento no hay examen en curso ni nada que revisar.
+        var conversaciones = await db.Conversaciones
+            .Where(c => c.AlumnoId == alumnoId && c.ClaseId == claseId)
+            .ToListAsync(ct);
+        foreach (var conversacion in conversaciones)
+        {
+            conversacion.IntentoId = null;
+            conversacion.Modo = ModoConversacion.Consulta;
+        }
+
+        // El nivel salía de esas notas; el que fijó el docente a mano se respeta.
+        db.Niveles.RemoveRange(await db.Niveles
+            .Where(n => n.AlumnoId == alumnoId && n.ClaseId == claseId && n.Origen != OrigenNivel.Docente)
+            .ToListAsync(ct));
+
+        // Primero las respuestas, que apuntan a las preguntas; luego las preguntas del intento.
+        db.Respuestas.RemoveRange(intentos.SelectMany(i => i.Respuestas));
+        await db.SaveChangesAsync(ct);
+
+        db.Preguntas.RemoveRange(await db.Preguntas
+            .Where(p => p.IntentoId != null && ids.Contains(p.IntentoId.Value))
+            .ToListAsync(ct));
+        db.Intentos.RemoveRange(intentos);
+        await db.SaveChangesAsync(ct);
+
+        return intentos.Count;
     }
 
     public async Task<ProgresoDto> ProgresoAsync(Guid intentoId, CancellationToken ct = default)
