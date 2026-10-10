@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -219,15 +220,17 @@ public class ApiTests
     public async Task El_archivo_citado_se_descarga_y_solo_lo_baja_quien_lleva_el_curso()
     {
         using var api = new ApiDePruebas();
-        var (docenteId, alumnoId, _, claseId) = api.Sembrar();
-        var docente = api.Como(docenteId, "Docente");
+        var (_, alumnoId, cursoId, claseId) = api.Sembrar();
         var alumno = api.Como(alumnoId, "Alumno");
 
-        using var formulario = new MultipartFormDataContent
+        // Se guarda el archivo sin encolar su extracción: el trabajo en segundo plano usaría
+        // la misma conexión SQLite en memoria que las peticiones de la prueba.
+        using (var ambito = api.Services.CreateScope())
         {
-            { new ByteArrayContent(System.Text.Encoding.UTF8.GetBytes("# Apuntes\nReLU mantiene el gradiente.")), "archivos", "Apuntes.md" }
-        };
-        Assert.True((await docente.PostAsync($"/api/v1/clases/{claseId}/contenido", formulario)).IsSuccessStatusCode);
+            var contenido = ambito.ServiceProvider.GetRequiredService<TutorPreClase.Infrastructure.Contenido.IServicioContenido>();
+            using var bytes = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("# Apuntes. ReLU mantiene el gradiente."));
+            await contenido.SubirAsync(cursoId, claseId, "Apuntes.md", bytes);
+        }
 
         var material = await alumno.GetFromJsonAsync<JsonElement>($"/api/v1/clases/{claseId}/material");
         var archivo = material.EnumerateArray().Single(a => a.GetProperty("nombre").GetString() == "Apuntes.md");
