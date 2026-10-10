@@ -64,7 +64,7 @@
       <section class="proveedores" aria-label="Iniciar sesión">
         @for (p of proveedores(); track p.id) {
           <button type="button" class="principal" [disabled]="ocupado()" (click)="entrarCon(p)">
-            Continuar con {{ p.id === 'microsoft' ? 'Microsoft (Outlook)' : p.nombre }}
+            Continuar con {{ p.nombre }}
           </button>
         }
       </section>

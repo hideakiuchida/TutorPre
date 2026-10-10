@@ -108,8 +108,8 @@ volumen `tutor-datos`.
 
 Informa al usuario de:
 
-- **Web** → http://localhost:4200: página de entrada, solo OAuth (*Continuar con Google* /
-  *Continuar con Microsoft (Outlook)*; cada botón necesita su `ClientId` en `tutor.env`).
+- **Web** → http://localhost:4200: página de entrada, solo OAuth (*Continuar con Google*; necesita su
+  `ClientId` en `tutor.env`).
   La primera vez que alguien entra elige si es alumno (y de qué profesor) o profesor. Para
   probar en Chrome sin OAuth: `POST /api/v1/acceso/desarrollo {usuarioId}` da una sesión y
   se guarda en `sessionStorage['tutor.sesion']` (solo desarrollo; la web no lo muestra).
@@ -120,8 +120,8 @@ Informa al usuario de:
   solo añade un docente y una alumna matriculados.
 - Que por `curl` (solo desarrollo) se sigue pudiendo actuar con las cabeceras
   `X-Usuario-Id: <id>` y `X-Usuario-Rol: Docente|Alumno|Admin`.
-- Que para entrar con cuentas reales la persona pega el `ClientId`/secreto de Google (y de
-  Microsoft) en `tutor.env` en la raíz del repo (ignorado por git; el paso 2 lo pasa con
+- Que para entrar con cuentas reales la persona pega el `ClientId`/secreto de Google
+  en `tutor.env` en la raíz del repo (ignorado por git; el paso 2 lo pasa con
   `--env-file`). No hay que dar de alta a nadie: al entrar por primera vez cada persona
   elige si es alumno (y de qué profesor) o profesor. **Nunca pidas ni leas en voz alta esos
   secretos**: no los muestres con `cat`.

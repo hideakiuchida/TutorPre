@@ -19,7 +19,7 @@ public sealed class OpcionesAcceso
 {
     public const string Seccion = "Acceso";
 
-    /// <summary>"microsoft" y "google"; solo se ofrecen los que tienen ClientId.</summary>
+    /// <summary>Hoy solo "google"; la web muestra un botón por cada proveedor configurado aquí.</summary>
     public Dictionary<string, OpcionesProveedorIdentidad> Proveedores { get; set; } = [];
 
     /// <summary>Ruta de la web a la que vuelve cada proveedor: {UrlRetorno}/{proveedor}.</summary>
@@ -199,9 +199,14 @@ public sealed class ConexionIdentidad(
 {
     private static readonly TimeSpan Vigencia = TimeSpan.FromMinutes(10);
 
-    /// <summary>Todos los proveedores, con si ya tienen ClientId: la web muestra un botón por cada uno.</summary>
+    /// <summary>
+    /// Los proveedores definidos, con si ya tienen ClientId: la web muestra un botón por cada
+    /// uno. Uno retirado de la configuración no reaparece porque quede su ClientId en una
+    /// variable de entorno: sin sus direcciones no es un proveedor.
+    /// </summary>
     public IEnumerable<(string Id, string Nombre, bool Configurado)> Disponibles() =>
         opciones.Value.Proveedores
+            .Where(p => Definido(p.Value))
             .Select(p => (p.Key, p.Value.Nombre, !string.IsNullOrWhiteSpace(p.Value.ClientId)));
 
     /// <summary>
@@ -403,9 +408,13 @@ public sealed class ConexionIdentidad(
     }
 
     private OpcionesProveedorIdentidad Proveedor(string proveedor) =>
-        opciones.Value.Proveedores.TryGetValue(proveedor, out var config) && !string.IsNullOrWhiteSpace(config.ClientId)
+        opciones.Value.Proveedores.TryGetValue(proveedor, out var config) && Definido(config) &&
+        !string.IsNullOrWhiteSpace(config.ClientId)
             ? config
             : throw new AccesoException("proveedor_no_disponible", "Ese inicio de sesión no está configurado.");
+
+    private static bool Definido(OpcionesProveedorIdentidad config) =>
+        !string.IsNullOrWhiteSpace(config.UrlAutorizacion) && !string.IsNullOrWhiteSpace(config.UrlToken);
 
     private string Retorno(string proveedor) => $"{opciones.Value.UrlRetorno.TrimEnd('/')}/{proveedor}";
 

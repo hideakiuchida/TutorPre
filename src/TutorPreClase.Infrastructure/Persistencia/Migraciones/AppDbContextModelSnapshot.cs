@@ -338,12 +338,6 @@ namespace TutorPreClase.Infrastructure.Persistencia.Migraciones
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<DateTimeOffset>("AbreEn")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("CierraEn")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<Guid>("ClaseId")
                         .HasColumnType("uuid");
 

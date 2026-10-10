@@ -172,10 +172,10 @@ if (app.Environment.IsDevelopment())
             .Replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ");
         await db.Database.ExecuteSqlRawAsync(script);
 
-        // Tampoco cambia columnas: el cierre del examen pasó a ser opcional (sin fecha
-        // límite), y los exámenes locales que ya existían quedan como los de producción.
-        if (await EsquemaSqlite.HacerOpcionalAsync(db, "examen", "CierraEn"))
-            await db.Database.ExecuteSqlRawAsync("UPDATE examen SET \"CierraEn\" = NULL");
+        // Tampoco quita columnas: el examen dejó de tener fechas propias (lo habilita la
+        // fecha de su clase).
+        await EsquemaSqlite.QuitarColumnaAsync(db, "examen", "AbreEn");
+        await EsquemaSqlite.QuitarColumnaAsync(db, "examen", "CierraEn");
 
         // Ni agrega columnas: el reloj del intento ahora se puede pausar.
         await EsquemaSqlite.AgregarColumnaAsync(db, "intento", "PausadoDesde", "INTEGER NULL");

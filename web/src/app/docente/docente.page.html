@@ -165,14 +165,13 @@
               </label>
 
               <div class="campo ancho">
-                <label for="cierre">Fecha límite para rendirlo</label>
-                <input id="cierre" type="datetime-local" [value]="fechaLocal(a.cierraEn)" [disabled]="a.cierraEn === null"
-                       (change)="cambiarAjuste({ cierraEn: fechaIso($any($event.target).value) })" />
-                <label class="opcion-campo">
-                  <input type="checkbox" [checked]="a.cierraEn === null"
-                         (change)="cambiarAjuste({ cierraEn: $any($event.target).checked ? null : clase.inicio })" />
-                  Sin fecha límite
-                </label>
+                <label for="fecha">Fecha de la clase</label>
+                <input id="fecha" type="datetime-local" [value]="fechaLocal(fecha())"
+                       (change)="cambiarFecha($any($event.target).value)" />
+                <span class="nota-campo">
+                  Los alumnos pueden abrir la clase y rendir el examen desde esta fecha; antes la ven bloqueada.
+                  El examen no tiene fecha límite.
+                </span>
               </div>
 
               <div class="guardar">

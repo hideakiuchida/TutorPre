@@ -50,17 +50,17 @@ Medir los conocimientos previos del alumno, cerrar sus vacíos con un tutor que 
 
 | ID | Requisito | Prioridad |
 | --- | --- | --- |
-| RF-01 | El docente crea una clase con fecha/hora de inicio y ventana de disponibilidad del examen | Alta |
+| RF-01 | El docente crea una clase con fecha/hora de inicio. **La clase se habilita para el alumno al llegar esa fecha**: antes la ve en su lista, bloqueada, y no puede abrir el chat, leer el material ni rendir el examen. El examen no tiene fechas propias (ni apertura ni límite) | Alta |
 | RF-02 | El docente sube el contenido copiándolo a la carpeta de contenido, una subcarpeta por clase (PDF, PPTX, DOCX, XLSX, MD, TXT); lo que quita de la carpeta se retira de la clase | Alta |
 | RF-03 | El sistema extrae el texto del contenido automáticamente al subirlo, conservando archivo y página | Alta |
 | RF-04 | La IA genera un examen propio para cada alumno en cada intento, a partir del material de la clase y con su propio criterio, **pregunta a pregunta**: al empezar solo la primera, y cada siguiente mientras el alumno responde la anterior, sin repetir lo ya preguntado. El docente no escribe ni aprueba preguntas | Alta |
 | RF-05 | Cada pregunta generada tiene 4 alternativas con una sola correcta, un tema y una justificación que cita el material; el servidor descarta las que no cumplen | Alta |
 | RF-06 | El tutor usa el modelo que habilita el administrador; al iniciar el examen el modelo queda fijado en el intento | Alta |
 | RF-07 | El agente conduce el examen por chat: presenta cada pregunta, interpreta la respuesta en lenguaje natural y la registra mediante una herramienta del servidor | Alta |
-| RF-08 | El examen solo se rinde dentro de la ventana, con un número configurable de intentos por el docente (por defecto 3) | Alta |
+| RF-08 | El examen se rinde desde que la clase se habilita (RF-01), sin fecha límite, con un número configurable de intentos por el docente (por defecto 3) | Alta |
 | RF-09 | El servidor calcula el puntaje (0–20, escala peruana) y el porcentaje; el agente solo lo comunica | Alta |
 | RF-10 | El agente explica cada pregunta fallada como tutor: por qué falló, el concepto correcto y una pregunta de comprobación | Alta |
-| RF-11 | El alumno puede repreguntar al agente sobre cualquier fallo o tema de la clase; el tutor responde primero con el contenido del docente y cita archivo y página | Alta |
+| RF-11 | El alumno puede repreguntar al agente sobre cualquier fallo o tema de la clase; el tutor responde primero con el contenido del docente y cita archivo y página. **Cada referencia permite descargar el archivo citado** | Alta |
 | RF-12 | Si el contenido no cubre la duda, el tutor lo dice explícitamente y puede ampliar con su propio conocimiento, marcando esa parte como *ampliación fuera del material*; nunca la presenta como contenido del docente | Alta |
 | RF-13 | El docente ve qué dudas pidieron los alumnos, cuáles no cubría su material y qué ampliaciones dio el tutor | Media |
 | RF-14 | El docente elige por examen el modo de feedback: Inmediato o Al final (por defecto) | Media |
@@ -82,7 +82,7 @@ Medir los conocimientos previos del alumno, cerrar sus vacíos con un tutor que 
 | RF-30 | Si el proveedor corta por límite de uso (HTTP 429), el chat dice cuándo puede volver, sin marcar la credencial como inválida ni perder el avance | Media |
 | RF-31 | Todos los usuarios entran por una única página de inicio de sesión con la cuenta de la universidad (OAuth / OpenID Connect); el sistema reconoce su rol (Alumno, Docente, Administrador) y lo lleva a su pantalla | Alta |
 | RF-32 | Al entrar, al alumno que no tiene OpenRouter conectado se le conecta en el mismo paso: tras el inicio de sesión va directo a autorizar OpenRouter y vuelve al chat listo | Alta |
-| RF-33 | Autorregistro: en la página de entrada la persona elige primero su perfil, **alumno** o **profesor**, y luego entra con Google o Microsoft/Outlook, sin aprobación de nadie. Un profesor puede entrar también como alumno. El alumno elige además a su profesor y solo ve los cursos de ese profesor; puede cambiarlo después. El administrador puede corregir roles y matrículas. Con el registro cerrado, solo entran los registrados | Alta |
+| RF-33 | Autorregistro: en la página de entrada la persona elige primero su perfil, **alumno** o **profesor**, y luego entra con Google, sin aprobación de nadie. Un profesor puede entrar también como alumno. El alumno elige además a su profesor y solo ve los cursos de ese profesor; puede cambiarlo después. El administrador puede corregir roles y matrículas. Con el registro cerrado, solo entran los registrados | Alta |
 | RF-34 | El profesor administra el contenido de **sus** cursos (su carpeta `course-content/<su correo>/`) y tiene su pantalla: estado del material, ajustes del examen y de la ampliación de cada clase y el reporte (RF-13, RF-16, RF-22). No ve ni toca los cursos de otro profesor | Alta |
 | RF-35 | El administrador elige el modelo de IA que usa el tutor y puede cambiarlo sin desplegar (RF-06, RF-17) | Media |
 | RF-37 | Cada usuario conecta **sus propias cuentas de IA** y elige con cuál conversar. Hoy: **Gemini con su cuenta de Google** (OAuth, sin claves) y **OpenRouter** (OAuth). ChatGPT y Claude no ofrecen OAuth para usar la suscripción del usuario desde otra app; su vía es OpenRouter con la clave de API del usuario enlazada en su cuenta de OpenRouter (fase 2) | Alta |
@@ -98,9 +98,9 @@ Medir los conocimientos previos del alumno, cerrar sus vacíos con un tutor que 
 | --- | --- |
 | Todos | RF-31 inicio de sesión y rol |
 | Administrador | RF-33 corregir roles y matrículas · RF-35 modelo del tutor |
-| Docente (profesor) | RF-33 registrarse como profesor · RF-02 subir material a su carpeta · RF-36 conectar OpenRouter y revisar los apuntes · RF-01 clases y ventana del examen · RF-14 modo de feedback · RF-18 temporizador · RF-20 ampliación · RF-34 su pantalla · RF-13, RF-16, RF-22 reporte |
+| Docente (profesor) | RF-33 registrarse como profesor · RF-02 subir material a su carpeta · RF-36 conectar OpenRouter y revisar los apuntes · RF-01 clases y su fecha · RF-14 modo de feedback · RF-18 temporizador · RF-20 ampliación · RF-34 su pantalla · RF-13, RF-16, RF-22 reporte |
 | Alumno | RF-33 registrarse y elegir profesor · RF-32, RF-37, RF-38 y RF-24–RF-27, RF-29 conectar Gemini, OpenRouter o su clave de API · RF-39 estudiar desde su asistente (MCP) · RF-19 consulta · RF-11 repreguntar · RF-06, RF-07 rendir el examen · RF-10 revisar errores |
-| Sistema | RF-03 extraer texto · RF-04, RF-05 generar el examen · RF-08, RF-09 ventana, intentos y nota · RF-12, RF-15 límites del tutor · RF-21 nivel · RF-23 dificultad adaptativa · RF-17, RF-28, RF-30 resiliencia |
+| Sistema | RF-03 extraer texto · RF-04, RF-05 generar el examen · RF-08, RF-09 intentos y nota · RF-12, RF-15 límites del tutor · RF-21 nivel · RF-23 dificultad adaptativa · RF-17, RF-28, RF-30 resiliencia |
 
 **Dependencias.** Una flecha `A --> B` significa "B no funciona sin A":
 
@@ -130,7 +130,7 @@ Lo que casi todo necesita es saber **quién es el usuario y qué rol tiene** (RF
 
 | Orden | Bloque | Requisitos | Estado |
 | --- | --- | --- | --- |
-| 1 | Acceso e identidad | RF-31, RF-33 | Hecho y probado con Google en local (proyecto `tutor-pre-clase`, modo prueba). Falta Microsoft: la cuenta UPC de alumno no puede registrar apps en Entra (403); lo registra TI o una cuenta personal con su propio directorio (skill `setup-oauth`) |
+| 1 | Acceso e identidad | RF-31, RF-33 | Hecho y probado con Google (proyecto `tutor-pre-clase`). La entrada con Microsoft se retiró: la cuenta UPC de alumno no puede registrar apps en Entra (403) |
 | 2 | Material del docente | RF-02, RF-03, RF-01 | Hecho (carpeta sincronizada; reprogramar la fecha de una clase aún no tiene endpoint) |
 | 3 | Conexión del alumno | RF-32, RF-24–RF-27, RF-29 | Hecho |
 | 4 | Tutor en consulta | RF-19, RF-11, RF-12, RF-20 | Hecho |
@@ -182,7 +182,7 @@ En la v1 desplegada, la cola y el worker corren dentro del mismo proceso de la A
 
 - **Clases y contenido**: CRUD de cursos/clases, subida de archivos, estado de extracción y armado del contexto de clase.
 - **Generador de examen**: `GeneradorExamen` pide a la IA, en una llamada aparte del chat, las preguntas de cada intento a partir del contexto de clase; valida su forma y baraja las alternativas en el servidor.
-- **Evaluación**: intentos, registro de respuestas, calificación determinista (sin IA) y reglas de ventana/intentos.
+- **Evaluación**: intentos, registro de respuestas, calificación determinista (sin IA) y reglas de intentos y tiempo.
 - **Agente tutor (proxy)**: `AgenteTutorService` orquesta la única conversación del alumno en sus tres modos (Evaluación, Revisión, Consulta), expone las herramientas del servidor y decide qué puede ver y decir el agente en cada modo.
 - **Gateway LLM**: `OpenRouterProvider`, implementación de `ILlmProvider` sobre la API de OpenRouter (formato de chat de OpenAI), con límites y registro de tokens. La credencial se le inyecta por llamada: el gateway no guarda ninguna. La interfaz deja abierta la puerta a otro gateway sin tocar el resto.
 - **Credenciales**: `BovedaCredenciales` cifra, valida y entrega la credencial del alumno dueño de la conversación, y solo a él. `ConexionOpenRouter` conduce el OAuth con PKCE y deja la clave obtenida en la misma bóveda.
@@ -202,7 +202,7 @@ En la v1 desplegada, la cola y el worker corren dentro del mismo proceso de la A
 | Archivos | Volumen de Railway en la v1; Azure Blob Storage o Amazon S3 más adelante | Almacenamiento barato del contenido original |
 | Cola | RabbitMQ | Desacopla subida y extracción de texto |
 | LLM | Gemini con la cuenta de Google del usuario (`GeminiProvider`) y OpenRouter (modelo `:free` elegido por el administrador, `OpenRouterProvider`), ambos vía ILlmProvider | Cada usuario conecta sus cuentas con un clic (OAuth) y elige con cuál conversar (RF-37); el modelo de cada agente se cambia por configuración |
-| Autenticación | OpenID Connect con Microsoft (Entra ID) y Google; sesión propia firmada por la API | Login institucional, sin contraseñas propias; el rol lo decide la plataforma |
+| Autenticación | OpenID Connect con Google; sesión propia firmada por la API | Sin contraseñas propias; el rol lo decide la plataforma |
 | Cifrado de credenciales | ASP.NET Data Protection, con clave por usuario | Cifrado en reposo sin montar un KMS para la v1 |
 | Despliegue | API en Docker sobre Railway (con PostgreSQL) y web estática en Vercel, desplegadas por GitHub Actions solo con el CI en verde (`docs/DESPLIEGUE.md`); Azure Container Apps o AWS ECS si la universidad lo exige | Barato para la v1, un despliegue por push a `main` y escalado horizontal más adelante |
 
@@ -339,11 +339,11 @@ flowchart LR
 
 ### 5.0 Inicio de sesión y rol
 
-Todos entran por la misma página (RF-31). **Primero eligen el perfil** (*Soy alumno* / *Soy profesor*) y después el proveedor (*Continuar con Google* / *Continuar con Microsoft (Outlook)*):
+Todos entran por la misma página (RF-31). **Primero eligen el perfil** (*Soy alumno* / *Soy profesor*) y después entran con *Continuar con Google*:
 
 1. La web pide a la API la URL del proveedor con el perfil elegido (`POST /acceso/{proveedor}/inicio { perfil }`); la API genera `state`, `nonce` y el verificador PKCE y los guarda 10 minutos **junto con el perfil**, que así no viaja por la URL ni se puede alterar al volver.
-2. La persona inicia sesión en Microsoft o Google y vuelve a `/entrar/{proveedor}?code=…&state=…`.
-3. La API canjea el código directamente con el proveedor (por TLS, con su secreto de cliente) y valida el `id_token`: emisor, audiencia, vigencia, `nonce` y, en Google, correo verificado. En Microsoft, si no viene `email`, usa `preferred_username`.
+2. La persona inicia sesión en Google y vuelve a `/entrar/{proveedor}?code=…&state=…`.
+3. La API canjea el código directamente con el proveedor (por TLS, con su secreto de cliente) y valida el `id_token`: emisor, audiencia, vigencia, `nonce` y correo verificado.
 4. Busca al usuario por ese correo (RF-33):
    - Ya registrado: entra con el perfil elegido. Un **profesor puede entrar como alumno** (la sesión lleva rol Alumno y `vistas: [Docente, Alumno]`): ve el chat, elige profesor —incluido él mismo— y conserva sus propios cursos. Un **alumno que entra como profesor pasa a ser profesor** (y puede seguir entrando como alumno). Un profesor cuya carpeta ya existía quedó registrado por el sincronizador con su correo; al entrar se toma su nombre.
    - Correos de `Acceso:Administradores`: entran como administrador.
@@ -354,7 +354,7 @@ Todos entran por la misma página (RF-31). **Primero eligen el perfil** (*Soy al
 5. La API emite su propia sesión (JWT firmado por ella, 12 h) con el rol que el usuario tiene **en la plataforma**, no en el proveedor. La web la envía como `Authorization: Bearer` y lleva a cada rol a su pantalla: el alumno al chat, el docente a su panel y el administrador a la gestión de usuarios.
 6. **Alumno sin OpenRouter (RF-32):** tras entrar, la web lo lleva directo a autorizar OpenRouter (§5.1) y vuelve al chat listo. Si cancela, no se le reenvía en bucle: queda el botón para hacerlo cuando quiera. La primera vez OpenRouter pide consentimiento (y crear la cuenta, que puede hacer con el mismo Google); después basta con un clic.
 
-La página solo ofrece OAuth: un botón *Continuar con Google* y otro *Continuar con Microsoft (Outlook)*. Microsoft usa el punto de entrada `common`, así que acepta tanto cuentas personales (Outlook.com, Hotmail) como de organización. Un botón cuyo proveedor aún no tiene `ClientId` avisa que no está configurado. Fuera de producción, la API mantiene `/acceso/desarrollo` para las pruebas automáticas y por `curl`, pero la web no lo muestra.
+La página solo ofrece OAuth, con un único botón: *Continuar con Google*, igual para alumno y profesor. La entrada con Microsoft (Outlook) se retiró; el canje es OIDC genérico y la web pinta un botón por cada proveedor de la configuración de la API, así que volver a ofrecerlo es añadirlo ahí. Si el proveedor no tiene `ClientId`, el botón avisa que no está configurado. Fuera de producción, la API mantiene `/acceso/desarrollo` para las pruebas automáticas y por `curl`, pero la web no lo muestra.
 
 ### 5.1 Conexión del agente
 
@@ -402,9 +402,9 @@ Ya conectado:
 
 ### 5.2 Examen conversacional
 
-**Cada alumno rinde un examen propio, generado por la IA** (RF-04). Toda clase de la carpeta tiene su examen publicado (6 preguntas, 20 minutos, 3 intentos, **sin fecha límite**: la fecha de la clase se conserva, pero no cierra el examen; el docente puede fijar un cierre con `PUT /clases/{id}/examen`); lo que no existe de antemano son las preguntas:
+**Cada alumno rinde un examen propio, generado por la IA** (RF-04). Toda clase de la carpeta tiene su examen publicado (6 preguntas, 20 minutos, 3 intentos, **sin fechas propias**: se puede rendir desde que la clase se habilita, al llegar su fecha, y no cierra nunca; la fecha la cambia el profesor con `PUT /clases/{id}/fecha`); lo que no existe de antemano son las preguntas:
 
-1. Al pulsar *Comenzar examen*, el servidor comprueba ventana e intentos (RF-08) y que la clase tenga material.
+1. Al pulsar *Comenzar examen*, el servidor comprueba que la clase ya esté habilitada (RF-01), los intentos (RF-08) y que la clase tenga material. Con la clase aún sin habilitar responde 409 `clase_no_habilitada`, igual que al abrir el chat, enviar un mensaje o pedir el material.
 2. **Pregunta a pregunta.** Con la cuenta de IA del alumno (Gemini u OpenRouter), pide a la IA **solo la primera pregunta**, de opción múltiple y basada únicamente en el material original de la clase: de comprensión y aplicación, con alternativas incorrectas plausibles y una justificación que cite `[archivo, p. N]`. Así el alumno empieza en segundos, en lugar de esperar a que la IA arme las seis. Es una llamada aparte del chat: la clave de respuestas nunca entra en la conversación del tutor (§6.4).
 3. El intento se crea con `preguntas_planeadas` = las del examen (6 por defecto) y la primera pregunta ligada a él (`pregunta.intento_id`).
 4. **La siguiente se prepara mientras responde.** Cada vez que el tutor entrega una pregunta, `PreparadorPreguntas` pide la siguiente en segundo plano, con la lista de lo ya preguntado para no repetir tema ni concepto. Cuando el tutor llama a `obtener_siguiente_pregunta`, casi siempre ya está lista; si no, `PreguntasDelIntento` la genera en ese momento. Un candado por intento evita que ambos caminos generen la misma pregunta, y nunca hay más de una preparada por delante (no se gasta cupo de más).
@@ -838,7 +838,7 @@ sequenceDiagram
 
     U->>W: Comenzar examen
     W->>T: POST /conversaciones/{id}/examen
-    T->>E: ventana abierta, intentos disponibles, material
+    T->>E: clase habilitada, intentos disponibles, material
     E->>G: generar SOLO la pregunta 1 con el material original (no los apuntes)
     G->>O: llamada aparte del chat, sin herramientas, reasoning low, temperatura 0.7
     O-->>G: JSON con la pregunta, alternativas, correcta y justificación con cita
@@ -952,7 +952,7 @@ sequenceDiagram
     E-->>C: nota sobre 20 calculada por el servidor y fallos
 ```
 
-El asistente nunca recibe la clave de respuestas antes de finalizar ni puede escribir la nota: las herramientas son las del chat y pasan por el mismo `EjecutorHerramientas`, que comprueba el modo, la ventana y los intentos. El servidor MCP envía como instrucciones las reglas del tutor (§6.3): citar el material, marcar la ampliación y no dar pistas durante el examen. La sesión de la web no abre `/mcp`, y el token MCP no abre el resto de la API.
+El asistente nunca recibe la clave de respuestas antes de finalizar ni puede escribir la nota: las herramientas son las del chat y pasan por el mismo `EjecutorHerramientas`, que comprueba el modo, que la clase esté habilitada y los intentos. El servidor MCP envía como instrucciones las reglas del tutor (§6.3): citar el material, marcar la ampliación y no dar pistas durante el examen. La sesión de la web no abre `/mcp`, y el token MCP no abre el resto de la API.
 
 ## 6. Módulo de contenido de clase
 
@@ -1103,10 +1103,11 @@ API versionada bajo `/api/v1`, autenticada con la sesión que emite la propia AP
 | POST | /clases/{claseId}/condensar | Docente | Encola la condensación de los archivos sin apuntes; con `{ "forzar": true }`, de todos (RF-36) |
 | PUT | /contenido/{archivoId}/condensado | Docente | `{ "usarOriginal": true }`: el tutor lee el original de ese archivo; `false` vuelve a los apuntes |
 | GET | /contenido/{archivoId}/paginas | Docente | Original y apuntes de cada página, con sus tokens, para compararlos |
-| PUT | /clases/{claseId}/examen | Docente | Crea o actualiza configuración del examen (incluye modo_feedback) |
+| PUT | /clases/{claseId}/examen | Docente | Crea o actualiza configuración del examen: intentos, minutos, preguntas y modo_feedback (sin fechas) |
+| PUT | /clases/{claseId}/fecha | Docente | Cambia la fecha de la clase, que es la que la habilita para los alumnos |
 | PUT | /clases/{claseId}/ampliacion | Docente | Activa o desactiva la ampliación del tutor en la clase (RF-20) |
 | POST | /examenes/{examenId}/publicar | Docente | Publica el examen (los de la carpeta ya nacen publicados) |
-| GET | /acceso/proveedores | Público | Proveedores de inicio de sesión configurados (Microsoft, Google) |
+| GET | /acceso/proveedores | Público | Proveedores de inicio de sesión configurados (hoy, solo Google) |
 | POST | /acceso/{proveedor}/inicio | Público | `{ perfil: Alumno\|Docente }` → URL de autorización con `state`, `nonce` y PKCE; el perfil queda en el servidor ligado al `state` (RF-31) |
 | POST | /acceso/{proveedor}/canje | Público | Canjea `{ code, state }`: devuelve `{ sesion }` si ya está registrado o `{ registro }` (primer acceso, falta elegir rol); 403 `no_registrado` con el registro cerrado |
 | POST | /acceso/registro | Público (con token de registro) | `{ token, rol: Alumno\|Docente, profesorId? }`: crea al usuario con el rol elegido y devuelve la sesión (RF-33) |
@@ -1128,7 +1129,9 @@ API versionada bajo `/api/v1`, autenticada con la sesión que emite la propia AP
 | POST | /alumno/credenciales/openrouter/oauth/canje | Alumno | Canjea `{ "code" }` por la clave, la valida y la guarda; devuelve agente, últimos 4, origen y estado |
 | GET | /admin/agentes | Admin | Agentes con su modelo y estado |
 | PUT | /admin/agentes/{agenteId} | Admin | Habilita/deshabilita el agente y define su modelo |
-| GET | /alumno/clases | Alumno, Docente | Clases de los cursos en que el usuario está matriculado, con el estado del examen; el panel del docente también la usa |
+| GET | /alumno/clases | Alumno, Docente | Clases de los cursos en que el usuario está matriculado, con `habilitada` (si ya llegó su fecha) y el estado del examen; el panel del docente también la usa |
+| GET | /clases/{claseId}/material | Alumno, Docente | Archivos de la clase (`archivoId`, `nombre`), para enlazar cada referencia con su descarga; 409 si la clase aún no está habilitada |
+| GET | /clases/{claseId}/material/{archivoId} | Alumno, Docente | Descarga el archivo original. Solo el alumno matriculado (con la clase habilitada) o el profesor del curso; otro usuario recibe 403 |
 | POST | /clases/{claseId}/conversacion | Alumno | Abre (o recupera) el chat de la clase con `{ "agenteId": "openrouter" }` |
 | POST | /conversaciones/{conversacionId}/mensajes | Alumno | Envía un mensaje al tutor; respuesta por SSE (texto, herramientas, fuentes) |
 | GET | /conversaciones/{conversacionId}/mensajes | Alumno | Historial del chat (para recargar la página) |
@@ -1197,12 +1200,12 @@ Todos entran por la misma página y cada rol tiene **una sola pantalla**: el alu
 
 | Pantalla | Rol | Contenido principal |
 | --- | --- | --- |
-| Entrada | Todos | Franja roja UPC; primero *Soy alumno* / *Soy profesor*, luego *Continuar con Google* / *Continuar con Microsoft (Outlook)*; lleva a cada rol a su pantalla |
+| Entrada | Todos | Franja roja UPC; primero *Soy alumno* / *Soy profesor*, luego *Continuar con Google*; lleva a cada rol a su pantalla |
 | Tu profesor | Alumno | Lista de profesores con sus cursos para elegir o cambiar; se abre desde *Cambiar* en la barra lateral del chat o si aún no tiene profesor |
 | Administración | Admin | Alta o edición de una persona (correo, nombre, rol, cursos), alta por lista y tabla de usuarios registrados |
 | Chat del tutor | Alumno | Lista lateral de clases (con estado del examen y cuenta regresiva) y el chat en streaming, **como una conversación: los mensajes del alumno a la izquierda y las respuestas del tutor a la derecha**, cada uno en su globo; debajo del globo del tutor, sus fuentes (resaltadas) y la ampliación (a lápiz). Las negritas de Markdown del tutor se muestran como negritas. En la cabecera: clase, modo (Consulta / Examen / Revisión), **«Mi tutor: Gemini (tu cuenta de Google)» con *Cambiar*** y, durante el examen, progreso y temporizador. En el cuerpo: mensajes, chips de fuente que abren el archivo en la página citada y bloques de ampliación con estilo diferenciado. Aviso cuando el docente actualiza el material (§6.1). Sin ninguna IA conectada, se abre *Mi tutor* |
 | Mi tutor | Alumno | Se abre encima del chat con *Cambiar*. Arriba, **«Conversas con»**: las IA conectadas como opciones, cada una con su modelo (bloqueado durante el examen). Debajo, tres pestañas: **Con tu cuenta** (Gemini y OpenRouter: *Entrar con…*, *Volver a entrar*, *Desconectar*), **Con tu clave de API** (ChatGPT, Claude y Gemini de AI Studio: campo de clave oculto, *Conectar*, enlace a la consola para crearla, «termina en XXXX» y *Desconectar*) y **Desde tu asistente** (URL del servidor MCP, *Generar token* que se muestra una sola vez con *Copiar*, *Revocar*, último uso y los pasos para Claude Code, Claude Desktop y otros clientes). Pestañas accesibles con el teclado (flechas) |
-| Panel del docente: material | Docente | Estado de extracción de lo que copió a la carpeta y tokens del contexto de clase, ventana del examen, interruptor de ampliación. Por archivo, qué lee el tutor (*Apuntes de la IA*, *Original*, *Condensando…*, o por qué no se condensó) y los tokens antes y después. *Comparar* muestra original y apuntes página por página; *Usar original* / *Usar apuntes* elige por archivo. Sin cuenta, *Conectar OpenRouter* (al volver se condensan todas sus clases); con cuenta, *Condensar de nuevo*. El panel se refresca solo mientras hay apuntes en camino. En *Examen y tutor* el profesor ajusta el examen de la clase: preguntas por examen (3–20), intentos por alumno (1–10), minutos por intento (5–240 o sin límite), cuándo se muestra la corrección (al terminar o tras cada respuesta) y la fecha límite (o sin fecha límite); el servidor valida los rangos y los cambios valen para los intentos que empiecen después. No hay botón de publicar: las clases de la carpeta nacen con el examen publicado |
+| Panel del docente: material | Docente | Estado de extracción de lo que copió a la carpeta y tokens del contexto de clase, interruptor de ampliación. Por archivo, qué lee el tutor (*Apuntes de la IA*, *Original*, *Condensando…*, o por qué no se condensó) y los tokens antes y después. *Comparar* muestra original y apuntes página por página; *Usar original* / *Usar apuntes* elige por archivo. Sin cuenta, *Conectar OpenRouter* (al volver se condensan todas sus clases); con cuenta, *Condensar de nuevo*. El panel se refresca solo mientras hay apuntes en camino. En *Examen y tutor* el profesor ajusta el examen de la clase: preguntas por examen (3–20), intentos por alumno (1–10), minutos por intento (5–240 o sin límite), cuándo se muestra la corrección (al terminar o tras cada respuesta) y la **fecha de la clase**, desde la que los alumnos pueden abrirla y rendir el examen (el examen no tiene fecha límite); el servidor valida los rangos y los cambios valen para los intentos que empiecen después. No hay botón de publicar: las clases de la carpeta nacen con el examen publicado |
 | Panel del docente: resultados por alumno | Docente | En *Resultados del examen*, una ficha por alumno que rindió: la nota vigente (la misma con la que el servidor fijó su nivel), el nivel (con la marca *corregido por ti* si el docente lo cambió), aciertos del último intento, número de intentos y los temas a reforzar que propuso el tutor tras el último examen (cada intento nuevo empieza su diagnóstico de cero); el docente puede quitar los que no correspondan (`PUT /clases/{id}/niveles/{alumnoId}/temas`). Nadie carga estos datos: el servidor califica y fija el nivel al registrar la última respuesta (RF-09, RF-21, RF-22) |
 | Panel del docente: reporte | Docente | Promedio, histograma de notas, distribución de niveles y nivel por alumno (editable), temas más fallados (porcentaje de respuestas erradas por tema), temas débiles del grupo, dudas que el material no cubrió y uso por agente |
 
@@ -1247,7 +1250,7 @@ La web nunca ve ni guarda la clave: la ruta `/conectar/openrouter` toma el `code
 
 | Tipo | Alcance | Herramientas |
 | --- | --- | --- |
-| Unitarias | Calificación, reglas de ventana e intentos, herramientas del agente, armado de prompts | xUnit, Jest |
+| Unitarias | Calificación, reglas de intentos y tiempo, habilitación de la clase por fecha, herramientas del agente, armado de prompts | xUnit, Jest |
 | Integración | API + PostgreSQL + RabbitMQ reales; proveedores LLM simulados | Testcontainers, WebApplicationFactory, WireMock |
 | Contrato | Eventos SSE que consume Angular (`modo`, `token`, `progreso`, `fuentes`, `fin`); formato de tools de cada proveedor | Pact o snapshots JSON |
 | Paridad de modelos | Mismo guion con cada modelo candidato antes de habilitarlo: registra bien las respuestas, no filtra la respuesta, termina el examen, marca las ampliaciones y cuántas llamadas consume el guion completo (RNF-11) | Conversaciones guionadas + verificación de llamadas a herramientas |
@@ -1274,7 +1277,7 @@ La web nunca ve ni guarda la clave: la ruta `/conectar/openrouter` toma el `code
 | La IA genera una pregunta con la respuesta marcada mal o fuera del material | Alto | Validación de forma en servidor, justificación obligatoria con cita, revisión posterior del alumno contra el material; el docente ve los temas más fallados y puede detectar una pregunta defectuosa |
 | El alumno logra que el agente le dé la respuesta | Alto | La clave no está en el contexto durante el examen; pruebas adversariales por agente |
 | El modelo gratuito cita mal, no marca la ampliación o filtra la respuesta | Alto | Los cortes de servidor (sección 6.4) no dependen del modelo; la suite de paridad y la adversarial se pasan también con el modelo `:free` antes de habilitarlo |
-| El alumno agota el cupo gratuito a mitad del examen | Medio | Aviso claro sin perder el avance (RF-30); el temporizador y la ventana siguen corriendo, así que el panel recomienda empezar el examen con cupo disponible |
+| El alumno agota el cupo gratuito a mitad del examen | Medio | Aviso claro sin perder el avance (RF-30); el temporizador sigue corriendo, así que el panel recomienda empezar el examen con cupo disponible |
 | OpenRouter retira o cambia el modelo gratuito | Medio | El modelo es configuración del administrador; se cambia por otro que haya pasado la paridad, sin desplegar |
 | El proveedor final del modelo gratuito entrena con los datos | Alto | Solo se habilitan proveedores que no entrenan con los prompts (RNF-11); revisión legal según Ley 29733 |
 | El modelo gratuito maneja mal las herramientas | Medio | Solo se habilitan modelos que pasan la paridad; eventos de UI emitidos por el servidor |
@@ -1292,7 +1295,7 @@ La web nunca ve ni guarda la clave: la ruta `/conectar/openrouter` toma el `code
 
 | Fase | Duración estimada | Entregable |
 | --- | --- | --- |
-| 1. MVP | 7 semanas | Inicio de sesión con Microsoft y Google y pantallas por rol, contenido por carpeta y extracción de texto, chat único conectado a la cuenta de OpenRouter del alumno, examen generado por la IA para cada alumno, calificación y revisión de fallos |
+| 1. MVP | 7 semanas | Inicio de sesión con Google y pantallas por rol, contenido por carpeta y extracción de texto, chat único conectado a la cuenta de OpenRouter del alumno, examen generado por la IA para cada alumno, calificación y revisión de fallos |
 | 2. Tutor completo | 4 semanas | Modo Consulta con ampliación marcada, suite de paridad de modelos, nivel del alumno, reporte del docente con ajustes del examen en pantalla, reintento tras fallo del proveedor (RF-17) |
 | 3. Automatización | 4 semanas | Dificultad adaptativa por nivel (RF-23), OCR, integración con LMS (LTI 1.3) |
 
@@ -1301,7 +1304,6 @@ La web nunca ve ni guarda la clave: la ruta `/conectar/openrouter` toma el `code
 - ¿Modo de feedback por defecto: Al final (mide mejor el conocimiento previo) o Inmediato (más tutor)?
 - ¿Los alumnos pueden revisar con el tutor antes de que cierre el examen para el resto del grupo?
 - ¿La universidad aprueba enviar datos a OpenRouter y a los proveedores del modelo gratuito elegido, aunque no los guarden?
-- ¿Se le extiende la ventana al alumno que agota el cupo diario gratuito a mitad del examen?
 - ¿Qué modelo `:free` concreto se habilita en OpenRouter? Debe soportar herramientas, pasar la paridad y servirse desde un proveedor que no entrene con los datos.
 - ¿Se muestra al alumno cuántas llamadas gratuitas le quedan hoy? OpenRouter lo expone en `GET /api/v1/key` (`free_model_daily_requests.remaining`, día UTC).
 - ¿Qué proveedor de nube usará la universidad? ¿TI registra la aplicación en su Entra ID, en Google Workspace o en ambos, y restringe el acceso a su dominio?
@@ -1315,7 +1317,6 @@ Estado a 2026-09-30, con el examen pregunta a pregunta, Gemini con Google, las c
 
 | # | Pendiente | Requisito | Detalle |
 | --- | --- | --- | --- |
-| 1 | Registrar la app en Microsoft (Outlook) | RF-31 | La cuenta UPC de alumno no puede registrar apps en Entra (403). Lo hace TI de la UPC o una cuenta personal con su propio directorio (skill `setup-oauth`); luego `secrets/microsoft.json` |
 | 2 | Medir la latencia con el modelo real | RNF-02 | Hecho en código (§5.8): razonamiento desactivado en el chat, sin tope de salida en el chat, con aviso si el modelo llega a su máximo, streaming con la ampliación apagada y páginas pertinentes en clases grandes. Falta medir el primer token con el modelo real: el 2026-09-30 los modelos `:free` de qwen y gemma estaban saturados (429 del pool compartido) |
 | 3 | Citas válidas marcadas como inválidas | RF-11, §6.4 | El modelo abrevia nombres de archivo largos (`MDSTI_MFEP_M1_INFOGRAFÍA_Costo vs Gasto` en vez del nombre completo) y la cita sale tachada. Aceptar coincidencia por prefijo o dar al modelo nombres cortos por archivo |
 | 4 | Markdown del tutor | UI | Se muestran negritas; listas, títulos y tablas siguen como texto plano |

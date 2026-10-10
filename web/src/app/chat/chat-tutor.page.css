@@ -241,6 +241,31 @@
   font-weight: 600;
 }
 
+/* La referencia es también la descarga del archivo citado. */
+.descarga {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.descarga:hover .trazo,
+.descarga:focus-visible .trazo {
+  text-decoration: underline;
+}
+
+.descarga:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.bajar {
+  margin-left: 0.2rem;
+  color: var(--grafito);
+}
+
 /* Una cita que no está en el material no se resalta: se tacha (SDD §6.4). */
 .fuente.invalida .trazo {
   background: none;

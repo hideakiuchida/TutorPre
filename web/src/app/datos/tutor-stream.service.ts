@@ -38,6 +38,15 @@ export class TutorStreamService {
     return firstValueFrom(this.http.get<ClaseResumen[]>(`${API}/alumno/clases`));
   }
 
+  /** Los archivos de la clase: con su id, cada referencia del tutor se puede descargar. */
+  material(claseId: string) {
+    return firstValueFrom(this.http.get<{ archivoId: string; nombre: string }[]>(`${API}/clases/${claseId}/material`));
+  }
+
+  descargarArchivo(claseId: string, archivoId: string) {
+    return firstValueFrom(this.http.get(`${API}/clases/${claseId}/material/${archivoId}`, { responseType: 'blob' }));
+  }
+
   credenciales(): Promise<Credencial[]> {
     return firstValueFrom(this.http.get<Credencial[]>(`${API}/alumno/credenciales`));
   }

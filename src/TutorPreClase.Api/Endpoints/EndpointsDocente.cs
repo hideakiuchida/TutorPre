@@ -11,8 +11,8 @@ namespace TutorPreClase.Api.Endpoints;
 
 public sealed record CrearClasePeticion(string Titulo, DateTimeOffset Inicio, int Orden);
 public sealed record ConfigurarExamenPeticion(
-    DateTimeOffset AbreEn, DateTimeOffset? CierraEn, int MaxIntentos, int? MinutosLimite, string ModoFeedback,
-    int? PreguntasPorIntento = null);
+    int MaxIntentos, int? MinutosLimite, string ModoFeedback, int? PreguntasPorIntento = null);
+public sealed record FechaClasePeticion(DateTimeOffset Inicio);
 public sealed record AmpliacionPeticion(bool Permitida);
 public sealed record TemasDebilesPeticion(IReadOnlyList<string>? Temas);
 public sealed record CorregirNivelPeticion(string Nivel);
@@ -107,8 +107,6 @@ public static class EndpointsDocente
                 .Where(e => e.ClaseId == claseId)
                 .Select(e => new
                 {
-                    abreEn = e.AbreEn,
-                    cierraEn = e.CierraEn,
                     maxIntentos = e.MaxIntentos,
                     minutosLimite = e.MinutosLimite,
                     modoFeedback = e.ModoFeedback.ToString(),
@@ -212,6 +210,23 @@ public static class EndpointsDocente
             return Results.Ok(new { ampliacionPermitida = clase.AmpliacionPermitida });
         });
 
+        // La fecha de la clase es la que la habilita para los alumnos: antes de ella no pueden
+        // abrirla ni rendir su examen.
+        grupo.MapPut("/clases/{claseId:guid}/fecha", async (
+            Guid claseId, FechaClasePeticion peticion, IAppDbContext db, CancellationToken ct) =>
+        {
+            if (peticion.Inicio == default)
+                return Results.BadRequest(new { error = "fecha_invalida", mensaje = "Indica la fecha de la clase." });
+
+            var clase = await db.Clases.FirstOrDefaultAsync(c => c.Id == claseId, ct);
+            if (clase is null) return Results.NotFound();
+
+            clase.Inicio = peticion.Inicio.ToUniversalTime();
+            await db.SaveChangesAsync(ct);
+
+            return Results.Ok(new { inicio = clase.Inicio });
+        });
+
         grupo.MapPut("/clases/{claseId:guid}/examen", async (
             Guid claseId, ConfigurarExamenPeticion peticion, IAppDbContext db, CancellationToken ct) =>
         {
@@ -226,9 +241,6 @@ public static class EndpointsDocente
             if (peticion.MinutosLimite is < 5 or > 240)
                 return Results.BadRequest(new { error = "tiempo_invalido", mensaje = "El tiempo va de 5 a 240 minutos, o sin límite." });
 
-            if (peticion.CierraEn is DateTimeOffset cierre && cierre <= peticion.AbreEn)
-                return Results.BadRequest(new { error = "cierre_invalido", mensaje = "La fecha límite debe ser posterior a la apertura." });
-
             var examen = await db.Examenes.FirstOrDefaultAsync(e => e.ClaseId == claseId, ct);
 
             if (examen is null)
@@ -237,8 +249,6 @@ public static class EndpointsDocente
                 db.Examenes.Add(examen);
             }
 
-            examen.AbreEn = peticion.AbreEn;
-            examen.CierraEn = peticion.CierraEn;
             examen.MaxIntentos = peticion.MaxIntentos;
             examen.MinutosLimite = peticion.MinutosLimite;
             examen.ModoFeedback = modo;

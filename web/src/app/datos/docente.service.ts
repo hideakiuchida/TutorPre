@@ -31,9 +31,6 @@ export interface ContenidoClase {
 
 /** Lo que el profesor decide del examen de una clase (RF-34). */
 export interface AjustesExamen {
-  abreEn: string;
-  /** null: sin fecha límite. */
-  cierraEn: string | null;
   maxIntentos: number;
   /** null: sin límite de tiempo. */
   minutosLimite: number | null;
@@ -86,6 +83,11 @@ export class DocenteService {
 
   reporte(claseId: string): Promise<ReporteClase> {
     return firstValueFrom(this.http.get<ReporteClase>(`${API}/clases/${claseId}/reporte`));
+  }
+
+  /** La fecha de la clase: desde ella los alumnos pueden abrirla y rendir su examen. */
+  guardarFecha(claseId: string, inicio: string) {
+    return firstValueFrom(this.http.put<{ inicio: string }>(`${API}/clases/${claseId}/fecha`, { inicio }));
   }
 
   guardarExamen(claseId: string, ajustes: AjustesExamen) {

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TutorPreClase.Application.Abstracciones;
+using TutorPreClase.Application.Academico;
 using TutorPreClase.Application.Nivel;
 using TutorPreClase.Domain.Entidades;
 using TutorPreClase.Domain.Reglas;
@@ -42,6 +43,8 @@ public sealed class ServicioExamen(IAppDbContext db, IRelojSistema reloj, INivel
     {
         var examen = await CargarExamenPorClaseAsync(claseId, ct)
             ?? throw new ExamenException("sin_examen", "La clase no tiene examen publicado.");
+
+        await ClaseHabilitada.ExigirAsync(db, claseId, reloj.Ahora, ct);
 
         var previos = await db.Intentos
             .Where(i => i.ExamenId == examen.Id && i.AlumnoId == alumnoId)
@@ -262,7 +265,6 @@ public sealed class ServicioExamen(IAppDbContext db, IRelojSistema reloj, INivel
     private static string MensajeDe(MotivoRechazo motivo) => motivo switch
     {
         MotivoRechazo.NoPublicado => "El examen todavia no esta publicado.",
-        MotivoRechazo.FueraDeVentana => "El examen no esta disponible en este momento.",
         MotivoRechazo.SinIntentosDisponibles => "Ya usaste todos tus intentos.",
         MotivoRechazo.IntentoEnCurso => "Ya tienes un intento en curso.",
         MotivoRechazo.TiempoVencido => "Se acabo el tiempo del examen.",

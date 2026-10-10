@@ -15,6 +15,7 @@ import {
   Progreso,
   separarAmpliacion,
   tramos,
+  claseHabilitada,
   ventanaExamen,
 } from '../datos/tutor.modelos';
 
@@ -164,6 +165,40 @@ export class ChatTutorPage {
     return ventanaExamen(clase, this.ahora());
   }
 
+  /** Una clase se abre cuando llega su fecha; antes solo se ve en la lista. */
+  habilitada(clase: ClaseResumen | null): boolean {
+    return claseHabilitada(clase, this.ahora());
+  }
+
+  /** Archivos de la clase abierta, por nombre: de ahí sale la descarga de cada referencia. */
+  private readonly archivos = signal<Record<string, string>>({});
+  readonly descargando = signal('');
+
+  descargable(archivo: string): boolean {
+    return !!this.archivos()[archivo];
+  }
+
+  async descargar(archivo: string): Promise<void> {
+    const clase = this.claseActiva();
+    const archivoId = this.archivos()[archivo];
+    if (!clase || !archivoId || this.descargando()) return;
+
+    this.descargando.set(archivo);
+    try {
+      const contenido = await this.api.descargarArchivo(clase.claseId, archivoId);
+      const url = URL.createObjectURL(contenido);
+      const enlace = document.createElement('a');
+      enlace.href = url;
+      enlace.download = archivo;
+      enlace.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      this.error.set(`No se pudo descargar «${archivo}». Vuelve a intentarlo.`);
+    } finally {
+      this.descargando.set('');
+    }
+  }
+
   private readonly lista = viewChild<ElementRef<HTMLElement>>('lista');
 
   /** El alumno está leyendo lo último: si sube a releer, el chat no lo arrastra de vuelta. */
@@ -311,9 +346,11 @@ export class ChatTutorPage {
         return;
       }
 
-      if (clases.length > 0 && !this.sinAgente()) {
+      // Se abre la última que tenía abierta; si aún no llegó su fecha, la primera habilitada.
+      const abiertas = clases.filter((c) => this.habilitada(c));
+      if (abiertas.length > 0 && !this.sinAgente()) {
         const ultima = leerClaseAbierta();
-        await this.abrir(clases.find((c) => c.claseId === ultima) ?? clases[0]);
+        await this.abrir(abiertas.find((c) => c.claseId === ultima) ?? abiertas[0]);
       }
     } catch {
       this.error.set('No se pudo cargar tus clases. ¿Está levantada la API?');
@@ -330,7 +367,7 @@ export class ChatTutorPage {
     await this.refrescarCredenciales();
     if (antes && !this.sinAgente()) {
       this.configuracionAbierta.set(false);
-      const clase = this.claseActiva() ?? this.clases()[0];
+      const clase = this.claseActiva() ?? this.clases().find((c) => this.habilitada(c));
       if (clase) await this.abrir(clase);
     }
   }
@@ -393,7 +430,10 @@ export class ChatTutorPage {
   }
 
   async abrir(clase: ClaseResumen): Promise<void> {
+    if (!this.habilitada(clase)) return;
+
     this.claseActiva.set(clase);
+    this.archivos.set({});
     this.error.set('');
     this.novedad.set('');
     this.porReintentar.set('');
@@ -424,6 +464,15 @@ export class ChatTutorPage {
     // Si lo último guardado es un mensaje suyo, el tutor no llegó a contestarlo (RF-17).
     const ultimo = historial[historial.length - 1];
     if (ultimo?.rol === 'Alumno') this.porReintentar.set(ultimo.texto);
+
+    // Sin la lista de archivos el chat funciona igual: las referencias solo no se descargan.
+    try {
+      const material = await this.api.material(clase.claseId);
+      if (this.claseActiva()?.claseId === clase.claseId)
+        this.archivos.set(Object.fromEntries(material.map((a) => [a.nombre, a.archivoId])));
+    } catch {
+      this.archivos.set({});
+    }
   }
 
   async cambiarAgente(agenteId: string): Promise<void> {

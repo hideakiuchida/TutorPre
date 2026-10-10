@@ -106,6 +106,7 @@ export class DocentePage implements OnDestroy {
       this.contenido.set(contenido);
       this.reporte.set(reporte);
       this.ajustes.set(contenido.examen);
+      this.fecha.set(clase.inicio);
       this.avisoExamen.set('');
       this.programarRefresco();
     } catch {
@@ -118,10 +119,20 @@ export class DocentePage implements OnDestroy {
   readonly guardandoExamen = signal(false);
   readonly avisoExamen = signal('');
 
+  /** La fecha de la clase que se está editando: es la que la habilita para los alumnos. */
+  readonly fecha = signal('');
+  readonly fechaCambiada = computed(() => !!this.fecha() && this.fecha() !== this.activa()?.inicio);
+
   /** Hay cambios sin guardar respecto de lo que tiene el servidor. */
   readonly examenCambiado = computed(
-    () => JSON.stringify(this.ajustes()) !== JSON.stringify(this.contenido()?.examen ?? null),
+    () => this.fechaCambiada() || JSON.stringify(this.ajustes()) !== JSON.stringify(this.contenido()?.examen ?? null),
   );
+
+  cambiarFecha(local: string): void {
+    const iso = this.fechaIso(local);
+    if (iso) this.fecha.set(iso);
+    this.avisoExamen.set('');
+  }
 
   cambiarAjuste(cambio: Partial<AjustesExamen>): void {
     const actual = this.ajustes();
@@ -159,6 +170,14 @@ export class DocentePage implements OnDestroy {
     this.avisoExamen.set('');
 
     try {
+      if (this.fechaCambiada()) {
+        const { inicio } = await this.docente.guardarFecha(clase.claseId, this.fecha());
+        const actualizada = { ...clase, inicio };
+        this.clases.update((lista) => lista.map((c) => (c.claseId === clase.claseId ? actualizada : c)));
+        this.activa.set(actualizada);
+        this.fecha.set(inicio);
+      }
+
       await this.docente.guardarExamen(clase.claseId, ajustes);
       this.contenido.set({ ...contenido, examen: ajustes });
       this.avisoExamen.set('Guardado. Vale para los intentos que empiecen desde ahora.');

@@ -72,8 +72,6 @@ public class ApiTests
         // 1. El docente configura y publica el examen.
         var examen = await docente.PutAsJsonAsync($"/api/v1/clases/{claseId}/examen", new
         {
-            abreEn = DateTimeOffset.UtcNow.AddHours(-1),
-            cierraEn = DateTimeOffset.UtcNow.AddHours(5),
             maxIntentos = 3,
             minutosLimite = (int?)null,
             modoFeedback = "AlFinal"
@@ -126,10 +124,9 @@ public class ApiTests
         var (docenteId, alumnoId, _, claseId) = api.Sembrar();
         var docente = api.Como(docenteId, "Docente");
 
-        var abre = DateTimeOffset.UtcNow.AddHours(-1);
-        object Ajustes(int intentos = 2, int? minutos = 30, DateTimeOffset? cierra = null, string modo = "Inmediato") => new
+        object Ajustes(int intentos = 2, int? minutos = 30, string modo = "Inmediato") => new
         {
-            abreEn = abre, cierraEn = cierra, maxIntentos = intentos, minutosLimite = minutos, modoFeedback = modo, preguntasPorIntento = 8
+            maxIntentos = intentos, minutosLimite = minutos, modoFeedback = modo, preguntasPorIntento = 8
         };
 
         Assert.Equal(HttpStatusCode.OK, (await docente.PutAsJsonAsync($"/api/v1/clases/{claseId}/examen", Ajustes())).StatusCode);
@@ -139,10 +136,12 @@ public class ApiTests
         Assert.Equal(30, examen.GetProperty("minutosLimite").GetInt32());
         Assert.Equal(8, examen.GetProperty("preguntasPorIntento").GetInt32());
         Assert.Equal("Inmediato", examen.GetProperty("modoFeedback").GetString());
-        Assert.Equal(JsonValueKind.Null, examen.GetProperty("cierraEn").ValueKind);
+        // El examen no tiene fechas propias: lo habilita la fecha de la clase.
+        Assert.False(examen.TryGetProperty("abreEn", out _));
+        Assert.False(examen.TryGetProperty("cierraEn", out _));
 
         // Valores fuera de rango no se guardan.
-        foreach (var malo in new[] { Ajustes(intentos: 0), Ajustes(intentos: 11), Ajustes(minutos: 2), Ajustes(cierra: abre.AddMinutes(-1)), Ajustes(modo: "Otro") })
+        foreach (var malo in new[] { Ajustes(intentos: 0), Ajustes(intentos: 11), Ajustes(minutos: 2), Ajustes(modo: "Otro") })
             Assert.Equal(HttpStatusCode.BadRequest, (await docente.PutAsJsonAsync($"/api/v1/clases/{claseId}/examen", malo)).StatusCode);
 
         // El alumno ve cuántos intentos tiene y que aún no rindió.
@@ -151,6 +150,70 @@ public class ApiTests
         Assert.Equal(2, suExamen.GetProperty("maxIntentos").GetInt32());
         Assert.Equal(0, suExamen.GetProperty("intentosUsados").GetInt32());
         Assert.Equal(JsonValueKind.Null, suExamen.GetProperty("mejorNota").ValueKind);
+    }
+
+    [Fact]
+    public async Task La_clase_no_se_habilita_hasta_su_fecha_y_el_profesor_la_reprograma()
+    {
+        using var api = new ApiDePruebas();
+        var (docenteId, alumnoId, _, claseId) = api.Sembrar();
+        var docente = api.Como(docenteId, "Docente");
+        var alumno = api.Como(alumnoId, "Alumno");
+
+        async Task<bool> Habilitada() =>
+            (await alumno.GetFromJsonAsync<JsonElement>("/api/v1/alumno/clases"))
+                .EnumerateArray().Single(c => c.GetProperty("claseId").GetGuid() == claseId)
+                .GetProperty("habilitada").GetBoolean();
+
+        Assert.True(await Habilitada());
+
+        // El profesor la mueve a mañana: el alumno la ve en su lista, pero no la puede abrir.
+        var fecha = await docente.PutAsJsonAsync($"/api/v1/clases/{claseId}/fecha", new { inicio = DateTimeOffset.UtcNow.AddDays(1) });
+        Assert.Equal(HttpStatusCode.OK, fecha.StatusCode);
+        Assert.False(await Habilitada());
+
+        var abrir = await alumno.PostAsJsonAsync($"/api/v1/clases/{claseId}/conversacion", new { agenteId = "openrouter" });
+        Assert.Equal(HttpStatusCode.Conflict, abrir.StatusCode);
+        Assert.Equal("clase_no_habilitada", (await abrir.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("error").GetString());
+        Assert.Equal(HttpStatusCode.Conflict, (await alumno.GetAsync($"/api/v1/clases/{claseId}/material")).StatusCode);
+
+        // Un alumno no cambia la fecha.
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await alumno.PutAsJsonAsync($"/api/v1/clases/{claseId}/fecha", new { inicio = DateTimeOffset.UtcNow })).StatusCode);
+
+        // Al llegar la fecha, se abre.
+        await docente.PutAsJsonAsync($"/api/v1/clases/{claseId}/fecha", new { inicio = DateTimeOffset.UtcNow.AddMinutes(-1) });
+        Assert.True(await Habilitada());
+        Assert.Equal(HttpStatusCode.OK,
+            (await alumno.PostAsJsonAsync($"/api/v1/clases/{claseId}/conversacion", new { agenteId = "openrouter" })).StatusCode);
+    }
+
+    [Fact]
+    public async Task El_archivo_citado_se_descarga_y_solo_lo_baja_quien_lleva_el_curso()
+    {
+        using var api = new ApiDePruebas();
+        var (docenteId, alumnoId, _, claseId) = api.Sembrar();
+        var docente = api.Como(docenteId, "Docente");
+        var alumno = api.Como(alumnoId, "Alumno");
+
+        using var formulario = new MultipartFormDataContent
+        {
+            { new ByteArrayContent(System.Text.Encoding.UTF8.GetBytes("# Apuntes\nReLU mantiene el gradiente.")), "archivos", "Apuntes.md" }
+        };
+        Assert.True((await docente.PostAsync($"/api/v1/clases/{claseId}/contenido", formulario)).IsSuccessStatusCode);
+
+        var material = await alumno.GetFromJsonAsync<JsonElement>($"/api/v1/clases/{claseId}/material");
+        var archivo = material.EnumerateArray().Single(a => a.GetProperty("nombre").GetString() == "Apuntes.md");
+        var ruta = $"/api/v1/clases/{claseId}/material/{archivo.GetProperty("archivoId").GetGuid()}";
+
+        var descarga = await alumno.GetAsync(ruta);
+        Assert.Equal(HttpStatusCode.OK, descarga.StatusCode);
+        Assert.Contains("Apuntes.md", descarga.Content.Headers.ContentDisposition!.ToString());
+        Assert.Contains("ReLU mantiene", await descarga.Content.ReadAsStringAsync());
+
+        // Quien no lleva el curso no lo baja; un archivo que no existe, tampoco.
+        Assert.Equal(HttpStatusCode.Forbidden, (await api.Como(Guid.NewGuid(), "Alumno").GetAsync(ruta)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await alumno.GetAsync($"/api/v1/clases/{claseId}/material/{Guid.NewGuid()}")).StatusCode);
     }
 
     [Fact]

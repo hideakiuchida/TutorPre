@@ -11,14 +11,12 @@ public class ReglasExamenTests
     private static Examen ExamenAbierto(int maxIntentos = 3, int? minutos = null) => new()
     {
         Publicado = true,
-        AbreEn = Ahora.AddHours(-1),
-        CierraEn = Ahora.AddHours(1),
         MaxIntentos = maxIntentos,
         MinutosLimite = minutos
     };
 
     [Fact]
-    public void Permite_iniciar_dentro_de_la_ventana()
+    public void Permite_iniciar_un_examen_publicado()
         => Assert.True(ReglasExamen.PuedeIniciar(ExamenAbierto(), [], Ahora).Permitido);
 
     [Fact]
@@ -31,12 +29,9 @@ public class ReglasExamenTests
     }
 
     [Fact]
-    public void Sin_fecha_de_cierre_el_examen_sigue_abierto_despues_de_la_clase()
+    public void El_examen_no_tiene_fechas_y_solo_lo_limitan_intentos_y_tiempo()
     {
-        var examen = new Examen
-        {
-            Publicado = true, AbreEn = Ahora.AddDays(-30), CierraEn = null, MaxIntentos = 3, MinutosLimite = 20
-        };
+        var examen = new Examen { Publicado = true, MaxIntentos = 3, MinutosLimite = 20 };
         var intento = new Intento { Estado = EstadoIntento.EnCurso, Inicio = Ahora.AddMinutes(-5) };
 
         Assert.True(ReglasExamen.PuedeIniciar(examen, [], Ahora.AddYears(1)).Permitido);
@@ -50,7 +45,7 @@ public class ReglasExamenTests
     [Fact]
     public void El_tiempo_en_pausa_no_se_descuenta()
     {
-        var examen = new Examen { Publicado = true, AbreEn = Ahora.AddDays(-1), MaxIntentos = 3, MinutosLimite = 20 };
+        var examen = new Examen { Publicado = true, MaxIntentos = 3, MinutosLimite = 20 };
 
         // Empezó hace 50 minutos, estuvo 25 en pausa y lleva otros 10 detenido.
         var intento = new Intento
@@ -74,9 +69,12 @@ public class ReglasExamenTests
     }
 
     [Fact]
-    public void Rechaza_fuera_de_la_ventana()
-        => Assert.Equal(MotivoRechazo.FueraDeVentana,
-            ReglasExamen.PuedeIniciar(ExamenAbierto(), [], Ahora.AddHours(5)).Motivo);
+    public void La_clase_se_habilita_al_llegar_su_fecha()
+    {
+        Assert.False(TutorPreClase.Application.Academico.ClaseHabilitada.Es(Ahora.AddMinutes(1), Ahora));
+        Assert.True(TutorPreClase.Application.Academico.ClaseHabilitada.Es(Ahora, Ahora));
+        Assert.True(TutorPreClase.Application.Academico.ClaseHabilitada.Es(Ahora.AddDays(-7), Ahora));
+    }
 
     [Fact]
     public void Rechaza_cuando_se_agotaron_los_intentos()
@@ -121,15 +119,6 @@ public class ReglasExamenTests
         intento.Respuestas.Clear();
         Assert.Equal(MotivoRechazo.TiempoVencido,
             ReglasExamen.PuedeRegistrarRespuesta(examen, intento, pregunta.Id, Ahora.AddMinutes(11)).Motivo);
-    }
-
-    [Fact]
-    public void Segundos_restantes_se_recortan_al_cierre_del_examen()
-    {
-        var examen = ExamenAbierto(minutos: 180);   // el límite cae después del cierre
-        var intento = new Intento { Inicio = Ahora };
-
-        Assert.Equal(3600, ReglasExamen.SegundosRestantes(examen, intento, Ahora));
     }
 
     [Fact]

@@ -35,30 +35,32 @@ export interface TokenMcp {
 export interface ClaseResumen {
   claseId: string;
   titulo: string;
+  /** La fecha de la clase: hasta que llega, el alumno no la puede abrir. */
   inicio: string;
+  habilitada: boolean;
   /**
-   * `cierraEn` null: el examen no tiene fecha límite. `intentosUsados` y `mejorNota` son del
-   * propio alumno; el profesor ve ceros.
+   * El examen no tiene fechas propias: se rinde desde que la clase se habilita.
+   * `intentosUsados` y `mejorNota` son del propio alumno; el profesor ve ceros.
    */
   examen: {
     publicado: boolean;
-    abreEn: string;
-    cierraEn: string | null;
     maxIntentos: number;
     intentosUsados: number;
     mejorNota: number | null;
   } | null;
 }
 
-/** Si el examen de la clase se puede rendir ahora (RF-08): ventana e intentos los fija el docente. */
-export type VentanaExamen = 'disponible' | 'proximo' | 'cerrado' | 'sin-intentos';
+/** La clase ya llegó a su fecha (también si llega con la página abierta). */
+export function claseHabilitada(clase: ClaseResumen | null | undefined, ahora: number): boolean {
+  return !!clase && (clase.habilitada || ahora >= Date.parse(clase.inicio));
+}
+
+/** Si el examen de la clase se puede rendir ahora (RF-08): los intentos los fija el docente. */
+export type VentanaExamen = 'disponible' | 'sin-intentos';
 
 export function ventanaExamen(clase: ClaseResumen | null | undefined, ahora: number): VentanaExamen | null {
   const examen = clase?.examen;
-  if (!examen?.publicado) return null;
-
-  if (ahora < Date.parse(examen.abreEn)) return 'proximo';
-  if (examen.cierraEn && ahora > Date.parse(examen.cierraEn)) return 'cerrado';
+  if (!examen?.publicado || !claseHabilitada(clase, ahora)) return null;
 
   return examen.intentosUsados >= examen.maxIntentos ? 'sin-intentos' : 'disponible';
 }

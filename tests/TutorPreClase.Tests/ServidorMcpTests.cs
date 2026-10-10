@@ -163,7 +163,7 @@ public class ServidorMcpTests
             db.Archivos.Add(archivo);
             db.Examenes.Add(new Examen
             {
-                ClaseId = claseId, AbreEn = DateTimeOffset.UtcNow.AddHours(-1), CierraEn = DateTimeOffset.UtcNow.AddHours(5),
+                ClaseId = claseId,
                 MaxIntentos = 3, ModoFeedback = ModoFeedback.AlFinal, Publicado = true, PreguntasPorIntento = 2
             });
             db.SaveChanges();

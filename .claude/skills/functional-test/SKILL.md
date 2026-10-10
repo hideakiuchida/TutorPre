@@ -52,7 +52,7 @@ Corre las pruebas .NET en Docker con el paso 2b de `start-local` (en Windows, Sm
 Control bloquea las DLL recién compiladas; no se toca esa configuración).
 
 Gratis y en segundos: cubre RF-02 a RF-05, RF-08, RF-09, RF-12, RF-15, RF-21, RF-24 a RF-31, RF-33 y
-RNF-10 a nivel de unidad e integración (el OIDC de Microsoft y Google, con el proveedor simulado). Si algo falla ahí, arréglalo antes de abrir el navegador.
+RNF-10 a nivel de unidad e integración (el OIDC, con el proveedor simulado). Si algo falla ahí, arréglalo antes de abrir el navegador.
 
 Toma los identificadores: `curl -s http://localhost:5080/demo` → `$DOC`, `$ALU`, `$CLA`.
 Por `curl` se actúa con las cabeceras de desarrollo `X-Usuario-Id` / `X-Usuario-Rol`; la web,
@@ -69,7 +69,7 @@ los bloques C, D y E y dilo al reportar.
 
 | Requisito | Cómo verificarlo |
 | --- | --- |
-| RF-01 | Cada subcarpeta de `course-content/alonso.uchida@gmail.com/MFEP - Finanzas empresariales/` es una clase del curso de ese profesor (`GET /alumno/clases`: M1…M7, 19:00 de Lima, una por semana); `PUT /api/v1/clases/$CLA/examen` fija ventana e intentos |
+| RF-01 | Cada subcarpeta de `course-content/alonso.uchida@gmail.com/MFEP - Finanzas empresariales/` es una clase del curso de ese profesor (`GET /alumno/clases`: M1…M7, 19:00 de Lima, una por semana). Cada clase trae `habilitada`: `true` si ya llegó su fecha. Una clase futura sale en la lista del alumno atenuada, con *Se habilita el …*, y no se puede abrir; por API, `POST /clases/<futura>/conversacion` y `GET /clases/<futura>/material` responden **409** `clase_no_habilitada`. `PUT /clases/$CLA/fecha {"inicio":…}` (profesor) la mueve; un alumno recibe 403. Si la mueves para probar, **devuélvela a su fecha** |
 | RF-02 | Copia un `.md` a la carpeta de M2 → en ≤ 30 s aparece en `GET /clases/<M2>/contenido`; bórralo → desaparece. El `.xlsx` de M4 figura con 3 páginas (una por hoja) |
 | RF-03 | Todos los archivos en `"estado":"Listo"` con `paginas` ≥ 1; M1 con `contextoClase.tokens` ≈ 9 500 |
 | RF-04 | Cada clase de la carpeta tiene su examen publicado sin preguntas (las genera la IA); `POST /examenes/$EX/preguntas` ya no existe |
@@ -115,7 +115,7 @@ prueba de pantalla por `curl` en silencio; si decide seguir sin navegador, marca
 
 Con la conexión lista: `tabs_create_mcp` y navega a `http://localhost:4200`.
 
-**Entrada y roles.** La web solo ofrece OAuth. Tú no inicias sesión en Google, Microsoft ni
+**Entrada y roles.** La web solo ofrece OAuth. Tú no inicias sesión en Google ni
 OpenRouter: la extensión no puede actuar en `accounts.google.com` y además lo hace la persona
 (elige su cuenta y vuelve). Para las pantallas por rol sin OAuth, en desarrollo pide una sesión
 con `POST /api/v1/acceso/desarrollo {"usuarioId":…}` y guárdala en la pestaña con
@@ -123,16 +123,16 @@ con `POST /api/v1/acceso/desarrollo {"usuarioId":…}` y guárdala en la pestañ
 
 | Requisito | Cómo verificarlo |
 | --- | --- |
-| RF-08 | Los exámenes de la carpeta **no tienen fecha límite** (`cierraEn: null`): una clase ya pasada sigue con *Examen disponible* y se puede rendir. Solo si el docente fija un cierre por `PUT …/examen` y ya pasó, la etiqueta dice *Examen cerrado* y no aparece *Comenzar examen* |
-| RF-31 | La entrada (franja roja UPC) pide primero *Soy alumno* / *Soy profesor*; luego *Entras como … Cambiar* y los botones *Continuar con Google* / *Continuar con Microsoft (Outlook)*. `GET /acceso/proveedores` dice cuál está `configurado`; el que no, avisa al pulsarlo |
+| RF-08 | El examen **no tiene fechas** (`examen` no trae `abreEn` ni `cierraEn`): una clase ya habilitada muestra *Examen disponible* aunque su fecha haya pasado hace semanas, y nunca dice *Examen cerrado* |
+| RF-31 | La entrada (franja roja UPC) pide primero *Soy alumno* / *Soy profesor*; luego *Entras como … Cambiar* y un solo botón, *Continuar con Google*, igual para alumno y profesor (no hay *Continuar con Microsoft*). `GET /acceso/proveedores` devuelve solo `google`, con `configurado: true` |
 | RF-31 | *Continuar con Google* lleva a `accounts.google.com` con `code_challenge_method=S256` y `redirect_uri=http://localhost:4200/entrar/google`. La persona elige su cuenta y vuelve: entra con el perfil elegido |
-| RF-31 | `POST /acceso/google/inicio {"perfil":"Admin"}` → `rol_invalido`; `POST /acceso/microsoft/canje` con `code`/`state` inventados → error y ninguna sesión |
+| RF-31 | `POST /acceso/google/inicio {"perfil":"Admin"}` → `rol_invalido`; `POST /acceso/google/canje` con `code`/`state` inventados → error y ninguna sesión; `POST /acceso/microsoft/inicio` → error (proveedor retirado) |
 | RF-33 | Un profesor que entra como **alumno** llega al chat (elige profesor, incluido él mismo) y sigue siendo profesor; entrando como **profesor** llega a su panel |
 | RF-33 | Como alumna: la barra lateral dice *Con <profesor>*; **Cambiar** abre *Tu profesor* con la lista de profesores y sus cursos; *Volver sin cambiar* regresa al chat |
 | RF-33 | Primer acceso como alumno (pruebas .NET y, con una cuenta nueva, en pantalla): tras Google sale directo *Elige a tu profesor*; como profesor entra directo a su panel |
 | RF-33 | Un Alumno o un Docente contra `GET /admin/usuarios` → **403** |
 | RF-34 | Un docente que no es dueño del curso contra `GET /clases/$CLA/contenido` → **403**; el dueño → 200 |
-| RF-34 | Como docente: cada clase muestra su material (estado *Listo*, páginas, tokens), el interruptor de ampliación (apagado) y el reporte. En *Examen y tutor* hay un formulario con preguntas por examen, intentos, minutos por intento (o sin límite), cuándo se muestra la corrección y fecha límite (o sin fecha límite): cambia los intentos, pulsa *Guardar cambios* → sale *Guardado* y `GET /clases/$CLA/contenido` trae el valor nuevo en `examen`; un valor fuera de rango por API (`maxIntentos: 0`) responde **400**. Déjalo como estaba |
+| RF-34 | Como docente: cada clase muestra su material (estado *Listo*, páginas, tokens), el interruptor de ampliación (apagado) y el reporte. En *Examen y tutor* hay un formulario con preguntas por examen, intentos, minutos por intento (o sin límite), cuándo se muestra la corrección y la **fecha de la clase** (no hay fecha límite del examen): cambia los intentos, pulsa *Guardar cambios* → sale *Guardado* y `GET /clases/$CLA/contenido` trae el valor nuevo en `examen`; un valor fuera de rango por API (`maxIntentos: 0`) responde **400**. Déjalo como estaba |
 | RF-32 | Al entrar como alumna sin ninguna IA conectada, con Gemini y OpenRouter habilitados, **no** hay redirección automática: se abre *Mi tutor* con las pestañas. Con una sola opción, la web va sola a autorizarla una vez por sesión |
 | RF-37 | *Entrar con Gemini (tu cuenta de Google)* lleva a `accounts.google.com` con `scope=…/cloud-platform …/generative-language.retriever`, `access_type=offline`, `code_challenge_method=S256` y `redirect_uri` a `/conectar/gemini`. La persona elige su Gmail y acepta el permiso (no tú) → vuelve y Gemini queda conectado. En *Mi tutor* → «Conversas con» se elige entre Gemini y OpenRouter; en el log sale `LLM gemini gemini-3.8-flash: primer token … ms`. Revocar el acceso en myaccount.google.com hace que el chat pida reconectar |
 
@@ -174,7 +174,7 @@ curl -s -H "X-Usuario-Id: $(python -c 'import uuid;print(uuid.uuid4())')" \
 | Requisito | Cómo verificarlo |
 | --- | --- |
 | RF-19 | En M1: `¿qué diferencia hay entre costo y gasto?` obtiene respuesta del tema |
-| RF-11 | Esa respuesta cita la infografía *Costo vs Gasto* (resaltada en el texto y en las fuentes debajo del globo del tutor) |
+| RF-11 | Esa respuesta cita la infografía *Costo vs Gasto* (resaltada en el texto y en las fuentes debajo del globo del tutor). La fuente es un botón con una flecha ↓: al pulsarlo se descarga ese archivo. Por API, `GET /clases/$CLA/material` lista los archivos y `GET /clases/$CLA/material/<archivoId>` responde 200 con el archivo; otro alumno que no lleva el curso recibe **403** |
 | RF-37 | Repite la pregunta del WACC **con Gemini**: usa una herramienta, así que comprueba que la firma de razonamiento vuelve bien (antes daba *400*). Si Google está saturado (503), el aviso dice *saturado* y no muestra el código |
 | RF-12 / RF-20 | `¿qué es el WACC?` (no está en el material de M1). Con la ampliación **apagada, que es lo que viene por defecto**: responde *"Esto no está en el material de la clase; pregúntalo en la sesión."* y no sale nada a lápiz |
 | RF-19 | `dame una receta de ceviche` → declina y reconduce al curso |
@@ -241,7 +241,7 @@ Dilo explícitamente al reportar; no los marques como aprobados:
 
 | Requisito | Estado |
 | --- | --- |
-| RF-31 | Google está registrado (proyecto `tutor-pre-clase`, modo prueba: solo entran los *Test users*). **Microsoft no**: la cuenta UPC de alumno no puede registrar apps (403); ver skill `setup-oauth`. Sin su `ClientId`, *Continuar con Microsoft* solo avisa que no está configurado |
+| RF-31 | Google está registrado (proyecto `tutor-pre-clase`). La entrada con Microsoft se retiró: solo se entra con Google |
 | RF-35 | El modelo del tutor se cambia solo por `PUT /admin/agentes/openrouter`; no hay pantalla |
 | RF-05 | La justificación cita el material, pero las **referencias** no se guardan aún en `pregunta_referencia` |
 | RNF-11 | `data_collection: deny` se envía en cada llamada, pero que el modelo `:free` elegido tenga proveedores que lo cumplan solo se ve con la cuenta real conectada |

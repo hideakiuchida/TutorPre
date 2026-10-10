@@ -33,7 +33,7 @@ El diseño completo está en [`specs/SDD-Plataforma-Evaluacion-PreClase.md`](spe
 
 | Proyecto | Rol |
 | --- | --- |
-| `src/TutorPreClase.Domain` | Entidades y reglas puras: calificación, nivel, ventana de examen, salvaguardas |
+| `src/TutorPreClase.Domain` | Entidades y reglas puras: calificación, nivel, intentos y tiempo del examen, salvaguardas |
 | `src/TutorPreClase.Application` | Contexto de clase, prompt, herramientas, orquestación del tutor, nivel, reportes |
 | `src/TutorPreClase.Infrastructure` | EF Core, proveedores LLM (Claude / OpenAI / Kimi), extracción de texto, cola |
 | `src/TutorPreClase.Api` | REST + SSE |
@@ -109,10 +109,10 @@ gratuitos y costo por uso, medidos en producción— está en
 ## Autenticación
 
 La entrada pide primero el perfil (*Soy alumno* / *Soy profesor*) y después la cuenta:
-*Continuar con Google* o *Continuar con Microsoft (Outlook)*, por OIDC con PKCE. La API
+*Continuar con Google*, por OIDC con PKCE. La API
 canjea el código, crea o reconoce al usuario y emite **su propia sesión**, que la web envía
-como `Authorization: Bearer`. Cómo registrar las aplicaciones en Google y Microsoft está en
-el skill `setup-oauth`; hoy solo Google está configurado.
+como `Authorization: Bearer`. Cómo registrar la aplicación en Google está en el skill `setup-oauth`. La entrada con
+Microsoft se retiró: la API sigue siendo OIDC genérico, pero solo tiene configurado Google.
 
 Fuera de producción se acepta además un esquema de desarrollo para probar sin proveedor de
 identidad: las cabeceras `X-Usuario-Id` / `X-Usuario-Rol` por `curl`, y
@@ -125,7 +125,7 @@ de los dos existe.
 dotnet test
 ```
 
-Cubren la calificación y el nivel, las reglas de ventana e intentos, el corte de la
+Cubren la calificación y el nivel, las reglas de intentos y tiempo, la habilitación de la clase por fecha, el corte de la
 ampliación, el rechazo de herramientas fuera de modo, el examen completo por chat, el
 manejo de credenciales (cifrado, aislamiento entre alumnos, invalidación y reconexión) y
 la API real (roles, autorización por recurso y streaming SSE).

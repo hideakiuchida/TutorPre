@@ -148,7 +148,7 @@ public sealed class BancoDePruebas : IDisposable
         {
             CursoId = curso.Id,
             Titulo = "Clase 03 - Redes profundas",
-            Inicio = Reloj.Ahora.AddDays(1),
+            Inicio = Reloj.Ahora.AddDays(-1),
             Orden = 3,
             AmpliacionPermitida = ampliacionPermitida
         };
@@ -184,8 +184,6 @@ public sealed class BancoDePruebas : IDisposable
         var examen = new Examen
         {
             ClaseId = clase.Id,
-            AbreEn = Reloj.Ahora.AddHours(-1),
-            CierraEn = Reloj.Ahora.AddHours(5),
             MaxIntentos = 3,
             ModoFeedback = feedback,
             Publicado = true,

@@ -313,13 +313,19 @@ public class GeminiApiTests
             ["Acceso:CarpetaSecretos"] = carpeta,
             // Como en el contenedor local: tutor.env define las variables, pero vacías.
             ["Acceso:Proveedores:google:ClientId"] = "",
-            ["Acceso:Proveedores:google:ClientSecret"] = ""
+            ["Acceso:Proveedores:google:ClientSecret"] = "",
+            // Microsoft se retiró de la entrada: que quede su variable no lo devuelve.
+            ["Acceso:Proveedores:microsoft:ClientId"] = "un-id-que-quedo"
         });
         var (_, alumnoId, _, _) = api.Sembrar();
 
         var proveedores = await api.CreateClient().GetFromJsonAsync<JsonElement>("/api/v1/acceso/proveedores");
         var google = proveedores.GetProperty("proveedores").EnumerateArray().Single(p => p.GetProperty("id").GetString() == "google");
         Assert.True(google.GetProperty("configurado").GetBoolean());
+        Assert.Single(proveedores.GetProperty("proveedores").EnumerateArray());
+
+        var microsoft = await api.CreateClient().PostAsJsonAsync("/api/v1/acceso/microsoft/inicio", new { perfil = "Alumno" });
+        Assert.Equal(HttpStatusCode.BadRequest, microsoft.StatusCode);
 
         var inicio = await api.Como(alumnoId, "Alumno").PostAsync("/api/v1/alumno/credenciales/gemini/oauth/inicio", null);
         var cuerpo = await inicio.Content.ReadAsStringAsync();

@@ -11,6 +11,7 @@ public interface IAlmacenArchivos
 {
     Task<string> GuardarAsync(string ruta, Stream contenido, CancellationToken ct = default);
     Task<Stream> AbrirAsync(string ruta, CancellationToken ct = default);
+    Task<bool> ExisteAsync(string ruta, CancellationToken ct = default);
     Task EliminarAsync(string ruta, CancellationToken ct = default);
 }
 
@@ -50,7 +51,14 @@ public sealed class ServicioContenido(
             .FirstOrDefaultAsync(a => a.ClaseId == claseId && a.HashSha256 == hash, ct);
 
         if (existente is not null)
+        {
+            // El texto ya se extrajo, pero el archivo puede faltar en el almacén (un despliegue
+            // nuevo empieza con el disco vacío): se repone para que se pueda descargar.
+            if (!await almacen.ExisteAsync(existente.BlobUrl, ct))
+                await almacen.GuardarAsync(existente.BlobUrl, memoria, ct);
+
             return new ResultadoSubida(existente.Id, existente.Nombre, Duplicado: true);
+        }
 
         var ruta = $"cursos/{cursoId}/clases/{claseId}/{nombre}";
         var url = await almacen.GuardarAsync(ruta, memoria, ct);
@@ -175,6 +183,9 @@ public sealed class AlmacenArchivosLocal(string raiz) : IAlmacenArchivos
 
     public Task<Stream> AbrirAsync(string ruta, CancellationToken ct = default) =>
         Task.FromResult<Stream>(File.OpenRead(Combinar(ruta)));
+
+    public Task<bool> ExisteAsync(string ruta, CancellationToken ct = default) =>
+        Task.FromResult(File.Exists(Combinar(ruta)));
 
     public Task EliminarAsync(string ruta, CancellationToken ct = default)
     {

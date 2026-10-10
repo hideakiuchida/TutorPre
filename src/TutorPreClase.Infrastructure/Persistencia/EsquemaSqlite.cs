@@ -82,6 +82,34 @@ public static class EsquemaSqlite
         }
     }
 
+    /// <summary>Quita una columna que el modelo ya no usa. True si la quitó.</summary>
+    public static async Task<bool> QuitarColumnaAsync(
+        DbContext db, string tabla, string columna, CancellationToken ct = default)
+    {
+        var conexion = db.Database.GetDbConnection();
+        await db.Database.OpenConnectionAsync(ct);
+
+        try
+        {
+            await using var leer = conexion.CreateCommand();
+            leer.CommandText = "SELECT COUNT(*) FROM pragma_table_info($tabla) WHERE name = $columna";
+            AgregarParametro(leer, "$tabla", tabla);
+            AgregarParametro(leer, "$columna", columna);
+
+            if (Convert.ToInt64(await leer.ExecuteScalarAsync(ct)) == 0) return false;
+
+            await using var quitar = conexion.CreateCommand();
+            quitar.CommandText = $"ALTER TABLE \"{tabla}\" DROP COLUMN \"{columna}\"";
+            await quitar.ExecuteNonQueryAsync(ct);
+
+            return true;
+        }
+        finally
+        {
+            await db.Database.CloseConnectionAsync();
+        }
+    }
+
     private static void AgregarParametro(System.Data.Common.DbCommand comando, string nombre, object valor)
     {
         var parametro = comando.CreateParameter();

@@ -6,7 +6,6 @@ public enum MotivoRechazo
 {
     Ninguno,
     NoPublicado,
-    FueraDeVentana,
     SinIntentosDisponibles,
     IntentoEnCurso,
     TiempoVencido,
@@ -21,13 +20,15 @@ public readonly record struct Validacion(bool Permitido, MotivoRechazo Motivo)
     public static Validacion No(MotivoRechazo motivo) => new(false, motivo);
 }
 
-/// <summary>Reglas de ventana, intentos y tiempo (RF-08, SDD §6.4).</summary>
+/// <summary>
+/// Reglas de intentos y tiempo (RF-08, SDD §6.4). El examen no tiene fechas: se puede rendir
+/// desde que la clase se habilita, y eso se comprueba antes de llegar aquí.
+/// </summary>
 public static class ReglasExamen
 {
     public static Validacion PuedeIniciar(Examen examen, IReadOnlyCollection<Intento> intentosPrevios, DateTimeOffset ahora)
     {
         if (!examen.Publicado) return Validacion.No(MotivoRechazo.NoPublicado);
-        if (ahora < examen.AbreEn || Cerrado(examen, ahora)) return Validacion.No(MotivoRechazo.FueraDeVentana);
         if (intentosPrevios.Any(i => i.Estado == EstadoIntento.EnCurso)) return Validacion.No(MotivoRechazo.IntentoEnCurso);
         if (intentosPrevios.Count >= examen.MaxIntentos) return Validacion.No(MotivoRechazo.SinIntentosDisponibles);
         return Validacion.Ok;
@@ -45,13 +46,8 @@ public static class ReglasExamen
         return Validacion.Ok;
     }
 
-    /// <summary>Un examen sin fecha de cierre no se cierra nunca: solo lo limitan los intentos.</summary>
-    private static bool Cerrado(Examen examen, DateTimeOffset ahora) =>
-        examen.CierraEn is DateTimeOffset cierre && ahora > cierre;
-
     public static bool TiempoVencido(Examen examen, Intento intento, DateTimeOffset ahora)
     {
-        if (Cerrado(examen, ahora)) return true;
         if (examen.MinutosLimite is not int minutos) return false;
         return Transcurrido(intento, ahora) > TimeSpan.FromMinutes(minutos);
     }
@@ -61,8 +57,6 @@ public static class ReglasExamen
         if (examen.MinutosLimite is not int minutos) return null;
 
         var restante = TimeSpan.FromMinutes(minutos) - Transcurrido(intento, ahora);
-        if (examen.CierraEn is DateTimeOffset cierre && cierre - ahora < restante) restante = cierre - ahora;
-
         return restante < TimeSpan.Zero ? 0 : (int)restante.TotalSeconds;
     }
 

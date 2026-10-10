@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using TutorPreClase.Application.Abstracciones;
+using TutorPreClase.Application.Academico;
 using TutorPreClase.Application.Contenido;
 using TutorPreClase.Application.Evaluacion;
 using TutorPreClase.Application.Llm;
@@ -46,6 +47,8 @@ public sealed class AgenteTutorService(
     public async Task<Conversacion> AbrirConversacionAsync(
         Guid claseId, Guid alumnoId, string agenteId, CancellationToken ct = default)
     {
+        await ClaseHabilitada.ExigirAsync(db, claseId, reloj.Ahora, ct);
+
         var existente = await db.Conversaciones
             .FirstOrDefaultAsync(c => c.ClaseId == claseId && c.AlumnoId == alumnoId, ct);
 

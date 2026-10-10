@@ -89,7 +89,7 @@ public sealed class ApiDePruebas : WebApplicationFactory<Program>
         {
             CursoId = curso.Id,
             Titulo = "Clase 03 - Redes profundas",
-            Inicio = DateTimeOffset.UtcNow.AddDays(1),
+            Inicio = DateTimeOffset.UtcNow.AddDays(-1),
             Orden = 3
         };
 

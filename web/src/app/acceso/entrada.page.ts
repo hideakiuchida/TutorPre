@@ -4,8 +4,8 @@ import { SesionService } from '../datos/sesion.service';
 import { ElegirProfesor } from './elegir-profesor';
 
 /**
- * Página de entrada de todos los roles (RF-31). La persona entra con su cuenta de Google o
- * Microsoft; al volver del proveedor (/entrar/{proveedor}?code=…) se canjea el código. La
+ * Página de entrada de todos los roles (RF-31). La persona entra con su cuenta de Google;
+ * al volver del proveedor (/entrar/{proveedor}?code=…) se canjea el código. La
  * primera vez elige si es alumno (y de qué profesor) o profesor (RF-33).
  */
 @Component({

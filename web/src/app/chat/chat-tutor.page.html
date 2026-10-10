@@ -12,6 +12,7 @@
         class="clase"
         [class.activa]="clase.claseId === claseActiva()?.claseId"
         [attr.aria-current]="clase.claseId === claseActiva()?.claseId ? 'page' : null"
+        [disabled]="!habilitada(clase)"
         (click)="abrir(clase)">
         <span class="titulo">{{ clase.titulo }}</span>
         <span class="fecha">{{ clase.inicio | date: 'EEE d MMM, HH:mm' }}</span>
@@ -19,15 +20,12 @@
           @case ('disponible') {
             <span class="examen-disponible">Examen disponible</span>
           }
-          @case ('proximo') {
-            <span class="examen-fuera">Examen desde el {{ clase.examen?.abreEn | date: 'd MMM, HH:mm' }}</span>
-          }
-          @case ('cerrado') {
-            <span class="examen-fuera">Examen cerrado</span>
-          }
           @case ('sin-intentos') {
             <span class="examen-fuera">Sin intentos disponibles</span>
           }
+        }
+        @if (!habilitada(clase)) {
+          <span class="examen-fuera">Se habilita el {{ clase.inicio | date: 'd MMM, HH:mm' }}</span>
         }
         <!-- Cómo va el alumno en este examen: su mejor nota y los intentos que le quedan. -->
         @if (clase.examen; as e) {
@@ -144,7 +142,16 @@
                     @for (fuente of mensaje.fuentes; track $index) {
                       <li class="fuente" [class.invalida]="!fuente.valida"
                           [attr.title]="fuente.valida ? null : 'Esta cita no aparece en el material de la clase'">
-                        <span class="trazo">{{ fuente.archivo }}, p. {{ fuente.pagina }}</span>
+                        @if (fuente.valida && descargable(fuente.archivo)) {
+                          <button type="button" class="descarga" [disabled]="descargando() === fuente.archivo"
+                                  [attr.aria-label]="'Descargar ' + fuente.archivo" title="Descargar el archivo"
+                                  (click)="descargar(fuente.archivo)">
+                            <span class="trazo">{{ fuente.archivo }}, p. {{ fuente.pagina }}</span>
+                            <span class="bajar" aria-hidden="true">↓</span>
+                          </button>
+                        } @else {
+                          <span class="trazo">{{ fuente.archivo }}, p. {{ fuente.pagina }}</span>
+                        }
                       </li>
                     }
                   </ul>
