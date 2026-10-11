@@ -7,13 +7,14 @@ El modelo gira en torno a la **Clase**: de ella cuelgan el contenido y un único
 | Entidad | Campos clave | Relaciones |
 | --- | --- | --- |
 | Usuario | id, email, nombre, rol (Alumno, Docente, Admin), agente_preferido | N:M con Curso vía Matricula, 1:N CredencialAgente |
-| CredencialAgente | id, usuario_id, agente_id, clave_cifrada, ultimos4, origen (OAuth; Pegada solo en filas antiguas), estado (Valida, Invalida), creada_en, ultimo_uso_en | la clave BYOK del alumno; única por usuario y agente |
+| CredencialAgente | id, usuario_id, agente_id, clave_cifrada, ultimos4, origen (OAuth: refresh token de Google; Pegada: clave de API), estado (Valida, Invalida), creada_en, ultimo_uso_en | la credencial BYOK del usuario; única por usuario y agente |
+| TokenMcp | id, usuario_id, hash (SHA-256), ultimos4, creado_en, ultimo_uso_en, revocado_en | el token personal con que su asistente entra a `/mcp` (RF-39); uno vivo por usuario, nunca se guarda en claro |
 | Curso | id, codigo, nombre, periodo | 1:N Clase |
 | Matricula | usuario_id, curso_id, rol_en_curso | puente Usuario–Curso |
 | Clase | id, curso_id, titulo, inicio, orden, ampliacion_permitida | 1:N ArchivoContenido, 1:1 Examen, 1:N Conversacion |
 | ArchivoContenido | id, clase_id, nombre, tipo, blob_url, estado (Pendiente, Procesando, Listo, Error), hash, condensado (Pendiente, Procesando, Listo, SinCuenta, Error), error_condensado, usar_original | 1:N PaginaContenido |
 | PaginaContenido | id, archivo_id, clase_id, pagina, texto, tokens, texto_condensado, tokens_condensado | texto extraído que forma el contexto de clase; los apuntes de la IA van al lado, nunca en su lugar |
-| AgenteIA | id (openrouter), nombre_visible, proveedor, modelo, base_url, habilitado | 1:N Intento, 1:N CredencialAgente |
+| AgenteIA | id (`gemini`, `gemini-clave`, `openai`, `anthropic`), nombre_visible, proveedor, modelo, base_url, url_consola, descripcion, habilitado | 1:N Intento, 1:N CredencialAgente |
 | Examen | id, clase_id, abre_en, cierra_en, max_intentos, minutos_limite, modo_feedback (Inmediato, AlFinal), publicado | 1:N Pregunta |
 | Pregunta | id, examen_id, enunciado, justificacion, tema, nivel (Inicial, Básico, Intermedio, Avanzado), orden, origen (IA, Docente), aprobada | 1:N Alternativa, N:M PaginaContenido (referencias) |
 | Alternativa | id, pregunta_id, letra, texto, es_correcta | — |
@@ -78,7 +79,7 @@ CREATE TABLE credencial_agente (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   usuario_id    uuid NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
   agente_id     text NOT NULL REFERENCES agente_ia(id),
-  clave_cifrada text NOT NULL,        -- nunca en claro, nunca se devuelve
+  clave_cifrada text NOT NULL,        -- clave de API o refresh token; nunca en claro, nunca se devuelve
   ultimos4      text NOT NULL,        -- lo unico que ve la web
   origen        text NOT NULL DEFAULT 'Pegada',  -- Pegada | OAuth
   estado        text NOT NULL DEFAULT 'Valida',

@@ -41,12 +41,13 @@ Los endpoints `POST /clases/{claseId}/contenido` y `DELETE /contenido/{archivoId
 
 El texto de cada archivo se extrae **una sola vez**, al subirlo (sección 6.1); en una pregunta no se lee ningún documento.
 
-**Material condensado (RF-36).** Después de extraer, `CondensadorMaterial` pide a la IA, con la cuenta de OpenRouter del profesor, que reescriba cada página como apuntes compactos:
+**Material condensado (RF-36).** Después de extraer, `CondensadorMaterial` pide a la IA, con la cuenta que el profesor tenga conectada (Gemini con su cuenta de Google o cualquiera de sus claves de API), que reescriba cada página como apuntes compactos:
 - conserva definiciones, cifras, fórmulas, pasos y ejemplos numéricos con los mismos términos, y quita relleno, repeticiones y textos decorativos;
 - trabaja por página, así que cada apunte conserva su cita `[archivo, p. N]`;
-- lo hace en lotes de páginas seguidas para gastar pocas llamadas del cupo gratuito.
+- lo hace en lotes de páginas seguidas para gastar pocas llamadas del cupo gratuito;
+- si el profesor tiene varias IA conectadas y una corta por límite de uso, sigue con la siguiente.
 
-Los apuntes se guardan en `pagina_contenido.texto_condensado`, al lado del original, nunca en su lugar. El tutor lee los apuntes; el examen se genera con el original, porque ahí manda el detalle. Sin cuenta del profesor, con el modelo saturado o si el profesor elige *Usar original*, el tutor lee el original, como antes.
+Los apuntes se guardan en `pagina_contenido.texto_condensado`, al lado del original, nunca en su lugar. El tutor lee los apuntes; el examen se genera con el original, porque ahí manda el detalle. Sin ninguna IA conectada del profesor, con el modelo saturado o si el profesor elige *Usar original*, el tutor lee el original, como antes.
 
 `ContextoClaseService` arma el contexto una vez por clase y lo cachea:
 
@@ -54,7 +55,7 @@ Los apuntes se guardan en `pagina_contenido.texto_condensado`, al lado del origi
 2. Las concatena dentro de una etiqueta `<contenido>`, cada página precedida por su marca de origen `[archivo, p. N]`, que es la misma cita que el agente debe usar.
 3. Suma los tokens; si superan el máximo, corta y avisa al docente que el material excede el contexto disponible (el examen sigue funcionando con el contenido incluido).
 4. El resultado se guarda en caché con la clave `claseId + hash del contenido`, y se invalida cuando se agrega, reemplaza o borra un archivo.
-5. Se envía como bloque inicial del prompt de sistema y se marca para *prompt caching* del proveedor, de modo que las repreguntas del alumno no vuelven a pagar esos tokens.
+5. Se envía como bloque inicial del prompt de sistema, siempre igual mientras el material no cambie, de modo que el proveedor que cachea prefijos repetidos no vuelve a cobrar esos tokens en las repreguntas del alumno.
 
 ```text
 <contenido clase="Clase 03 — Redes profundas">
@@ -127,13 +128,14 @@ Las variables entre llaves las completa `AgenteTutorService` en cada llamada. El
 - El contexto de clase viaja en Consulta y en Revisión. Durante el examen con feedback *AlFinal* no: las preguntas las entrega el servidor y el tutor no tiene de dónde sacar una pista (RF-15). Con feedback *Inmediato* sí, para explicar cada corrección.
 - `registrar_respuesta` valida en el servidor que la pregunta pertenezca al intento, que no esté ya respondida y que el tiempo no haya vencido.
 - **El examen no depende de que el modelo use bien las herramientas.** La pregunta la escribe el servidor desde la base; "Registrada." solo aparece si la respuesta se guardó; el cierre lo hace el servidor al registrar la última. El texto del modelo durante el examen se retiene y se comprueba: si dice que registró sin llamar a la herramienta, presenta una pregunta o alternativas por su cuenta, o cita el material con una pregunta pendiente, se descarta, se le recuerda la regla y se vuelve a pedir (hasta 2 veces); después responde el servidor. `finalizar_examen` con preguntas pendientes se rechaza salvo que el alumno lo pida o haya vencido el tiempo.
-- Con Gemini 3, cada `functionCall` vuelve al modelo con la `thoughtSignature` que trajo: sin ella la API responde 400 y ninguna herramienta funcionaría.
+- Con Gemini 3 por cuenta de Google (`GeminiProvider`), cada `functionCall` vuelve al modelo con la `thoughtSignature` que trajo: sin ella la API responde 400 y ninguna herramienta funcionaría.
 - El texto del contenido y del alumno va siempre dentro de etiquetas delimitadas y se trata como dato, no como instrucción.
 - Cuando el agente declara que el material no cubre una duda, `registrar_duda_sin_cobertura` la guarda en `DudaSinCobertura`; el servidor valida que la duda pertenezca a la conversación en curso.
 - La ampliación está bloqueada por servidor, no solo por prompt: en modo Evaluación y en clases con `ampliacion_permitida = false`, el bloque "Ampliación fuera del material" se detecta y la respuesta se corta antes de llegar al alumno.
 - Una cita `[archivo, p. N]` que no resuelva contra `pagina_contenido` se marca como inválida: la web la muestra sin enlace y el mensaje queda señalado en el reporte del docente.
 - Temperatura 0,2; en la revisión se valida que la respuesta incluya al menos una cita válida o una ampliación marcada antes de mostrarla.
 - A los proveedores solo se envía un identificador seudónimo del alumno, nunca nombre ni correo.
+- Al asistente que entra por MCP (RF-39) las mismas reglas le llegan como instrucciones del servidor, pero no se confía en que las cumpla: las herramientas pasan por el mismo ejecutor del chat, que no entrega la correcta antes de finalizar ni deja fijar la nota.
 - La credencial del alumno se descifra solo para armar la llamada saliente: no entra al prompt, no se registra en `MensajeChat` ni en los logs, y no aparece en ningún reporte.
 
 ---

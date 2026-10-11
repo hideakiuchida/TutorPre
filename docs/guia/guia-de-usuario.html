@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Tutor Pre-Clase — Guía de uso</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm; }
+  @page :first { margin: 0; }
+  :root { --rojo: #d50000; --azul: #1f3a68; --tinta: #1c2536; --gris: #5b6577; --linea: #dfe3ea; --fondo: #f5f6f9; --resaltador: #ffe873; }
+  * { box-sizing: border-box; }
+  html { font-size: 10.5pt; }
+  body { margin: 0; color: var(--tinta); font-family: "Segoe UI", system-ui, Arial, sans-serif; line-height: 1.5; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; color: var(--tinta); line-height: 1.2; }
+  h2 { font-size: 17pt; margin: 0 0 3mm; padding-top: 1mm; break-after: avoid; }
+  h3 { font-size: 12.5pt; margin: 6mm 0 2mm; break-after: avoid; }
+  p { margin: 0 0 3mm; }
+  a { color: var(--azul); }
+  code { font-family: Consolas, "Courier New", monospace; font-size: 9.2pt; background: var(--fondo); padding: 0 1.2mm; border-radius: 1mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 6mm; }
+  li { margin-bottom: 1.2mm; }
+
+  /* Portada */
+  .portada { height: 297mm; display: flex; flex-direction: column; break-after: page; }
+  .portada .franja { background: var(--rojo); color: #fff; padding: 22mm 20mm 20mm; }
+  .portada .marca { font-family: Georgia, serif; font-weight: 700; font-size: 13pt; letter-spacing: .2px; }
+  .portada h1 { color: #fff; font-size: 38pt; margin: 30mm 0 5mm; }
+  .portada .bajada { font-family: Georgia, serif; font-size: 15pt; max-width: 135mm; line-height: 1.4; opacity: .95; }
+  .portada .cuerpo { flex: 1; background: var(--azul); color: #fff; padding: 16mm 20mm; display: flex; flex-direction: column; justify-content: space-between; }
+  .portada .para { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; }
+  .portada .para div { border-top: 1mm solid rgba(255,255,255,.35); padding-top: 4mm; }
+  .portada .para strong { display: block; font-family: Georgia, serif; font-size: 14pt; margin-bottom: 1.5mm; }
+  .portada .para span { font-size: 10.5pt; opacity: .9; }
+  .portada .pie { font-size: 9pt; opacity: .75; }
+
+  /* Secciones */
+  .parte { background: var(--azul); color: #fff; padding: 7mm 8mm; margin: 0 0 6mm; border-left: 3mm solid var(--rojo); break-before: page; break-after: avoid; }
+  .parte small { text-transform: uppercase; letter-spacing: 1.2px; font-size: 8.5pt; opacity: .8; }
+  .parte h2 { color: #fff; font-size: 22pt; margin: 1mm 0 1mm; }
+  .parte p { margin: 0; opacity: .92; }
+  section { margin-bottom: 7mm; }
+  .numero { display: inline-flex; align-items: center; justify-content: center; width: 8mm; height: 8mm; border-radius: 50%; background: var(--rojo); color: #fff; font-family: "Segoe UI", sans-serif; font-size: 11pt; font-weight: 700; margin-right: 2.5mm; vertical-align: 1mm; }
+
+  figure { margin: 4mm 0 5mm; break-inside: avoid; }
+  figure .marco { border: .3mm solid var(--linea); border-radius: 1.5mm; overflow: hidden; box-shadow: 0 1mm 3mm rgba(20,30,50,.12); }
+  figure img { display: block; width: 100%; }
+  figure.media { width: 78%; margin-left: auto; margin-right: auto; }
+  figure.recorte .marco { aspect-ratio: var(--ar, 16/8); }
+  figure.recorte img { height: 100%; object-fit: cover; object-position: top; }
+  figcaption { font-size: 8.8pt; color: var(--gris); margin-top: 1.8mm; }
+  figcaption b { color: var(--tinta); }
+  .dos { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; break-inside: avoid; }
+  .dos figure { margin-top: 2mm; }
+
+  .pasos { counter-reset: paso; list-style: none; padding: 0; }
+  .pasos > li { counter-increment: paso; position: relative; padding-left: 9mm; margin-bottom: 2.4mm; }
+  .pasos > li::before { content: counter(paso); position: absolute; left: 0; top: .2mm; width: 5.6mm; height: 5.6mm; border-radius: 50%; background: var(--azul); color: #fff; font-size: 8.8pt; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
+  .nota, .ojo, .tip { border-radius: 1.5mm; padding: 3mm 4mm; margin: 3mm 0 4mm; font-size: 9.8pt; break-inside: avoid; }
+  .nota { background: var(--fondo); border-left: 1.2mm solid var(--azul); }
+  .ojo { background: #fff4f2; border-left: 1.2mm solid var(--rojo); }
+  .tip { background: #fffbe0; border-left: 1.2mm solid #e0b800; }
+  .nota b:first-child, .ojo b:first-child, .tip b:first-child { display: block; margin-bottom: .6mm; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin: 2mm 0 4mm; break-inside: avoid; }
+  th { text-align: left; background: var(--azul); color: #fff; padding: 2mm 2.5mm; font-weight: 600; }
+  td { padding: 2mm 2.5mm; border-bottom: .2mm solid var(--linea); vertical-align: top; }
+  tr:nth-child(even) td { background: var(--fondo); }
+  .tecla { display: inline-block; border: .3mm solid var(--azul); color: var(--azul); border-radius: 1mm; padding: 0 1.6mm; font-weight: 600; font-size: 9.4pt; white-space: nowrap; }
+  mark { background: var(--resaltador); padding: 0 .8mm; }
+  .lapiz { font-family: Georgia, serif; font-style: italic; color: var(--gris); border-bottom: .3mm dashed var(--gris); }
+  .indice { columns: 2; column-gap: 10mm; font-size: 10pt; }
+  .indice h3 { margin-top: 0; }
+  .indice ol { break-inside: avoid; }
+  .resumen { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0 6mm; }
+  .resumen div { border: .3mm solid var(--linea); border-top: 1.2mm solid var(--rojo); border-radius: 1.5mm; padding: 3mm; font-size: 9.2pt; }
+  .resumen strong { display: block; font-family: Georgia, serif; font-size: 11.5pt; margin-bottom: 1mm; }
+</style>
+</head>
+<body>
+
+<div class="portada">
+  <div class="franja">
+    <div class="marca">Tutor pre-clase</div>
+    <h1>Guía de uso</h1>
+    <p class="bajada">Cómo prepararte antes de cada clase con un tutor de IA que solo usa el material de tu profesor.</p>
+  </div>
+  <div class="cuerpo">
+    <div class="para">
+      <div><strong>Para alumnos</strong><span>Entrar, conectar tu IA, preguntar al tutor, rendir el examen previo y repasar tus errores.</span></div>
+      <div><strong>Para profesores</strong><span>Subir el material, ajustar el examen de cada clase y leer cómo llega tu grupo.</span></div>
+    </div>
+    <div class="pie">Versión de octubre de 2026 · Las pantallas de esta guía son de un curso de demostración (MFEP – Finanzas empresariales).</div>
+  </div>
+</div>
+
+<section>
+  <h2>Qué es el Tutor Pre-Clase</h2>
+  <p>Es un chat. Antes de cada sesión, entras a la clase que te toca y conversas con un tutor que <b>conoce el material que subió tu profesor</b>: le haces preguntas, te toma un examen corto y te explica en qué fallaste. Tu profesor ve cómo llegó el grupo y qué temas conviene reforzar.</p>
+  <div class="resumen">
+    <div><strong>1 · Entra</strong>Con tu cuenta de Google. Eliges si eres alumno o profesor.</div>
+    <div><strong>2 · Conecta tu IA</strong>Una sola vez. Lo más simple: una clave gratuita de Gemini.</div>
+    <div><strong>3 · Estudia</strong>Pregunta al tutor sobre la clase. Te responde citando el material.</div>
+    <div><strong>4 · Rinde</strong>Un examen por chat. La nota sale al instante y repasas tus fallos.</div>
+  </div>
+  <h3>Qué necesitas</h3>
+  <ul>
+    <li>Una <b>cuenta de Google</b> (tu Gmail) para entrar.</li>
+    <li>Un navegador actualizado, en computadora o celular.</li>
+    <li>Una <b>IA conectada</b>. El Tutor no trae una IA propia: cada persona usa la suya. La opción gratuita, con cualquier Gmail y sin tarjeta, se explica paso a paso en la página 4.</li>
+  </ul>
+
+  <div class="indice">
+    <div>
+      <h3>Parte 1 · Alumnos</h3>
+      <ol>
+        <li>Entrar y elegir a tu profesor</li>
+        <li>Conectar tu tutor (tu IA)</li>
+        <li>Conocer la pantalla del chat</li>
+        <li>Preguntarle al tutor</li>
+        <li>Rendir el examen</li>
+        <li>Ver tu nota y repasar</li>
+        <li>Cambiar de IA o de profesor</li>
+        <li>Si algo no funciona</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Parte 2 · Profesores</h3>
+      <ol>
+        <li>Entrar como profesor</li>
+        <li>Subir el material de tus clases</li>
+        <li>Revisar el material y los apuntes de la IA</li>
+        <li>Ajustar el examen y el tutor</li>
+        <li>Leer los resultados</li>
+      </ol>
+      <h3>Al final</h3>
+      <ol><li>Tu privacidad y tus claves</li></ol>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== ALUMNOS ===================== -->
+<div class="parte">
+  <small>Parte 1</small>
+  <h2>Si eres alumno</h2>
+  <p>De la entrada a la nota, en el orden en que lo vas a usar.</p>
+</div>
+
+<section>
+  <h2><span class="numero">1</span>Entrar y elegir a tu profesor</h2>
+  <ol class="pasos">
+    <li>Abre la dirección del Tutor que te dio tu profesor y pulsa <span class="tecla">Soy alumno</span>.</li>
+    <li>Pulsa <span class="tecla">Continuar con Google</span> e inicia sesión con tu Gmail. No hay contraseñas propias del Tutor ni nadie tiene que aprobarte.</li>
+    <li><b>Solo la primera vez:</b> elige a tu profesor en la lista y pulsa <span class="tecla">Entrar</span>. Verás únicamente los cursos de ese profesor.</li>
+  </ol>
+  <div class="dos">
+    <figure><div class="marco"><img src="img/01-entrada.png" alt="Página de entrada con las opciones Soy alumno y Soy profesor"></div><figcaption><b>Entrada.</b> Primero dices quién eres.</figcaption></figure>
+    <figure><div class="marco"><img src="img/02-entrada-google.png" alt="Botón Continuar con Google"></div><figcaption><b>Inicio de sesión.</b> Un solo botón: Google.</figcaption></figure>
+  </div>
+  <figure class="media recorte" style="--ar: 16/5.2"><div class="marco"><img src="img/13-profesor.png" alt="Pantalla Tu profesor con la lista de profesores"></div><figcaption><b>Tu profesor.</b> Cada profesor aparece con sus cursos. Puedes cambiarlo después desde el chat.</figcaption></figure>
+</section>
+
+<section>
+  <h2><span class="numero">2</span>Conectar tu tutor (tu IA)</h2>
+  <p>La primera vez que entras se abre la ventana <b>Mi tutor</b>. Mientras no conectes una IA, el chat no te deja escribir. Se hace una sola vez y hay tres formas, una en cada pestaña:</p>
+  <table>
+    <tr><th style="width:27%">Pestaña</th><th style="width:38%">Cómo funciona</th><th>Para quién</th></tr>
+    <tr><td><b>Con tu clave de API</b><br>(la recomendada)</td><td>Creas una clave en la página del proveedor y la pegas aquí.</td><td><b>Todos.</b> Gemini es gratis con cualquier Gmail. ChatGPT y Claude son de pago.</td></tr>
+    <tr><td><b>Con tu cuenta</b></td><td>Entras con Google y aceptas un permiso, sin copiar claves.</td><td>Solo las cuentas que el administrador autorizó en Google.</td></tr>
+    <tr><td><b>Desde tu asistente</b></td><td>Conectas Claude Code, Claude Desktop u otro asistente para estudiar desde ahí.</td><td>Quien ya usa uno de esos asistentes.</td></tr>
+  </table>
+
+  <h3>La forma gratuita: tu clave de Gemini (un minuto)</h3>
+  <ol class="pasos">
+    <li>En la pestaña <span class="tecla">Con tu clave de API</span>, pulsa el enlace <b>Google AI Studio</b> (se abre <code>aistudio.google.com/apikey</code> en otra pestaña).</li>
+    <li>Entra con tu Gmail y pulsa <b>Crear clave de API</b>. No pide tarjeta.</li>
+    <li>Copia la clave completa.</li>
+    <li>Vuelve al Tutor y pégala en el recuadro <b>Gemini (tu clave de AI Studio)</b>.</li>
+    <li>Pulsa <span class="tecla">Conectar</span>. El Tutor la comprueba con Google; si es correcta verás <b>«Conectada: la clave termina en…»</b> y ya puedes volver al chat.</li>
+  </ol>
+  <figure><div class="marco"><img src="img/03-mi-tutor-clave.png" alt="Ventana Mi tutor en la pestaña Con tu clave de API"></div><figcaption><b>Mi tutor · Con tu clave de API.</b> Arriba, los pasos para crear la clave gratuita; debajo, un recuadro por cada IA con su campo para pegarla.</figcaption></figure>
+  <div class="nota"><b>Tu clave está protegida.</b>Se guarda cifrada y nadie puede volver a verla, ni tú: la pantalla solo muestra sus últimos 4 caracteres. Si te equivocas de clave, el Tutor te avisa y no guarda nada.</div>
+  <div class="ojo"><b>Las suscripciones no sirven como clave.</b>ChatGPT Plus y Claude Pro no incluyen claves de API. Para usar ChatGPT o Claude necesitas una cuenta de desarrollador con saldo en OpenAI o Anthropic; el uso se cobra ahí.</div>
+
+  <h3>Las otras dos pestañas</h3>
+  <div class="dos">
+    <figure><div class="marco"><img src="img/04-mi-tutor-cuenta.png" alt="Pestaña Con tu cuenta"></div><figcaption><b>Con tu cuenta.</b> Pulsa <i>Entrar con Gemini (tu cuenta de Google)</i>. Si Google te muestra «Acceso bloqueado», tu cuenta no está autorizada: usa la clave de API.</figcaption></figure>
+    <figure><div class="marco"><img src="img/05-mi-tutor-asistente.png" alt="Pestaña Desde tu asistente"></div><figcaption><b>Desde tu asistente.</b> Pulsa <i>Generar token</i>, cópialo en ese momento (no se vuelve a mostrar) y sigue los pasos para tu asistente.</figcaption></figure>
+  </div>
+  <div class="tip"><b>Si estudias desde tu asistente</b>Pídele cosas como «¿Qué clases tengo?», «Explícame la clase 1 con el material» o «Tómame el examen de la clase 1». La nota la sigue poniendo el Tutor, y para generar las preguntas del examen necesitas además una IA conectada en alguna de las otras dos pestañas. Trata el token como una contraseña: quien lo tenga puede rendir tu examen. Puedes revocarlo cuando quieras.</div>
+</section>
+
+<section>
+  <h2><span class="numero">3</span>Conocer la pantalla del chat</h2>
+  <p>Todo ocurre en una sola pantalla. No hay formularios ni otra página para el examen.</p>
+  <figure><div class="marco"><img src="img/06-chat-consulta.png" alt="Pantalla del chat con la lista de clases y una conversación"></div><figcaption><b>El chat de una clase.</b> Tus mensajes van a la izquierda y las respuestas del tutor a la derecha.</figcaption></figure>
+  <table>
+    <tr><th style="width:30%">Zona</th><th>Qué encuentras</th></tr>
+    <tr><td><b>Barra azul</b> (izquierda)</td><td>Tus clases. Cada una muestra si tiene <i>Examen disponible</i>, cuántos intentos llevas (<i>0 de 3 intentos</i>) y tu mejor nota. Arriba, tu profesor y <i>Cambiar</i>.</td></tr>
+    <tr><td><b>Franja roja</b> (arriba)</td><td>La clase abierta y en qué estás: <i>Consulta libre</i>, <i>Examen</i> o <i>Revisión de errores</i>. A la derecha, <b>Mi tutor</b> (la IA en uso, con <i>Cambiar</i>), <i>Salir</i> y el botón <b>Comenzar examen</b>.</td></tr>
+    <tr><td><b>Conversación</b> (centro)</td><td>Los mensajes. Debajo de cada respuesta del tutor aparecen sus fuentes.</td></tr>
+    <tr><td><b>Caja de texto</b> (abajo)</td><td>Escribes y pulsas <span class="tecla">Enviar</span> o la tecla Enter.</td></tr>
+  </table>
+  <p>Todas las clases están abiertas desde que existen: la fecha que ves es solo informativa.</p>
+</section>
+
+<section>
+  <h2><span class="numero">4</span>Preguntarle al tutor</h2>
+  <p>Elige una clase y escribe tu duda con tus palabras, por ejemplo <i>«¿Qué diferencia hay entre costo y gasto?»</i>. El tutor responde con el material de esa clase.</p>
+  <h3>Cómo leer una respuesta</h3>
+  <ul>
+    <li><mark>Resaltado</mark> — <b>viene del material.</b> Es una cita con el archivo y la página, por ejemplo <mark>M1 Estados Financieros.pdf, p. 44</mark>. Debajo de la respuesta, pulsa la fuente (tiene una flecha ↓) para <b>descargar ese archivo</b> y comprobarlo.</li>
+    <li>Una fuente <s>tachada</s> es una cita que el Tutor no pudo ubicar en el material: tómala con cuidado.</li>
+    <li><span class="lapiz">A lápiz</span> — <b>lo añade el tutor por su cuenta</b>, fuera del material. Va en un bloque aparte con la etiqueta <i>Fuera del material</i> y el aviso <i>Confírmalo con tu docente</i>.</li>
+  </ul>
+  <figure><div class="marco"><img src="img/06b-chat-ampliacion.png" alt="Respuesta con una fuente resaltada y un bloque Fuera del material"></div><figcaption><b>Dentro y fuera del material.</b> Arriba, las fuentes de una respuesta basada en el material. Abajo, una duda que el material no cubre: el tutor lo dice y amplía a lápiz.</figcaption></figure>
+  <div class="nota"><b>Si el material no cubre tu duda</b>Depende de lo que haya decidido tu profesor para esa clase. Lo habitual es que el tutor responda <i>«Esto no está en el material de la clase; pregúntalo en la sesión»</i>. Si el profesor activó la ampliación, además te lo explica a lápiz. En los dos casos tu duda le llega al profesor, para que sepa qué quedó sin cubrir.</div>
+  <p>El tutor solo habla del curso. Si le preguntas algo ajeno, te lo dirá y te devolverá al tema.</p>
+</section>
+
+<section>
+  <h2><span class="numero">5</span>Rendir el examen</h2>
+  <ol class="pasos">
+    <li>Abre la clase y pulsa <span class="tecla">Comenzar examen</span> (arriba a la derecha). En unos segundos llega la primera pregunta. Empezar gasta un intento.</li>
+    <li>Lee la pregunta y sus cuatro alternativas (A, B, C y D).</li>
+    <li>Responde escribiendo la letra (<i>«B»</i>, <i>«creo que es la A»</i>) o con tus palabras. Si no queda claro cuál elegiste, el tutor te pide confirmarla.</li>
+    <li>Cuando veas <b>«Registrada.»</b>, tu respuesta quedó guardada y aparece la siguiente pregunta.</li>
+    <li>Al responder la última, el examen se cierra solo y recibes tu nota.</li>
+  </ol>
+  <figure><div class="marco"><img src="img/09-examen-preguntas.png" alt="Preguntas del examen dentro del chat"></div><figcaption><b>El examen dentro del chat.</b> El tutor presenta cada pregunta; aquí la alumna pidió una pista (no se la dio) y luego respondió «creo que es la A».</figcaption></figure>
+  <table>
+    <tr><th style="width:34%">Regla</th><th>Qué significa para ti</th></tr>
+    <tr><td>Cada examen es distinto</td><td>La IA arma preguntas nuevas para ti en cada intento, a partir del material. Repetir el examen no es memorizarlo.</td></tr>
+    <tr><td>Preguntas, tiempo e intentos</td><td>Lo usual son 6 preguntas, 20 minutos y 3 intentos, pero tu profesor puede cambiarlo en cada clase. Durante el examen ves la pregunta en la que vas y el tiempo que queda.</td></tr>
+    <tr><td>Sin fechas</td><td>Lo rindes cuando quieras. No abre ni cierra en una fecha.</td></tr>
+    <tr><td>Sin pistas</td><td>Mientras dure el examen el tutor no da respuestas, pistas ni explicaciones.</td></tr>
+    <tr><td>Una respuesta registrada no se cambia</td><td>Piénsala antes de enviarla.</td></tr>
+    <tr><td>Puedes terminar antes</td><td>Escribe que quieres terminar. Las preguntas que no respondiste cuentan como no acertadas.</td></tr>
+    <tr><td>La nota la pone el sistema, no la IA</td><td>Se calcula comparando tus respuestas con las correctas: no se puede negociar con el tutor.</td></tr>
+  </table>
+  <div class="tip"><b>Si la IA tarda en traer una pregunta</b>El reloj se detiene y lo verás marcado como <i>en pausa</i>: ese tiempo de espera no se te descuenta. Tus respuestas ya registradas no se pierden.</div>
+</section>
+
+<section>
+  <h2><span class="numero">6</span>Ver tu nota y repasar</h2>
+  <p>Al terminar, el chat pasa a <b>Revisión de errores</b> y el tutor te da una <b>evaluación final</b>: tu nota sobre 20, lo que dominaste, los temas a reforzar y una recomendación para llegar mejor a la clase. Después repasa contigo los fallos uno por uno: por qué tu elección era incorrecta, cuál era el concepto y una pregunta corta para comprobar que quedó claro. Puedes repreguntar todo lo que necesites.</p>
+  <figure><div class="marco"><img src="img/09b-evaluacion-final.png" alt="Evaluación final con la nota y los temas a reforzar"></div><figcaption><b>Evaluación final.</b> En la barra azul, la clase ya muestra <i>Nota 16.7 · 3 de 3 intentos</i> y, al agotarlos, <i>Sin intentos disponibles</i>.</figcaption></figure>
+  <div class="dos">
+    <div>
+      <h3>Tu nivel en la clase</h3>
+      <p>Tu profesor te ve en uno de cuatro niveles, según tu <b>mejor intento</b>:</p>
+      <table>
+        <tr><th>Nota</th><th>Nivel</th></tr>
+        <tr><td>0 – 10,9</td><td>Inicial</td></tr>
+        <tr><td>11 – 14,9</td><td>Básico</td></tr>
+        <tr><td>15 – 17,9</td><td>Intermedio</td></tr>
+        <tr><td>18 – 20</td><td>Avanzado</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Qué ve tu profesor</h3>
+      <ul>
+        <li>Tu nota, tu nivel y cuántos intentos usaste.</li>
+        <li>Los temas a reforzar que propuso el tutor.</li>
+        <li>Las dudas que el material no cubría.</li>
+      </ul>
+      <p>No ve tu clave de IA ni puede usarla.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="numero">7</span>Cambiar de IA o de profesor</h2>
+  <p>En la franja roja, junto a <b>Mi tutor</b>, pulsa <span class="tecla">Cambiar</span>. En <b>Conversas con</b> eliges con cuál de tus IA conectadas hablas; debajo puedes conectar otra, reemplazar una clave o pulsar <span class="tecla">Desconectar</span>. Durante un examen sigues con la misma IA: podrás cambiarla al terminar.</p>
+  <figure class="media recorte" style="--ar: 16/9.6"><div class="marco"><img src="img/08-mi-tutor-conectado.png" alt="Mi tutor con una IA conectada"></div><figcaption><b>Mi tutor con una IA conectada.</b> La que dice <i>En uso</i> es con la que conversas.</figcaption></figure>
+  <p>Para <b>cambiar de profesor</b>, pulsa <i>Cambiar</i> junto a su nombre, arriba en la barra azul. Dejarás de ver los cursos del anterior, pero tus exámenes ya rendidos se conservan.</p>
+</section>
+
+<section>
+  <h2><span class="numero">8</span>Si algo no funciona</h2>
+  <table>
+    <tr><th style="width:40%">Lo que ves</th><th>Qué hacer</th></tr>
+    <tr><td>El chat no me deja escribir y dice <i>Sin tutor conectado</i></td><td>Falta conectar tu IA. Pulsa <i>Conectar</i> y sigue el paso 2.</td></tr>
+    <tr><td>Al pegar la clave dice que no parece una clave de ese proveedor, o que el proveedor la rechazó</td><td>Revisa que la copiaste completa y que la pegaste en el recuadro correcto (Gemini, ChatGPT o Claude). Si sigue igual, crea una clave nueva.</td></tr>
+    <tr><td>Google muestra «Acceso bloqueado» al entrar con Gemini</td><td>Tu cuenta no está autorizada para esa forma de conexión. Usa la pestaña <i>Con tu clave de API</i>.</td></tr>
+    <tr><td><i>«Se acabó tu cupo de uso… Podrás seguir en unos N min»</i></td><td>Agotaste por ahora el uso gratuito de tu IA. Espera ese tiempo o conecta otra IA. Tu avance está guardado.</td></tr>
+    <tr><td><i>«El modelo está saturado en este momento… no es tu cupo»</i></td><td>Le pasa a todos los que usan ese modelo. Pulsa <span class="tecla">Reintentar</span> en unos segundos.</td></tr>
+    <tr><td><i>«Tu cuenta de… no tiene saldo»</i></td><td>Tu cuenta de pago (OpenAI o Anthropic) se quedó sin créditos. Cárgale saldo o elige otra IA en <i>Mi tutor</i>.</td></tr>
+    <tr><td>Me pide volver a entrar o pegar una clave nueva</td><td>El proveedor ya no acepta tu credencial (por ejemplo, borraste la clave). Reconéctala en <i>Mi tutor</i>; tu examen en curso no se pierde.</td></tr>
+    <tr><td>La respuesta quedó cortada</td><td>Escribe <i>«continúa»</i> y el tutor sigue.</td></tr>
+    <tr><td>Aparece el botón <i>Reintentar</i></td><td>La IA falló un momento. Púlsalo: reenvía tu último mensaje sin duplicarlo.</td></tr>
+    <tr><td>No veo ninguna clase</td><td>Tu profesor todavía no subió material, o elegiste a otro profesor. Revisa su nombre arriba en la barra azul.</td></tr>
+    <tr><td>Ya no aparece <i>Comenzar examen</i></td><td>Usaste todos tus intentos. Solo tu profesor puede devolvértelos.</td></tr>
+  </table>
+</section>
+
+<!-- ===================== PROFESORES ===================== -->
+<div class="parte">
+  <small>Parte 2</small>
+  <h2>Si eres profesor</h2>
+  <p>Tú pones el material; las preguntas, la calificación y el reporte los hace la plataforma.</p>
+</div>
+
+<section>
+  <h2><span class="numero">1</span>Entrar como profesor</h2>
+  <p>En la página de entrada pulsa <span class="tecla">Soy profesor</span> y luego <span class="tecla">Continuar con Google</span>, con el mismo correo que da nombre a tu carpeta de material. Llegas a tu panel, con tus clases a la izquierda.</p>
+  <div class="tip"><b>También puedes entrar como alumno</b>Vuelve a la entrada y elige <i>Soy alumno</i>: verás el chat tal como lo ven ellos (puedes elegirte a ti mismo como profesor) y podrás conectar tu IA en <i>Mi tutor</i>.</div>
+</section>
+
+<section>
+  <h2><span class="numero">2</span>Subir el material de tus clases</h2>
+  <p>No hay formularios de carga: <b>copias tus archivos en tu carpeta de contenido</b> y la plataforma hace el resto. La estructura es una carpeta con tu correo, dentro una por curso y dentro una por clase:</p>
+  <table>
+    <tr><th style="width:44%">Carpeta</th><th>Cómo nombrarla</th></tr>
+    <tr><td><code>course-content/tu.correo@gmail.com/</code></td><td>Tu correo, el mismo con el que entras.</td></tr>
+    <tr><td><code>&nbsp;&nbsp;MFEP - Finanzas empresariales/</code></td><td>El curso: <i>CÓDIGO - Nombre</i>.</td></tr>
+    <tr><td><code>&nbsp;&nbsp;&nbsp;&nbsp;M1 - Estados financieros/</code></td><td>La clase: el nombre es el título y el primer número, el orden.</td></tr>
+    <tr><td><code>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;M1 Estados Financieros.pdf</code></td><td>Tus archivos: PDF, PPTX, DOCX, XLSX, MD o TXT, de hasta 50 MB.</td></tr>
+  </table>
+  <ul>
+    <li>Lo que copias aparece en tu panel en menos de un minuto; <b>lo que quitas de la carpeta se retira de la clase</b>.</li>
+    <li>Cada clase nueva nace con su examen listo (6 preguntas, 20 minutos, 3 intentos) y abierta para tus alumnos. Las preguntas no las escribes ni las apruebas tú: la IA genera un examen distinto para cada alumno a partir de tu material.</li>
+    <li>Tus alumnos ven en su chat el aviso <i>«Tu docente actualizó el material de esta clase»</i>.</li>
+  </ul>
+  <div class="ojo"><b>PDF escaneados</b>Un PDF que es solo imagen no tiene texto que leer: el tutor no podrá usarlo. Sube la versión con texto.</div>
+  <div class="nota"><b>Dónde está tu carpeta</b>Depende de cómo instaló la plataforma tu institución. Pregunta al administrador cómo hacerle llegar tus archivos.</div>
+</section>
+
+<section>
+  <h2><span class="numero">3</span>Revisar el material y los apuntes de la IA</h2>
+  <p>Elige una clase a la izquierda. En <b>Material de la clase</b> ves cada archivo, su estado (<i>Listo</i> cuando ya se leyó), sus páginas y qué versión lee el tutor.</p>
+  <figure><div class="marco"><img src="img/10-docente-material.png" alt="Panel del docente con el material y los ajustes del examen"></div><figcaption><b>Panel del docente.</b> Arriba, el material de la clase; debajo, las reglas del examen.</figcaption></figure>
+  <h3>Apuntes de la IA</h3>
+  <p>Para que el tutor responda más rápido, la IA puede <b>condensar tu material una sola vez</b>: reescribe cada página como apuntes compactos, conservando definiciones, cifras, fórmulas y la cita de la página. Para eso usa <b>tu</b> IA conectada; sin ella, el tutor lee el texto original, que también funciona.</p>
+  <ul>
+    <li><span class="tecla">Comparar</span> muestra el original y los apuntes lado a lado, página por página.</li>
+    <li><span class="tecla">Usar original</span> hace que el tutor lea tu texto tal cual en ese archivo; <i>Usar apuntes</i> lo revierte.</li>
+    <li><span class="tecla">Condensar de nuevo</span> rehace los apuntes.</li>
+  </ul>
+  <p>El examen se genera siempre con tu material original, nunca con los apuntes.</p>
+  <figure class="recorte" style="--ar: 16/3.9"><div class="marco"><img src="img/12-docente-comparar.png" alt="Comparación entre el original y los apuntes de la IA"></div><figcaption><b>Comparar.</b> A la izquierda, el texto extraído de tu archivo; a la derecha, los apuntes de la IA.</figcaption></figure>
+</section>
+
+<section>
+  <h2><span class="numero">4</span>Ajustar el examen y el tutor</h2>
+  <p>En <b>Examen y tutor</b> decides las reglas de cada clase. Cambia lo que necesites y pulsa <span class="tecla">Guardar cambios</span>; vale para los intentos que empiecen desde ese momento.</p>
+  <table>
+    <tr><th style="width:36%">Ajuste</th><th style="width:24%">Valores</th><th>Para qué</th></tr>
+    <tr><td>Preguntas por examen</td><td>3 a 20</td><td>Cuántas preguntas recibe cada alumno.</td></tr>
+    <tr><td>Intentos por alumno</td><td>1 a 10</td><td>Cuántas veces puede rendirlo. Vale su mejor nota.</td></tr>
+    <tr><td>Minutos por intento</td><td>5 a 240, o <i>Sin límite de tiempo</i></td><td>El reloj que ve el alumno.</td></tr>
+    <tr><td>La corrección se muestra</td><td><i>Al terminar el examen</i> o <i>Tras cada respuesta</i></td><td>Al terminar mide mejor lo que ya sabían; tras cada respuesta enseña mientras rinden.</td></tr>
+    <tr><td>Permitir que el tutor amplíe fuera del material</td><td>Apagado (por defecto) o encendido</td><td>Apagado, el tutor se limita a tu material. Encendido, puede explicar más, siempre marcado como <i>Fuera del material</i>.</td></tr>
+  </table>
+  <p>El examen no tiene fechas: cada alumno lo rinde cuando quiera.</p>
+</section>
+
+<section>
+  <h2><span class="numero">5</span>Leer los resultados</h2>
+  <p>Más abajo, en <b>Resultados del examen</b>, la plataforma arma sola el reporte de la clase. Nadie carga notas.</p>
+  <figure><div class="marco"><img src="img/11-docente-resultados.png" alt="Resultados del examen: promedio, niveles y ficha por alumno"></div><figcaption><b>Resultados del examen.</b> Promedio, reparto por niveles, una ficha por alumno y los temas en que más falló el grupo.</figcaption></figure>
+  <ul>
+    <li><b>Promedio</b> y <b>cuántos rindieron</b>.</li>
+    <li><b>Cómo se reparten las notas</b> entre Inicial, Básico, Intermedio y Avanzado.</li>
+    <li><b>Resultados por alumno:</b> su nota vigente (el mejor intento), su nivel, sus aciertos, sus intentos y los <b>temas a reforzar</b> que propuso el tutor. Quita con la <b>×</b> los que no correspondan.</li>
+    <li><b>Temas en que más falló el grupo</b>, para decidir por dónde empezar la sesión.</li>
+    <li><b>Dudas que tu material no cubrió:</b> lo que tus alumnos preguntaron y no estaba en lo que subiste.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Tu privacidad y tus claves</h2>
+  <ul>
+    <li><b>Tu IA es tuya.</b> La plataforma no usa una clave compartida: cada persona conecta la suya y el uso cuenta en su propia cuenta.</li>
+    <li><b>Tu clave se guarda cifrada</b> y no se vuelve a mostrar. Ni tu profesor ni el administrador pueden verla ni usarla. Puedes desconectarla cuando quieras desde <i>Mi tutor</i>.</li>
+    <li><b>A la IA no se le envía tu nombre ni tu correo.</b> Recibe el material de la clase y lo que escribes en el chat.</li>
+    <li><b>El token de tu asistente</b> es como una contraseña: no lo compartas y revócalo si crees que alguien más lo tiene.</li>
+    <li>Las respuestas del tutor están <b>generadas con IA</b> a partir del material de clase. Ante la duda, vale lo que diga tu profesor.</li>
+  </ul>
+</section>
+
+</body>
+</html>

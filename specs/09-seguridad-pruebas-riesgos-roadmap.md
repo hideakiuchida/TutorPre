@@ -6,7 +6,7 @@
 
 - Inicio de sesión: OIDC con código y PKCE, canje en el servidor con el secreto de cliente, validación del `id_token` (emisor, audiencia, vigencia, `nonce`; en Google, correo verificado) y `state` de un solo uso. El rol no viene del proveedor: lo asigna el administrador en la plataforma, y un correo no registrado no entra (403 `no_registrado`).
 - La sesión es un JWT firmado por la API (12 h). En producción la clave de firma es obligatoria (`Acceso:ClaveSesion`, desde el almacén de secretos); en desarrollo se genera al arrancar, así que reiniciar la API cierra las sesiones. La entrada de prueba y las cabeceras `X-Usuario-Id`/`X-Usuario-Rol` solo existen fuera de producción.
-- Credenciales OAuth (ClientId y secreto de Google y Microsoft): nunca en el repo ni en la configuración versionada. En local, en `secrets/` (ignorada por git y montada en solo lectura; la API la lee con `Acceso:CarpetaSecretos`: el JSON que descarga Google y `microsoft.json`) o en `tutor.env` (también ignorado); en producción, en el almacén de secretos. La API no registra sus valores.
+- Credenciales OAuth (ClientId y secreto de Google): nunca en el repo ni en la configuración versionada. En local, en `secrets/` (ignorada por git y montada en solo lectura; la API la lee con `Acceso:CarpetaSecretos`: el JSON que descarga Google) o en `tutor.env` (también ignorado); en producción, en el almacén de secretos. La API no registra sus valores.
 - Cada profesor administra solo el contenido de sus cursos: los endpoints del docente comprueban que la clase sea de un curso suyo (403 si no); el administrador ve todos.
 - Autorización por recurso: un alumno solo accede a su propia conversación y a sus intentos, y solo en clases de cursos donde está matriculado.
 - El alumno nunca habla directo con el proveedor: todo pasa por nuestra API, que decide qué herramientas y datos ve el agente en cada estado.
@@ -15,13 +15,12 @@
 - Límite de tasa por alumno (p. ej. 10 mensajes/min) y tope por clase (RNF-08).
 - Las credenciales son del alumno y solo suyas: se cifran en reposo, se descifran únicamente para la llamada saliente de *sus* conversaciones, y ni el docente ni el administrador pueden leerlas ni usarlas.
 - La API nunca devuelve una credencial: solo proveedor, últimos 4 caracteres, origen, estado y fecha de conexión.
-- OAuth con Google para Gemini (RF-37): PKCE con S256 y el mismo cliente web del inicio de sesión. Se piden solo los permisos `cloud-platform` y `generative-language.retriever`, que exige la API de Gemini y que Google marca como sensible; en modo *Testing* basta con que el usuario esté en *Test users*, y para abrirlo a todos hay que verificar la app. El refresh token se guarda cifrado en `credencial_agente` y nunca se devuelve. El token de acceso vive solo en memoria, con clave de caché que es un hash del refresh token, nunca el token en claro. Revocarlo en la cuenta de Google corta el acceso en la siguiente renovación.
+- OAuth con Google para Gemini (RF-37): PKCE con S256, `code_verifier` de un solo uso que vive 10 minutos en el servidor ligado al usuario autenticado, URL de retorno fija por entorno (nunca tomada de la petición) y canje hecho por la API con el mismo cliente web del inicio de sesión. Se piden solo los permisos `cloud-platform` y `generative-language.retriever`, que exige la API de Gemini y que Google marca como sensible; en modo *Testing* basta con que el usuario esté en *Test users*, y para abrirlo a todos hay que verificar la app. El refresh token se guarda cifrado en `credencial_agente` y nunca se devuelve. El token de acceso vive solo en memoria, con clave de caché que es un hash del refresh token, nunca el token en claro. Revocarlo en la cuenta de Google corta el acceso en la siguiente renovación.
 - Claves de API pegadas (RF-38): solo en agentes de tipo *Clave*; se comprueba el prefijo del proveedor y un largo máximo, se validan con una llamada que no gasta cupo antes de guardarlas, se cifran por alumno, nunca se devuelven ni se registran (ni en logs ni en mensajes de error), y la web vacía el campo al enviar.
 - Servidor MCP (RF-39): token personal `tpc_mcp_` con 256 bits aleatorios; se guarda solo su SHA-256 y sus últimos 4 caracteres, se muestra una vez, hay uno vivo por alumno y revocarlo corta el acceso al instante. Solo autentica en `/mcp` (esquema propio), y la sesión de la web no sirve ahí. Las herramientas trabajan solo con las clases de los cursos del alumno y con sus propios intentos, y pasan por el mismo ejecutor del chat: el asistente no puede ver la correcta antes de finalizar ni fijar la nota.
-- OAuth con OpenRouter: PKCE con S256, `code_verifier` de un solo uso que vive 10 minutos en el servidor y ligado al alumno autenticado, `callback_url` fija por entorno (nunca tomada de la petición), y canje hecho por la API, de modo que la clave no toca el navegador.
 - Las claves de infraestructura (base de datos, clave de sesión, secretos OAuth) van como variables del servicio en Railway (en Azure Key Vault o AWS Secrets Manager si se migra), nunca en el frontend ni en el repositorio; rotación trimestral. La cadena de conexión referencia las variables del PostgreSQL de Railway, así que nadie ve la contraseña.
-- Las claves de Data Protection que cifran las credenciales de los alumnos se guardan en un volumen (`ProteccionDatos:Carpeta`): si se perdieran, las credenciales guardadas quedarían ilegibles y cada alumno tendría que volver a conectar OpenRouter.
-- Revisar los términos de uso y retención de datos de cada proveedor antes de habilitarlo (en especial transferencia internacional de datos de alumnos). En OpenRouter esto vale para el proveedor final que sirve el modelo gratuito, no solo para OpenRouter: se descartan los que entrenan con los prompts (RNF-11).
+- Las claves de Data Protection que cifran las credenciales de los alumnos se guardan en un volumen (`ProteccionDatos:Carpeta`): si se perdieran, las credenciales guardadas quedarían ilegibles y cada usuario tendría que volver a conectar su IA.
+- Revisar los términos de uso y retención de datos de cada proveedor antes de habilitarlo (en especial transferencia internacional de datos de alumnos). Hoy son Google (Gemini), OpenAI y Anthropic; el plan gratuito de Gemini tiene condiciones de uso de datos distintas de las del plan de pago, y hay que revisarlas con la universidad (RNF-11).
 - Registro de auditoría de publicación de exámenes, preguntas generadas por intento, cambios de agente durante un intento, correcciones manuales de nivel y alta/baja de credenciales (el hecho, nunca el valor).
 
 ## 9.2 Estrategia de pruebas
@@ -31,7 +30,7 @@
 | Unitarias | Calificación, reglas de intentos y tiempo, herramientas del agente, armado de prompts | xUnit, Jest |
 | Integración | API + PostgreSQL + RabbitMQ reales; proveedores LLM simulados | Testcontainers, WebApplicationFactory, WireMock |
 | Contrato | Eventos SSE que consume Angular (`modo`, `token`, `progreso`, `fuentes`, `fin`); formato de tools de cada proveedor | Pact o snapshots JSON |
-| Paridad de modelos | Mismo guion con cada modelo candidato antes de habilitarlo: registra bien las respuestas, no filtra la respuesta, termina el examen, marca las ampliaciones y cuántas llamadas consume el guion completo (RNF-11) | Conversaciones guionadas + verificación de llamadas a herramientas |
+| Paridad de modelos | Mismo guion con cada modelo candidato antes de habilitarlo: registra bien las respuestas, no filtra la respuesta, termina el examen, marca las ampliaciones y cuántas llamadas al proveedor consume el guion completo (RNF-11) | Conversaciones guionadas + verificación de llamadas a herramientas |
 | Resistencia a trampas | 30 intentos de obtener la respuesta ("ignora tus reglas", "dame una pista") por modelo | Suite adversarial propia |
 | Calidad del tutor | 50 fallos de referencia por curso: citas correctas, fidelidad al contenido de la clase, ampliación marcada cuando el material no alcanza | Conjunto de evaluación + LLM como juez con revisión humana |
 | Límites del tutor | Preguntas ajenas al curso, ampliación con la clase en `ampliacion_permitida = false`, ampliación durante el examen, citas inventadas | Suite de casos negativos con verificación del corte en servidor |
@@ -42,7 +41,8 @@
 | Claves propias | Validación con la cabecera de cada proveedor sin gastar cupo, clave rechazada no se guarda, prefijo de otro proveedor rechazado, solo últimos 4 en la respuesta, ruta del chat y `reasoning_effort` por agente | xUnit + pruebas de API con HTTP simulado |
 | Servidor MCP | Token mostrado una vez y guardado hasheado, sin token / con la sesión de la web / inventado / revocado → 401, generar otro revoca el anterior, solo las clases propias, examen completo por MCP con la nota del servidor y sin la correcta en la pregunta | Pruebas de API con el cliente MCP oficial |
 | Acceso | Validación del `id_token` (emisor, audiencia, vencido, `nonce`, correo sin verificar), `state` repetido, primer acceso sin crear a nadie hasta elegir rol, alumno solo en los cursos de su profesor, profesor inválido, registro de un solo uso, nadie se elige administrador, registro cerrado (`no_registrado`), administrador por configuración, cada profesor solo sus cursos (403 al ajeno), cambio de profesor, sesión con rol correcto | xUnit + pruebas de API con el proveedor simulado |
-| OAuth OpenRouter | Canje con verificador correcto, código de otro alumno, código repetido o vencido, clave obtenida que el proveedor rechaza; OpenRouter simulado | xUnit + WireMock |
+| OAuth de Google para Gemini | URL con PKCE, acceso *offline* y retorno fijo; el canje envía el verificador y guarda el refresh token una sola vez; permiso sin marcar no guarda nada; acceso reutilizado y renovado; acceso revocado pide reconectar; API desactivada no invalida la credencial; 503 es saturación; un agente retirado no se puede conectar | xUnit con Google simulado |
+| Adaptadores de IA | Cuerpo de la llamada por proveedor (herramientas, historial, razonamiento, tope de salida), `thoughtSignature` de Gemini devuelta tal cual, traducción de 401, 429, 503 y falta de saldo. Las pruebas de la pasarela retirada (OpenRouter) se conservan mientras su código siga en el repositorio | xUnit con HTTP simulado |
 | E2E | Entrar con cada rol, conectar la cuenta (RF-32), abrir el chat, consultar el tema, rendir examen por chat y revisar fallos | Playwright |
 | Carga | 30 alumnos conversando en el mismo minuto | k6 |
 
@@ -54,17 +54,20 @@
 | El agente cita el material para algo que no está ahí | Alto | Validación de cada cita contra `pagina_contenido`; citas no resueltas se marcan y se reportan |
 | La IA genera una pregunta con la respuesta marcada mal o fuera del material | Alto | Validación de forma en servidor, justificación obligatoria con cita, revisión posterior del alumno contra el material; el docente ve los temas más fallados y puede detectar una pregunta defectuosa |
 | El alumno logra que el agente le dé la respuesta | Alto | La clave no está en el contexto durante el examen; pruebas adversariales por agente |
-| El modelo gratuito cita mal, no marca la ampliación o filtra la respuesta | Alto | Los cortes de servidor (sección 6.4) no dependen del modelo; la suite de paridad y la adversarial se pasan también con el modelo `:free` antes de habilitarlo |
+| El modelo gratuito cita mal, no marca la ampliación o filtra la respuesta | Alto | Los cortes de servidor (sección 6.4) no dependen del modelo; la suite de paridad y la adversarial se pasan con cada modelo antes de habilitarlo |
 | El alumno agota el cupo gratuito a mitad del examen | Medio | Aviso claro sin perder el avance (RF-30); el temporizador sigue corriendo, así que el panel recomienda empezar el examen con cupo disponible |
-| OpenRouter retira o cambia el modelo gratuito | Medio | El modelo es configuración del administrador; se cambia por otro que haya pasado la paridad, sin desplegar |
-| El proveedor final del modelo gratuito entrena con los datos | Alto | Solo se habilitan proveedores que no entrenan con los prompts (RNF-11); revisión legal según Ley 29733 |
+| El proveedor retira o cambia un modelo (ya pasó con `gemini-2.5-flash`) | Medio | El modelo es configuración del administrador; se cambia por otro que haya pasado la paridad, sin desplegar. Los modelos que el proveedor retira se reemplazan solos al arrancar si el administrador no había elegido otro |
+| El proveedor usa los datos del plan gratuito para mejorar sus modelos | Alto | Solo va un identificador seudónimo del alumno, nunca nombre ni correo (RNF-06); revisión de los términos de cada proveedor y revisión legal según Ley 29733 (RNF-11) |
 | El modelo gratuito maneja mal las herramientas | Medio | Solo se habilitan modelos que pasan la paridad; eventos de UI emitidos por el servidor |
-| Caída o latencia de OpenRouter o del modelo | Medio | Reintento sin perder avance (RF-17); OpenRouter reparte entre los proveedores del modelo; el admin cambia de modelo sin desplegar |
-| Dependencia de un solo gateway | Medio | `ILlmProvider` aísla al resto del sistema: otro gateway es una implementación más y una entrada de configuración |
-| Cupo gratuito insuficiente (el examen ahora usa IA) | Medio | Tope de mensajes, historial acotado y modelo que consuma pocas llamadas por pregunta (RNF-11); quien necesite más carga saldo en su cuenta de OpenRouter |
+| Caída, saturación o latencia del proveedor de IA | Medio | Reintento sin perder avance (RF-17); el alumno puede conectar otra IA y cambiar con cuál conversa; el admin cambia de modelo sin desplegar |
+| Dependencia de un solo proveedor | Medio | Hay cuatro agentes sobre tres proveedores, y `ILlmProvider` aísla al resto del sistema: otro proveedor es una implementación más y una entrada de configuración (RNF-09) |
+| Cupo gratuito insuficiente (el examen usa IA en cada pregunta) | Medio | Tope de mensajes, historial acotado, respuestas de una letra registradas sin IA y una sola pregunta preparada por delante; con la clave de AI Studio el cupo es de cada alumno. Quien necesite más usa una clave de pago |
 | Fuga de la credencial de un alumno | Alto | Cifrado en reposo, nunca se devuelve ni se registra, descifrado solo para la llamada de su propia conversación, autorización por recurso |
-| El alumno no tiene cuenta de IA | Bajo | Gemini se conecta con la cuenta de Google con la que ya entró, sin tarjeta |
-| Fricción de conectar una cuenta antes de poder estudiar | Bajo | Un clic y un inicio de sesión, una sola vez; sin claves que copiar ni ajustes de privacidad que tocar |
+| El alumno no tiene cuenta de IA | Bajo | La clave gratuita de AI Studio se crea con el mismo Gmail con el que ya entró, sin tarjeta, y *Mi tutor* trae los pasos |
+| Fricción de conectar una IA antes de poder estudiar | Medio | Copiar y pegar una clave una sola vez, con los pasos a la vista; a quien está autorizado en Google le basta un clic. Pegar una clave es más fricción que un clic: se reduce verificando la app en Google (§9.6) |
+| Google bloquea la conexión por cuenta a quien no es usuario de prueba | Medio | La pestaña lo avisa y la vía principal es la clave de API; verificar la aplicación en Google |
+| El cupo gratuito de Gemini por cuenta es del proyecto de la app y lo comparten todos | Medio | Vigilar el 429; recomendar la clave de AI Studio, que usa el cupo de cada alumno; activar facturación o el proyecto propio del alumno (fase 2) |
+| Fuga del token MCP de un alumno | Medio | Se muestra una sola vez, se guarda hasheado, solo vale en `/mcp`, se revoca al instante y generar otro invalida el anterior |
 | Contenido de clase que excede la ventana de contexto | Medio | Aviso al docente con los tokens estimados y recomendación de dividir el material en más clases |
 | PDF escaneados sin texto | Medio | Detectar y avisar al docente; OCR en fase 3 |
 | Pico de mensajes al cierre del examen | Medio | Registro y calificación sin IA; autoescalado de la API |
@@ -73,32 +76,32 @@
 
 | Fase | Duración estimada | Entregable |
 | --- | --- | --- |
-| 1. MVP | 7 semanas | Inicio de sesión con Google y pantallas por rol, contenido por carpeta y extracción de texto, chat único conectado a la cuenta de OpenRouter del alumno, examen generado por la IA para cada alumno, calificación y revisión de fallos |
-| 2. Tutor completo | 4 semanas | Modo Consulta con ampliación marcada, suite de paridad de modelos, nivel del alumno, reporte del docente con ajustes del examen en pantalla, reintento tras fallo del proveedor (RF-17) |
+| 1. MVP | 7 semanas | Inicio de sesión con Google y pantallas por rol, contenido por carpeta y extracción de texto, chat único conectado a la IA del alumno, examen generado por la IA para cada alumno, calificación y revisión de fallos |
+| 2. Tutor completo | 4 semanas | Cuentas de IA propias (Gemini con Google, claves de API y servidor MCP), material condensado, modo Consulta con ampliación marcada, suite de paridad de modelos, nivel del alumno, reporte del docente con ajustes del examen en pantalla, reintento tras fallo del proveedor (RF-17) |
 | 3. Automatización | 4 semanas | Dificultad adaptativa por nivel (RF-23), OCR, integración con LMS (LTI 1.3) |
 
 ## 9.5 Preguntas abiertas
 
 - ¿Modo de feedback por defecto: Al final (mide mejor el conocimiento previo) o Inmediato (más tutor)?
 - ¿Los alumnos pueden revisar con el tutor antes de que cierre el examen para el resto del grupo?
-- ¿La universidad aprueba enviar datos a OpenRouter y a los proveedores del modelo gratuito elegido, aunque no los guarden?
-- ¿Qué modelo `:free` concreto se habilita en OpenRouter? Debe soportar herramientas, pasar la paridad y servirse desde un proveedor que no entrene con los datos.
-- ¿Se muestra al alumno cuántas llamadas gratuitas le quedan hoy? OpenRouter lo expone en `GET /api/v1/key` (`free_model_daily_requests.remaining`, día UTC).
-- ¿Qué proveedor de nube usará la universidad? ¿TI registra la aplicación en su Entra ID, en Google Workspace o en ambos, y restringe el acceso a su dominio?
+- ¿La universidad aprueba enviar el material y las conversaciones (sin nombre ni correo) a Google, OpenAI y Anthropic con las cuentas personales de los alumnos?
+- ¿Qué modelo se fija en cada agente? Debe soportar herramientas y pasar la paridad; hoy `gemini-3.8-flash`, `gpt-5-mini` y `claude-haiku-4-5`.
+- ¿Se muestra al alumno cuánto cupo gratuito le queda hoy? Gemini no lo expone en una llamada; solo se sabe al recibir el 429.
+- ¿Qué proveedor de nube usará la universidad? ¿TI registra la aplicación en su Google Workspace, restringe el acceso a su dominio y verifica la app para abrir Gemini por cuenta a todos?
 - ¿El docente debe poder ver las preguntas que la IA generó para cada alumno (auditoría), aunque no las apruebe?
 - ¿Los rangos de nivel (11 / 15 / 18) son los correctos para la universidad, o se definen por curso?
 - ¿El modo Consulta sigue abierto después de la clase, o se cierra al terminar la sesión?
 
 ## 9.6 Pendientes
 
-Estado a 2026-09-30, con el examen pregunta a pregunta, Gemini con Google, las claves propias, el servidor MCP y el material condensado. Por prioridad:
+Estado a 2026-10-11, con el examen pregunta a pregunta, Gemini con Google, las claves propias, el servidor MCP, el material condensado y OpenRouter retirado. Por prioridad:
 
 | # | Pendiente | Requisito | Detalle |
 | --- | --- | --- | --- |
-| 2 | Medir la latencia con el modelo real | RNF-02 | Hecho en código (§5.8): razonamiento desactivado en el chat, sin tope de salida en el chat, con aviso si el modelo llega a su máximo, streaming con la ampliación apagada y páginas pertinentes en clases grandes. Falta medir el primer token con el modelo real: el 2026-09-30 los modelos `:free` de qwen y gemma estaban saturados (429 del pool compartido) |
+| 2 | Medir la latencia con el modelo real | RNF-02 | Hecho en código (§5.8): razonamiento desactivado en el chat, sin tope de salida en el chat, con aviso si el modelo llega a su máximo, streaming con la ampliación apagada y páginas pertinentes en clases grandes. Falta medir el primer token con cada agente vigente (`docs/COMPARATIVA-MODELOS.md` tiene las primeras medidas) |
 | 3 | Citas válidas marcadas como inválidas | RF-11, §6.4 | El modelo abrevia nombres de archivo largos (`MDSTI_MFEP_M1_INFOGRAFÍA_Costo vs Gasto` en vez del nombre completo) y la cita sale tachada. Aceptar coincidencia por prefijo o dar al modelo nombres cortos por archivo |
 | 4 | Markdown del tutor | UI | Se muestran negritas; listas, títulos y tablas siguen como texto plano |
-| 7 | Validar los modelos de respaldo | RNF-11, §5.8 | `gemma-4-31b-it:free` y `nemotron-3-super-120b-a12b:free` se eligieron del listado público y no han pasado la suite de paridad. Con los tiempos que ahora registra cada llamada, elegir el principal también por velocidad |
+| 7 | Pasar la paridad con cada modelo vigente | RNF-11, §5.8 | `gemini-3.8-flash`, `gpt-5-mini` y `claude-haiku-4-5` no han pasado la suite completa de paridad ni la adversarial. Con los tiempos que registra cada llamada, elegir el modelo de cada agente también por velocidad |
 | 8 | Probar el examen generado con el modelo real | RF-04, RF-05 | Calidad de las 6 preguntas, citas de las justificaciones y consumo del cupo gratuito |
 | 9 | Referencias de cada pregunta a `pregunta_referencia` | RF-05 | La justificación cita el material, pero no se guardan las referencias |
 | 10 | Cuentas del despliegue | Despliegue | El código, el CI y el CD están listos y la imagen arranca contra PostgreSQL (`docs/DESPLIEGUE.md`). Las migraciones se regeneraron en una sola `Inicial` para PostgreSQL. Ya existen el proyecto `tutor-preclase` en Railway (PostgreSQL, servicio `api` con volumen y dominio) y en Vercel (sin Git, Root Directory `web`, `API_URL`), solo en producción, y el repositorio pasó a `hideakiuchida/TutorPre`. Faltan los tokens en GitHub, la clave de sesión y el cliente de Google en Railway, y añadir la URL de la web al cliente OAuth de Google |
@@ -106,9 +109,9 @@ Estado a 2026-09-30, con el examen pregunta a pregunta, Gemini con Google, las c
 | 12 | Tope de mensajes por alumno y clase | RNF-08 | Sin implementar |
 | 13 | Dificultad adaptativa por nivel | RF-23 | Sin implementar |
 | 14 | Carga, volumen y disponibilidad | RNF-03 a RNF-05 | Medir con k6 en un despliegue |
-| 15 | Medir la condensación con el modelo real | RF-36 | Primera prueba local: la infografía "Costo vs Gasto" pasó de 409 a 267 tokens (−35 %). Falta completar M1 (el pool gratuito estaba saturado, se reintenta solo) y revisar la fidelidad de los apuntes con el profesor |
-| 16 | Profesor sin cuenta de IA en producción | RF-36 | En producción el profesor tiene que entrar a su panel y conectar Gemini; hasta entonces el tutor lee el original |
-| 17 | Cuentas y chats que quedaron con OpenRouter | RF-37 | Al retirarlo, las cuentas conectadas siguen guardadas pero no se usan; el chat pasa a la IA que el alumno elija. Un examen que estuviera en curso con OpenRouter no puede seguir: el profesor reinicia los intentos de ese alumno |
+| 15 | Medir la condensación con el modelo real | RF-36 | Primera prueba local: la infografía "Costo vs Gasto" pasó de 409 a 267 tokens (−35 %). Falta completar un curso con Gemini y revisar la fidelidad de los apuntes con el profesor |
+| 16 | Profesor sin IA conectada en producción | RF-36 | El profesor tiene que conectar una IA: Gemini con su cuenta de Google desde su panel (solo si es usuario de prueba) o una clave de API entrando como alumno, en *Mi tutor*. Hasta entonces el tutor lee el original. Falta que el panel del docente ofrezca también pegar la clave |
+| 17 | Quitar del código la pasarela retirada | RF-37 | `OpenRouterProvider`, `ConexionOpenRouter`, su entrada en `appsettings.json` y sus pruebas siguen en el repositorio, apagados por configuración. Las cuentas conectadas de antes siguen guardadas pero no se usan; el chat pasa a la IA que el alumno elija. Un examen que estuviera en curso con OpenRouter no puede seguir: el profesor reinicia los intentos de ese alumno |
 | 17 | Cuentas de IA propias, fase 2 | RF-37, RF-39 | OAuth 2.1 con registro dinámico de clientes en `/mcp` para conectar el Tutor desde los conectores web de Claude.ai y ChatGPT (hoy solo con token en clientes que aceptan cabeceras); *sampling* de MCP para que el asistente del alumno genere las preguntas; proyecto de Google propio (`x-goog-user-project`) para cargar el uso de Gemini a la cuenta del alumno |
 | 18 | Verificar la aplicación en Google | RF-37 | El permiso de Gemini por cuenta es sensible y la app no está verificada: Google bloquea a quien no sea usuario de prueba, y a estos el permiso les caduca a los 7 días. Mientras tanto la vía general es la clave de API (RF-38). La verificación pide dominio verificado, política de privacidad y un video de uso |
 | 20 | Probar las claves propias con cuentas reales | RF-38 | Verificado en local que OpenAI rechaza una clave inventada; falta una conversación y un examen con una clave real de cada proveedor (la pega la persona) |

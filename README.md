@@ -10,6 +10,8 @@ y el consumo corre por ella. La plataforma no guarda una clave compartida.
 
 El diseño completo está en [`specs/`](specs/SDD-Plataforma-Evaluacion-PreClase.md): un documento principal que enlaza una parte por sección (requisitos, arquitectura, datos, flujos, contenido, API, UI y seguridad).
 
+Para alumnos y profesores hay una guía de uso con capturas: [`docs/Guia-de-usuario-Tutor-PreClase.pdf`](docs/Guia-de-usuario-Tutor-PreClase.pdf) (su fuente está en `docs/guia/`).
+
 ## Qué hace
 
 - **Entrada con Google y dos perfiles**: la persona elige *Soy alumno* o *Soy profesor* y

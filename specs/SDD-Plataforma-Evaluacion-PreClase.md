@@ -4,15 +4,15 @@
 
 El diseño está repartido en un documento por sección. Este es el documento principal: enlaza cada parte y dice qué contiene. Las referencias del código y de los skills con la forma `SDD §5.2` apuntan a la sección 5, apartado 5.2.
 
-> **OpenRouter está retirado (octubre de 2026).** Ya no se ofrece como opción de conexión: en producción su modelo gratuito compartido estaba saturado con frecuencia. La pasarela sigue en el código, deshabilitada por configuración (`Agentes:openrouter:Habilitado = false`; al arrancar, la API deja ese agente deshabilitado en la base). Lo que este documento describe de OpenRouter queda como referencia de esa pasarela; lo vigente es **Gemini con la cuenta de Google** (OAuth) y las **claves de API propias** de Claude, ChatGPT o Gemini.
+> **Cómo llega la plataforma al modelo de IA (octubre de 2026).** Cada usuario trae su propia IA y la conecta en *Mi tutor* de tres formas: **con su clave de API** (Gemini de Google AI Studio, gratis; ChatGPT o Claude, de pago), **con su cuenta de Google** (Gemini por OAuth) o **desde su propio asistente** (el Tutor como servidor MCP). El resumen está en §1, la conexión en §5.1, los adaptadores en §5.8 y todas las llamadas al modelo, con sus diagramas, en §5.9. OpenRouter, la primera forma de conexión, está retirado: su código sigue en el repositorio, apagado por configuración (§5.8).
 
 | § | Documento | Contenido |
 | --- | --- | --- |
-| 1 | [Introducción](01-introduccion.md) | Qué es el producto, alcance, cómo se conecta la IA de cada alumno y glosario. |
+| 1 | [Introducción](01-introduccion.md) | Qué es el producto, alcance, las tres formas de conectar la IA de cada alumno y glosario. |
 | 2 | [Requisitos](02-requisitos.md) | Requisitos funcionales (RF) y no funcionales (RNF), quién usa cada uno y el estado de implementación. |
 | 3 | [Arquitectura del sistema](03-arquitectura.md) | Componentes, tecnologías y decisiones de arquitectura. |
 | 4 | [Modelo de datos](04-modelo-de-datos.md) | Entidades, relaciones y reglas de los datos. |
-| 5 | [Flujos principales con el agente tutor](05-flujos-del-agente-tutor.md) | Inicio de sesión, credenciales, examen, consulta, revisión, nivel y servidor MCP, paso a paso. |
+| 5 | [Flujos principales con el agente tutor](05-flujos-del-agente-tutor.md) | Inicio de sesión, conexión de la IA, examen, consulta, revisión, nivel, capa de proveedores, todas las formas de interacción con el modelo y servidor MCP, paso a paso y con diagramas. |
 | 6 | [Módulo de contenido de clase](06-contenido-de-clase.md) | Carpeta del profesor, extracción de texto, contexto de clase, condensación y salvaguardas. |
 | 7 | [API REST](07-api-rest.md) | Endpoints por rol, eventos SSE y códigos de error. |
 | 8 | [Diseño de UI](08-diseno-de-ui.md) | Pantallas, componentes y principios de la interfaz. |
@@ -53,7 +53,7 @@ El diseño está repartido en un documento por sección. Este es el documento pr
 - 5.6 Clasificación de nivel
 - 5.7 Herramientas del agente
 - 5.8 Capa multi-proveedor
-- 5.9 Arquitectura con OpenRouter y flujos de extremo a extremo
+- 5.9 Arquitectura de la IA y flujos de extremo a extremo
 
 **[6. Módulo de contenido de clase](06-contenido-de-clase.md)**
 

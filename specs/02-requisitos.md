@@ -29,10 +29,10 @@
 | RF-21 | El sistema clasifica el nivel del alumno por clase (Inicial, Básico, Intermedio, Avanzado) combinando sus notas con el diagnóstico de temas débiles del tutor | Alta |
 | RF-22 | El reporte del docente incluye nivel por alumno, distribución de niveles y temas débiles del grupo | Alta |
 | RF-23 | La IA ajusta la dificultad del examen al nivel vigente del alumno | Baja |
-| RF-24 | El alumno conecta, reconecta o desconecta su cuenta de IA desde el chat, sin pasar por el docente: con un clic si es por OAuth (Gemini con Google) o pegando su clave (RF-38). *OpenRouter, la primera cuenta por OAuth, está retirado* | Alta |
+| RF-24 | El alumno conecta, reconecta o desconecta su cuenta de IA desde el chat, sin pasar por el docente: con un clic si es por OAuth (Gemini con Google) o pegando su clave (RF-38) | Alta |
 | RF-25 | La credencial obtenida al conectar se valida contra el proveedor antes de guardarla; si no sirve, se avisa y no se guarda | Alta |
 | RF-26 | La credencial se guarda cifrada y nunca se devuelve: la web solo ve el proveedor, los últimos 4 caracteres y la fecha de conexión | Alta |
-| RF-27 | Sin cuenta conectada, el chat muestra un único botón para conectarla y no deja escribir | Alta |
+| RF-27 | Sin ninguna IA conectada, el chat no deja escribir y abre *Mi tutor* para conectarla | Alta |
 | RF-28 | Si el proveedor rechaza la credencial durante una conversación, se marca como inválida y se pide reconectarla | Media |
 | RF-29 | Los agentes de inicio de sesión (hoy, Gemini con Google) se conectan solo por OAuth con PKCE y no aceptan claves pegadas. Los agentes de tipo *Clave* (RF-38) sí aceptan la clave de API del alumno: se comprueba su forma y con el proveedor antes de guardarla, se cifra, nunca se devuelve ni se registra, y la web solo muestra sus últimos 4 caracteres | Alta |
 | RF-30 | Si el proveedor corta por límite de uso (HTTP 429), el chat dice cuándo puede volver, sin marcar la credencial como inválida ni perder el avance | Media |
@@ -41,10 +41,10 @@
 | RF-33 | Autorregistro: en la página de entrada la persona elige primero su perfil, **alumno** o **profesor**, y luego entra con Google, sin aprobación de nadie. Un profesor puede entrar también como alumno. El alumno elige además a su profesor y solo ve los cursos de ese profesor; puede cambiarlo después. El administrador puede corregir roles y matrículas. Con el registro cerrado, solo entran los registrados | Alta |
 | RF-34 | El profesor administra el contenido de **sus** cursos (su carpeta `course-content/<su correo>/`) y tiene su pantalla: estado del material, ajustes del examen y de la ampliación de cada clase y el reporte (RF-13, RF-16, RF-22). No ve ni toca los cursos de otro profesor | Alta |
 | RF-35 | El administrador elige el modelo de IA que usa el tutor y puede cambiarlo sin desplegar (RF-06, RF-17) | Media |
-| RF-37 | Cada usuario conecta **sus propias cuentas de IA** y elige con cuál conversar. Por cuenta, hoy: **Gemini con su cuenta de Google** (OAuth, sin claves); mientras Google no verifique la aplicación, solo funciona con las cuentas dadas de alta como usuarios de prueba en Google Cloud, y a las demás Google les muestra «Acceso bloqueado». ChatGPT y Claude no ofrecen OAuth para usar la suscripción del usuario desde otra app: su vía es la clave de API propia (RF-38). OpenRouter está retirado: un agente con `Habilitado: false` en la configuración no se lista, no se puede conectar ni se usa como respaldo, aunque queden cuentas conectadas de antes | Alta |
+| RF-37 | Cada usuario conecta **sus propias cuentas de IA** y elige con cuál conversar. Por cuenta, hoy: **Gemini con su cuenta de Google** (OAuth, sin claves); mientras Google no verifique la aplicación, solo funciona con las cuentas dadas de alta como usuarios de prueba en Google Cloud, y a las demás Google les muestra «Acceso bloqueado». ChatGPT y Claude no ofrecen OAuth para usar la suscripción del usuario desde otra app: su vía es la clave de API propia (RF-38) o el propio asistente por MCP (RF-39). Un agente que el administrador retira (`Habilitado: false` en la configuración) no se lista, no se puede conectar ni se usa como respaldo, aunque queden cuentas conectadas de antes | Alta |
 | RF-38 | El alumno puede usar el modelo de **su propia cuenta de desarrollador** pegando su clave de API de **OpenAI** (ChatGPT), **Anthropic** (Claude) o **Google AI Studio** (Gemini). Cada uno es un agente de tipo *Clave* con su modelo, que fija el administrador (RF-35). Las suscripciones ChatGPT Plus o Claude Pro no incluyen claves de API | Alta |
 | RF-39 | **El Tutor como servidor MCP**: el alumno genera en la web un token personal y conecta su propio asistente (Claude Code, Claude Desktop u otro cliente MCP) a `/mcp`. Su asistente lista sus clases, lee y busca en el material con citas, y le toma el examen pregunta a pregunta con las mismas reglas del servidor: ventana, intentos, nota calculada por el servidor y la respuesta correcta oculta hasta finalizar. El token se muestra una sola vez, se guarda hasheado, solo vale en `/mcp` y se puede revocar | Media |
-| RF-36 | Al subir el material, la IA lo **condensa una sola vez**: reescribe cada página como apuntes compactos (definiciones, cifras, fórmulas y pasos, sin relleno), conservando su cita `[archivo, p. N]`, para que el tutor lea menos y responda más rápido. Se hace con la cuenta de IA del profesor (Gemini); el profesor ve el original y los apuntes lado a lado y puede elegir el original por archivo. El examen se sigue generando con el original | Media |
+| RF-36 | Al subir el material, la IA lo **condensa una sola vez**: reescribe cada página como apuntes compactos (definiciones, cifras, fórmulas y pasos, sin relleno), conservando su cita `[archivo, p. N]`, para que el tutor lea menos y responda más rápido. Se hace con la IA que el profesor tenga conectada (si tiene varias y una se queda sin cupo, sigue con la siguiente); el profesor ve el original y los apuntes lado a lado y puede elegir el original por archivo. El examen se sigue generando con el original | Media |
 
 ## 2.2 Requisitos por rol, dependencias y orden de implementación
 
@@ -65,10 +65,13 @@ flowchart LR
     RF31["RF-31<br/>Inicio de sesión y rol"] --> RF33["RF-33<br/>Usuarios y matrículas"]
     RF33 --> RF02["RF-02/03<br/>Material por carpeta"]
     RF02 --> RF01["RF-01<br/>Clases y examen"]
-    RF31 --> RF32["RF-32, RF-24–29<br/>IA del alumno"]
+    RF31 --> RF32["RF-32, RF-24–29<br/>Mi tutor: IA del alumno"]
+    RF32 --> RF38["RF-38<br/>Clave de API propia<br/>Gemini · ChatGPT · Claude"]
+    RF32 --> RF37["RF-37<br/>Gemini con la cuenta<br/>de Google (OAuth)"]
     RF01 --> RF19["RF-19/11/12/20<br/>Tutor en consulta"]
     RF32 --> RF19
     RF19 --> RF04["RF-04–09, 14, 15, 18<br/>Examen generado"]
+    RF04 --> RF39["RF-39<br/>Servidor MCP<br/>asistente del alumno"]
     RF04 --> RF10["RF-10/13<br/>Revisión y dudas"]
     RF10 --> RF21["RF-21/22/16<br/>Nivel y reporte"]
     RF21 --> RF34["RF-34<br/>Pantalla del docente"]
@@ -76,11 +79,12 @@ flowchart LR
     RF21 --> RF23
     RF32 --> RF28["RF-28/30/17<br/>Resiliencia"]
     RF33 --> RF35["RF-35<br/>Modelo del tutor"]
-    RF02 --> RF36["RF-36<br/>Material condensado"]
+    RF02 --> RF36["RF-36<br/>Material condensado<br/>con la IA del profesor"]
+    RF32 --> RF36
     RF36 --> RF19
 ```
 
-Lo que casi todo necesita es saber **quién es el usuario y qué rol tiene** (RF-31) y **qué cursos le tocan** (RF-33): sin eso no hay a quién mostrar clases, a quién cobrarle la IA ni quién ve el reporte. Por eso el acceso va primero. En desarrollo existe además una entrada "como usuario de prueba" que emite la misma sesión sin pasar por Microsoft ni Google; en producción no está.
+Lo que casi todo necesita es saber **quién es el usuario y qué rol tiene** (RF-31) y **qué cursos le tocan** (RF-33): sin eso no hay a quién mostrar clases, de quién es la IA conectada ni quién ve el reporte. Lo segundo es **una IA conectada** (RF-32): el chat, el examen y la condensación del material la usan, conectada por cualquiera de sus dos vías (RF-38 con clave, RF-37 con la cuenta de Google). Estudiar desde el propio asistente (RF-39) se apoya en el examen: las preguntas las sigue generando esa IA conectada. Por eso el acceso va primero. En desarrollo existe además una entrada "como usuario de prueba" que emite la misma sesión sin pasar por Google; en producción no está.
 
 **Orden de implementación** (por dependencia y, a igual dependencia, por prioridad). El estado es el del código a la fecha de este documento:
 
@@ -96,7 +100,7 @@ Lo que casi todo necesita es saber **quién es el usuario y qué rol tiene** (RF
 | 8 | Resiliencia y administración | RF-28, RF-30, RF-17, RF-35 | RF-28, RF-30 y RF-17 hechos (botón *Reintentar* en el chat); RF-35 solo por API |
 | 9 | Mejora | RF-23 | Pendiente |
 | 11 | Cuentas de IA propias | RF-37, RF-38, RF-39 | Hecho: Gemini con OAuth de Google; claves propias de OpenAI, Anthropic y Google AI Studio; el Tutor como servidor MCP con token personal; *Mi tutor* con pestañas. Falta OAuth para los conectores web de Claude.ai y ChatGPT, y proyecto de Google propio |
-| 10 | Material condensado | RF-36 | Hecho: condensación por página con la cuenta del profesor, reintento automático si el modelo gratuito está saturado, comparación y elección del original en el panel. Falta medir la reducción real con el modelo (el 2026-09-30 el pool gratuito estaba saturado) |
+| 10 | Material condensado | RF-36 | Hecho: condensación por página con la IA del profesor, reintento automático si el modelo gratuito está saturado, comparación y elección del original en el panel. Falta medir la reducción real con Gemini sobre un curso completo |
 
 ## 2.3 No funcionales
 
@@ -110,8 +114,9 @@ Lo que casi todo necesita es saber **quién es el usuario y qué rol tiene** (RF
 | RNF-06 | Datos personales tratados según la Ley N.° 29733 de Protección de Datos Personales (Perú); a los proveedores de IA no se envían nombre ni correo del alumno |
 | RNF-07 | Interfaz en español, responsive (móvil y escritorio); para el alumno, una sola pantalla de chat |
 | RNF-08 | Límite de consumo IA por alumno por clase (p. ej. 60 mensajes, incluido el examen); con el modelo gratuito el tope protege el cupo diario del alumno |
+| RNF-09 | Agregar un proveedor de IA es una implementación de `ILlmProvider` y una entrada en la configuración `Agentes`, sin tocar el tutor, el examen ni la web |
 | RNF-10 | Las credenciales de los alumnos se cifran en reposo, no se escriben en logs y no salen nunca de la API; la obtenida por OAuth tampoco pasa por el navegador |
-| RNF-11 | *(Solo aplica a la pasarela de OpenRouter, hoy retirada.)* Cada llamada pide a OpenRouter solo proveedores que no guardan ni entrenan con los datos (`provider.data_collection = deny`), sin que el alumno toque su configuración de privacidad; un modelo gratuito solo se habilita si tiene alguno así, y si con el límite diario de OpenRouter sin créditos (50 llamadas) alcanza para generar un examen (una llamada), rendir sus 6 preguntas y revisarlo. El límite cuenta **llamadas al proveedor**, no mensajes del alumno: cada vuelta de herramientas es una llamada, así que se mide con la suite de paridad antes de habilitarlo |
+| RNF-11 | Antes de habilitar un modelo se comprueba que soporta herramientas, que pasa la suite de paridad (§9.2) y cuántas **llamadas al proveedor** gasta un examen completo: el cupo gratuito cuenta llamadas, no mensajes del alumno, y cada vuelta de herramientas es una. También se revisa qué hace el proveedor con los datos (retención y entrenamiento) |
 
 ---
 
