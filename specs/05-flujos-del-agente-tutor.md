@@ -607,7 +607,7 @@ sequenceDiagram
     participant P as Proveedor (OpenAI, Anthropic o AI Studio)
     participant B as Bóveda
     W->>A: PUT /alumno/credenciales/openai { clave }
-    A->>A: el agente es de tipo Clave, prefijo esperado (sk-, sk-ant-, AIza) y largo
+    A->>A: el agente es de tipo Clave, prefijo esperado (sk-, sk-ant-; Gemini sin prefijo fijo) y largo
     A->>P: GET /v1/models con la clave (no gasta cupo, RF-25)
     alt 401 o 403
         A-->>W: 400 clave_rechazada, no se guarda nada

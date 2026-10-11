@@ -35,7 +35,11 @@ public sealed class OpcionesAgente
     /// </summary>
     public string? RutaChat { get; set; }
 
-    /// <summary>Solo Clave: cómo empieza una clave válida de ese proveedor ("sk-", "sk-ant-", "AIza").</summary>
+    /// <summary>
+    /// Solo Clave: cómo empieza una clave válida de ese proveedor ("sk-", "sk-ant-"). Gemini no
+    /// lo fija: Google cambió el formato de sus claves (antes "AIza…", ahora también "AQ…") y
+    /// la que decide si sirve es la comprobación con el proveedor.
+    /// </summary>
     public string? PrefijoClave { get; set; }
 
     /// <summary>

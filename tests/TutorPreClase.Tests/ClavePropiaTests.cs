@@ -99,7 +99,8 @@ public class ClavePropiaTests
         using var db = api.NuevoContexto();
         db.Agentes.AddRange(
             new AgenteIA { Id = "openai", NombreVisible = "ChatGPT (tu clave de OpenAI)", Proveedor = "OpenAI", Modelo = "gpt-5-mini", Habilitado = true },
-            new AgenteIA { Id = "anthropic", NombreVisible = "Claude (tu clave de Anthropic)", Proveedor = "Anthropic", Modelo = "claude-haiku-4-5", Habilitado = true });
+            new AgenteIA { Id = "anthropic", NombreVisible = "Claude (tu clave de Anthropic)", Proveedor = "Anthropic", Modelo = "claude-haiku-4-5", Habilitado = true },
+            new AgenteIA { Id = "gemini-clave", NombreVisible = "Gemini (tu clave de AI Studio)", Proveedor = "GoogleAIStudio", Modelo = "gemini-3.8-flash", Habilitado = true });
         db.SaveChanges();
     }
 
@@ -122,6 +123,22 @@ public class ClavePropiaTests
         var listado = await alumno.GetStringAsync("/api/v1/alumno/credenciales");
         Assert.DoesNotContain("mi-clave-secreta", listado);
         Assert.Contains("9876", listado);
+    }
+
+    [Theory]
+    [InlineData("AIzaSy-clave-antigua-0003")]
+    [InlineData("AQ.Ab8-clave-nueva-de-ai-studio-0004")]
+    public async Task Gemini_acepta_las_claves_de_AI_Studio_con_el_formato_antiguo_y_el_nuevo(string clave)
+    {
+        using var api = new ApiDePruebas();
+        var (_, alumnoId, _, _) = api.Sembrar();
+        HabilitarAgentes(api);
+
+        var respuesta = await api.Como(alumnoId, "Alumno")
+            .PutAsJsonAsync("/api/v1/alumno/credenciales/gemini-clave", new { clave });
+
+        Assert.Equal(HttpStatusCode.OK, respuesta.StatusCode);
+        Assert.Equal(clave[^4..], (await respuesta.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("ultimos4").GetString());
     }
 
     [Fact]
