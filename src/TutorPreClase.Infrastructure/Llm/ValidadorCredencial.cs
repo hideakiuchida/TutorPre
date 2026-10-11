@@ -47,6 +47,18 @@ public sealed class ValidadorCredencial(
 
             if (respuesta.IsSuccessStatusCode) return true;
 
+            // Google no contesta 401 a una clave de API mala, sino 400 con API_KEY_INVALID.
+            if (respuesta.StatusCode == HttpStatusCode.BadRequest)
+            {
+                var cuerpo = await respuesta.Content.ReadAsStringAsync(ct);
+                if (cuerpo.Contains("API_KEY_INVALID", StringComparison.OrdinalIgnoreCase) ||
+                    cuerpo.Contains("API key not valid", StringComparison.OrdinalIgnoreCase))
+                {
+                    log.LogWarning("Validacion de {Agente} rechazada: clave de API no valida", agente.Id);
+                    return false;
+                }
+            }
+
             log.LogWarning("Validacion de {Agente} devolvio {Codigo}; se acepta la credencial",
                 agente.Id, (int)respuesta.StatusCode);
 

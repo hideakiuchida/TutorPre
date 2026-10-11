@@ -62,6 +62,23 @@ public class ClavePropiaTests
     }
 
     [Fact]
+    public async Task Google_rechaza_una_clave_mala_con_400_y_tampoco_es_usable()
+    {
+        var (validador, http) = Validador();
+        http.Responder = _ => new HttpResponseMessage(HttpStatusCode.BadRequest)
+        {
+            Content = new StringContent(
+                """{"error":{"code":400,"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT","details":[{"reason":"API_KEY_INVALID"}]}}""")
+        };
+
+        Assert.False(await validador.EsUsableAsync(Agente("gemini-clave", "GoogleAIStudio"), "AIzaSy-clave-mala-0000"));
+
+        // Otro 400 (p. ej. un parámetro que el proveedor ya no admite) no culpa a la clave.
+        http.Responder = _ => new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = new StringContent("""{"error":{"message":"pageSize"}}""") };
+        Assert.True(await validador.EsUsableAsync(Agente("gemini-clave", "GoogleAIStudio"), "AIzaSy-clave-0003"));
+    }
+
+    [Fact]
     public async Task El_chat_va_a_la_ruta_del_proveedor_y_apaga_el_razonamiento_si_lo_admite()
     {
         var http = new OpenRouterSimulado
