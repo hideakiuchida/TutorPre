@@ -308,6 +308,14 @@ public sealed class AgenteTutorService(
                         yield return new EventoAviso("credencial_rechazada",
                             $"{agente.NombreVisible} rechazó tu credencial. Vuelve a conectarla para seguir.");
                     }
+                    else if (cerroExamen)
+                    {
+                        // El examen ya cerró y la nota ya salió: lo único que faltó es la evaluación
+                        // del tutor. No se ofrece reenviar la última respuesta, que ya está registrada.
+                        yield return new EventoAviso("evaluacion_pendiente",
+                            "Tu nota está guardada. El tutor no pudo escribir ahora su evaluación; " +
+                            "cuando quieras, escribe «revisemos mis errores».");
+                    }
                     else if (error.LimiteDeUso)
                     {
                         // La credencial sigue siendo buena: solo se acabo el cupo (RF-30).

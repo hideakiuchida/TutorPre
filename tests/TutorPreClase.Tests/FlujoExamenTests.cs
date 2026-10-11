@@ -633,7 +633,10 @@ public class ExamenConfiableTests
         var eventos = await banco.EnviarAsync(conversacion, "B");
 
         Assert.Contains("Tu nota es **10.0** sobre 20: 1 de 2 correctas.", Texto(eventos));
-        Assert.Contains(eventos.OfType<EventoAviso>(), a => a.Codigo == "limite_de_uso");
+        // No se ofrece reintentar: la respuesta ya está registrada y el examen, cerrado.
+        Assert.Contains(eventos.OfType<EventoAviso>(), a => a.Codigo == "evaluacion_pendiente");
+        Assert.DoesNotContain(eventos.OfType<EventoAviso>(), a => a.Codigo == "limite_de_uso");
+        Assert.Empty(eventos.OfType<EventoError>());
         Assert.Contains("Tu nota es **10.0**", banco.Db.Mensajes.Where(m => m.Rol == RolMensaje.Agente).ToList().Last().Texto);
         Assert.Equal(NivelAlumnoValor.Inicial, banco.Db.Niveles.Single().Nivel);
     }

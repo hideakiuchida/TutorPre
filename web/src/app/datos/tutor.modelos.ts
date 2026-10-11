@@ -108,14 +108,20 @@ export interface Tramo {
 
 const CITA = /\[([^[\]]+?,\s*p\.\s*\d+)\]/g;
 const NEGRITA = /\*\*(.+?)\*\*/g;
+const TITULO = /^#{1,6}\s+(.+?)\s*#*$/gm;
+const SEPARADOR = /^[ \t]*(-{3,}|\*{3,}|_{3,})[ \t]*$\n?/gm;
 
 /**
  * Parte el texto en tramos para pintar las citas como subrayado de resaltador: lo que
  * viene del material se ve distinto de lo demás sin leer ninguna etiqueta (RF-11). El
  * modelo escribe en Markdown: las negritas (`**…**`) se muestran como negritas, no con
- * asteriscos. Todo va como texto (sin HTML), así que no hay nada que sanear.
+ * asteriscos; un título (`### …`) también va en negrita y las líneas separadoras (`---`) se
+ * quitan. Todo va como texto (sin HTML), así que no hay nada que sanear.
  */
-export function tramos(texto: string): Tramo[] {
+export function tramos(original: string): Tramo[] {
+  const texto = original
+    .replace(SEPARADOR, '')
+    .replace(TITULO, (_, titulo: string) => `**${titulo.replace(/\*\*/g, '')}**`);
   const partes: Tramo[] = [];
   let desde = 0;
 
