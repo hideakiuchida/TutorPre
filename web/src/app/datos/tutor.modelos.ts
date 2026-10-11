@@ -108,7 +108,7 @@ export interface Tramo {
 
 const CITA = /\[([^[\]]+?,\s*p\.\s*\d+)\]/g;
 const NEGRITA = /\*\*(.+?)\*\*/g;
-const TITULO = /^#{1,6}\s+(.+?)\s*#*$/gm;
+const TITULO = /^#{1,6}[ 	]+(.+?)[ 	]*#*[ 	]*$/gm;
 const SEPARADOR = /^[ \t]*(-{3,}|\*{3,}|_{3,})[ \t]*$\n?/gm;
 
 /**
