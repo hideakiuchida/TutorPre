@@ -132,8 +132,7 @@ internal static class MapeoLlm
             credencialRechazada,
             limiteDeUso,
             limiteDeUso ? ReintentarEn(respuesta) : null,
-            limiteDeUso && EsSaturacion(detalle),
-            sinSaldo);
+            SinSaldo: sinSaldo);
     }
 
     public static bool EsFaltaDeSaldo(string detalle) =>
@@ -141,43 +140,12 @@ internal static class MapeoLlm
         detalle.Contains("no credits remaining", StringComparison.OrdinalIgnoreCase) ||
         detalle.Contains("credit balance is too low", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// OpenRouter marca con `limit_source` de dónde viene el 429: si es del proveedor que
-    /// sirve el modelo gratuito (pool compartido), el cupo del alumno sigue intacto.
-    /// </summary>
-    public static bool EsSaturacion(string detalle)
-    {
-        try
-        {
-            using var doc = JsonDocument.Parse(detalle);
-            var fuente = Texto(doc.RootElement, "error", "metadata", "limit_source");
-            if (fuente.Length > 0) return fuente.StartsWith("upstream", StringComparison.OrdinalIgnoreCase);
-
-            return Texto(doc.RootElement, "error", "metadata", "raw")
-                .Contains("rate-limited upstream", StringComparison.OrdinalIgnoreCase);
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// Cuando se puede volver a llamar, si el proveedor lo dice: `Retry-After` (estandar)
-    /// o `X-RateLimit-Reset` en milisegundos Unix (OpenRouter).
-    /// </summary>
+    /// <summary>Cuándo se puede volver a llamar, si el proveedor lo dice (`Retry-After`).</summary>
     public static DateTimeOffset? ReintentarEn(HttpResponseMessage respuesta)
     {
         var reintento = respuesta.Headers.RetryAfter;
         if (reintento?.Date is DateTimeOffset fecha) return fecha;
         if (reintento?.Delta is TimeSpan espera) return DateTimeOffset.UtcNow + espera;
-
-        if (respuesta.Headers.TryGetValues("X-RateLimit-Reset", out var valores) &&
-            long.TryParse(valores.FirstOrDefault(), out var milisegundos) &&
-            milisegundos > 0)
-        {
-            return DateTimeOffset.FromUnixTimeMilliseconds(milisegundos);
-        }
 
         return null;
     }

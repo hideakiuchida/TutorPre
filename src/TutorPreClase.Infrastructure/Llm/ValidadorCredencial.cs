@@ -38,7 +38,7 @@ public sealed class ValidadorCredencial(
             // Un 401/403 es credencial mala; un 429 o un 5xx es del proveedor, no de la clave.
             if (respuesta.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
             {
-                // El cuerpo de error de Google o de OpenRouter explica el motivo y no trae secretos.
+                // El cuerpo de error del proveedor explica el motivo y no trae secretos.
                 var detalle = await respuesta.Content.ReadAsStringAsync(ct);
                 log.LogWarning("Validacion de {Agente} rechazada con {Codigo}: {Detalle}",
                     agente.Id, (int)respuesta.StatusCode, detalle.Length > 600 ? detalle[..600] : detalle);
@@ -78,8 +78,8 @@ public sealed class ValidadorCredencial(
     public const string ProveedorGoogleAiStudio = "GoogleAIStudio";
 
     /// <summary>
-    /// Una llamada que autentica sin gastar cupo: la propia clave en OpenRouter, o listar
-    /// los modelos en Gemini, OpenAI y Anthropic, cada uno con su cabecera.
+    /// Una llamada que autentica sin gastar cupo: listar los modelos en Gemini, OpenAI y
+    /// Anthropic, cada uno con su cabecera.
     /// </summary>
     public static HttpRequestMessage Armar(AgenteIA agente, string clave)
     {
@@ -100,12 +100,7 @@ public sealed class ValidadorCredencial(
             }
             default:
             {
-                var ruta = agente.Proveedor switch
-                {
-                    ProveedorGoogle => "/v1beta/models?pageSize=1",
-                    ProveedorOpenAi => "/v1/models",
-                    _ => "/api/v1/key"
-                };
+                var ruta = agente.Proveedor == ProveedorGoogle ? "/v1beta/models?pageSize=1" : "/v1/models";
                 var peticion = new HttpRequestMessage(HttpMethod.Get, ruta);
                 peticion.Headers.Authorization = new("Bearer", clave);
                 return peticion;

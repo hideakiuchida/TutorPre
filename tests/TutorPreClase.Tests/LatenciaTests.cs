@@ -70,7 +70,7 @@ public class ChatEnVivoTests
     public async Task Con_la_ampliacion_apagada_el_texto_llega_en_varios_trozos()
     {
         using var banco = new BancoDePruebas().Sembrar(ampliacionPermitida: false);
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
 
         banco.Proveedor.Responde(
             new TextoParcial("La sigmoide satura en los extremos y por eso reduce el gradiente de las capas. "),
@@ -93,7 +93,7 @@ public class ChatEnVivoTests
     public async Task Una_respuesta_cortada_por_el_tope_se_avisa()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
 
         banco.Proveedor.Responde(
             new TextoParcial("La sigmoide satura porque"),
@@ -105,19 +105,24 @@ public class ChatEnVivoTests
     }
 }
 
-public class RazonamientoOpenRouterTests
+public class RazonamientoOpenAiTests
 {
-    private static async Task<JsonElement> CuerpoEnviado(string? razonamientoAgente, string? razonamientoSolicitud = null)
+    private static async Task<JsonElement> CuerpoEnviado(
+        string? razonamientoAgente, string? razonamientoSolicitud = null, string? esfuerzoDesactivado = "minimal")
     {
-        var simulado = new OpenRouterSimulado
+        var simulado = new HttpSimulado
         {
             Responder = _ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("data: [DONE]\n\n") }
         };
-        var proveedor = new OpenRouterProvider(simulado.CreateClient("llm:openrouter"),
-            new OpcionesAgente { Modelo = "qwen/qwen3.8-27b:free", ApiKey = "sk-or-v1-x", Razonamiento = razonamientoAgente },
-            NullLogger<OpenRouterProvider>.Instance);
+        var proveedor = new OpenAiProvider(simulado.CreateClient("llm:openai"),
+            new OpcionesAgente
+            {
+                Modelo = "gpt-5-mini", ApiKey = "sk-proj-x",
+                Razonamiento = razonamientoAgente, EsfuerzoDesactivado = esfuerzoDesactivado
+            },
+            NullLogger<OpenAiProvider>.Instance);
 
-        var solicitud = new LlmSolicitud("qwen/qwen3.8-27b:free", "Eres el tutor.",
+        var solicitud = new LlmSolicitud("gpt-5-mini", "Eres el tutor.",
             [new LlmMensaje(RolLlm.Usuario, "hola")], [], Razonamiento: razonamientoSolicitud);
 
         await foreach (var _ in proveedor.StreamAsync(solicitud, CancellationToken.None)) { }
@@ -125,35 +130,35 @@ public class RazonamientoOpenRouterTests
     }
 
     [Fact]
-    public async Task En_el_chat_desactiva_el_razonamiento_y_prefiere_el_proveedor_mas_rapido()
+    public async Task En_el_chat_apaga_el_razonamiento_y_no_pone_tope_de_salida()
     {
         var cuerpo = await CuerpoEnviado(NivelRazonamiento.Desactivado);
 
-        Assert.False(cuerpo.GetProperty("reasoning").GetProperty("enabled").GetBoolean());
-        Assert.Equal("throughput", cuerpo.GetProperty("provider").GetProperty("sort").GetString());
-        Assert.Equal("deny", cuerpo.GetProperty("provider").GetProperty("data_collection").GetString());
+        Assert.Equal("minimal", cuerpo.GetProperty("reasoning_effort").GetString());
         // El chat no pone tope: el modelo responde completo.
         Assert.False(cuerpo.TryGetProperty("max_tokens", out _));
     }
 
     [Fact]
-    public async Task La_solicitud_puede_pedir_razonamiento_bajo()
+    public async Task Si_la_solicitud_pide_razonamiento_bajo_decide_el_modelo()
     {
         var cuerpo = await CuerpoEnviado(NivelRazonamiento.Desactivado, NivelRazonamiento.Bajo);
 
-        Assert.Equal("low", cuerpo.GetProperty("reasoning").GetProperty("effort").GetString());
+        Assert.False(cuerpo.TryGetProperty("reasoning_effort", out _));
     }
 
     [Fact]
-    public async Task Sin_nivel_no_envia_el_parametro()
+    public async Task Un_proveedor_que_no_admite_apagarlo_no_recibe_el_parametro()
     {
-        Assert.False((await CuerpoEnviado(null)).TryGetProperty("reasoning", out _));
+        var cuerpo = await CuerpoEnviado(NivelRazonamiento.Desactivado, esfuerzoDesactivado: null);
+
+        Assert.False(cuerpo.TryGetProperty("reasoning_effort", out _));
     }
 
     [Fact]
     public async Task Una_respuesta_que_llega_al_tope_se_marca_como_cortada()
     {
-        var simulado = new OpenRouterSimulado
+        var simulado = new HttpSimulado
         {
             Responder = _ => new HttpResponseMessage(HttpStatusCode.OK)
             {
@@ -162,8 +167,8 @@ public class RazonamientoOpenRouterTests
                     "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n")
             }
         };
-        var proveedor = new OpenRouterProvider(simulado.CreateClient("llm:openrouter"),
-            new OpcionesAgente { Modelo = "m", ApiKey = "sk-or-v1-x" }, NullLogger<OpenRouterProvider>.Instance);
+        var proveedor = new OpenAiProvider(simulado.CreateClient("llm:openai"),
+            new OpcionesAgente { Modelo = "m", ApiKey = "sk-proj-x" }, NullLogger<OpenAiProvider>.Instance);
 
         var eventos = new List<LlmEvento>();
         await foreach (var e in proveedor.StreamAsync(

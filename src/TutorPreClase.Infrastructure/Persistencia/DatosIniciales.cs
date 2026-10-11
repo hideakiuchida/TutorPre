@@ -5,8 +5,9 @@ namespace TutorPreClase.Infrastructure.Persistencia;
 
 /// <summary>
 /// Agentes de fabrica (SDD §5.8). Se agregan si faltan, sin tocar los existentes: el
-/// administrador puede haber cambiado su modelo. Los que la configuracion da por retirados
-/// (hoy OpenRouter) quedan deshabilitados: no se ofrecen ni se usan.
+/// administrador puede haber cambiado su modelo. Los que ya no estan vigentes en la
+/// configuracion quedan deshabilitados: no se ofrecen ni se usan, aunque sigan en la base
+/// porque de ellos cuelgan conversaciones e intentos antiguos.
 /// </summary>
 public static class DatosIniciales
 {
@@ -21,9 +22,9 @@ public static class DatosIniciales
     };
 
     public static async Task SembrarAsync(
-        AppDbContext db, IEnumerable<string>? retirados = null, CancellationToken ct = default)
+        AppDbContext db, IEnumerable<string>? vigentes = null, CancellationToken ct = default)
     {
-        var fuera = (retirados ?? []).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var enUso = vigentes?.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var agentes = await db.Agentes.ToListAsync(ct);
 
         foreach (var agente in agentes)
@@ -33,27 +34,18 @@ public static class DatosIniciales
         var nuevos = Fabrica().Where(a => !existentes.Contains(a.Id)).ToList();
         db.Agentes.AddRange(nuevos);
 
-        // Un agente con "Habilitado": false en la configuracion deja de ofrecerse, aunque
-        // ya existiera en la base con cuentas conectadas.
-        foreach (var agente in agentes.Concat(nuevos))
-            if (fuera.Contains(agente.Id)) agente.Habilitado = false;
+        // Un agente que la configuracion ya no trae, o trae con "Habilitado": false, deja de
+        // ofrecerse aunque existiera en la base con cuentas conectadas. Sin lista (pruebas)
+        // no se deshabilita ninguno.
+        if (enUso is not null)
+            foreach (var agente in agentes.Concat(nuevos))
+                if (!enUso.Contains(agente.Id)) agente.Habilitado = false;
 
         await db.SaveChangesAsync(ct);
     }
 
     private static IEnumerable<AgenteIA> Fabrica() =>
     [
-        // Sin consola: la clave llega por OAuth al iniciar sesion (RF-24, RF-29).
-        new AgenteIA
-        {
-            Id = "openrouter",
-            NombreVisible = "OpenRouter (gratis)",
-            Proveedor = "OpenRouter",
-            Modelo = "qwen/qwen3.8-27b:free",
-            BaseUrl = "https://openrouter.ai",
-            Descripcion = "Sin costo: entra con tu cuenta de OpenRouter. Tiene un límite de mensajes por día.",
-            Habilitado = true
-        },
         // Con la cuenta de Google del usuario (RF-37); el uso cuenta en el proyecto de la app.
         new AgenteIA
         {

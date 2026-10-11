@@ -20,9 +20,9 @@ public class ClavePropiaTests
     private static AgenteIA Agente(string id, string proveedor) =>
         new() { Id = id, NombreVisible = id, Proveedor = proveedor, Modelo = "m", Habilitado = true };
 
-    private static (ValidadorCredencial Validador, OpenRouterSimulado Http) Validador(HttpStatusCode estado = HttpStatusCode.OK)
+    private static (ValidadorCredencial Validador, HttpSimulado Http) Validador(HttpStatusCode estado = HttpStatusCode.OK)
     {
-        var http = new OpenRouterSimulado { Responder = _ => new HttpResponseMessage(estado) { Content = new StringContent("{}") } };
+        var http = new HttpSimulado { Responder = _ => new HttpResponseMessage(estado) { Content = new StringContent("{}") } };
         var tokens = new TokensGoogle(http, new MemoryCache(new MemoryCacheOptions()),
             Options.Create(new OpcionesAgentes()), NullLogger<TokensGoogle>.Instance);
 
@@ -81,7 +81,7 @@ public class ClavePropiaTests
     [Fact]
     public async Task El_chat_va_a_la_ruta_del_proveedor_y_apaga_el_razonamiento_si_lo_admite()
     {
-        var http = new OpenRouterSimulado
+        var http = new HttpSimulado
         {
             Responder = _ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("data: [DONE]\n\n") }
         };
@@ -106,7 +106,7 @@ public class ClavePropiaTests
 
         var json = JsonDocument.Parse(cuerpo).RootElement;
         Assert.Equal("minimal", json.GetProperty("reasoning_effort").GetString());
-        // Sin las preferencias de OpenRouter: son de ese proveedor.
+        // Solo campos del formato OpenAI.
         Assert.False(json.TryGetProperty("provider", out _));
         Assert.False(json.TryGetProperty("reasoning", out _));
     }
@@ -181,7 +181,7 @@ public class ClavePropiaTests
         var (_, alumnoId, _, _) = api.Sembrar();
 
         var respuesta = await api.Como(alumnoId, "Alumno")
-            .PutAsJsonAsync("/api/v1/alumno/credenciales/openrouter", new { clave = "sk-or-v1-pegada-a-mano-0000" });
+            .PutAsJsonAsync("/api/v1/alumno/credenciales/gemini", new { clave = "AIzaSy-pegada-a-mano-0000" });
 
         Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
         Assert.Contains("conexion_por_oauth", await respuesta.Content.ReadAsStringAsync());

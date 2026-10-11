@@ -4,7 +4,7 @@
 
 El diseño está repartido en un documento por sección. Este es el documento principal: enlaza cada parte y dice qué contiene. Las referencias del código y de los skills con la forma `SDD §5.2` apuntan a la sección 5, apartado 5.2.
 
-> **Cómo llega la plataforma al modelo de IA (octubre de 2026).** Cada usuario trae su propia IA y la conecta en *Mi tutor* de tres formas: **con su clave de API** (Gemini de Google AI Studio, gratis; ChatGPT o Claude, de pago), **con su cuenta de Google** (Gemini por OAuth) o **desde su propio asistente** (el Tutor como servidor MCP). El resumen está en §1, la conexión en §5.1, los adaptadores en §5.8 y todas las llamadas al modelo, con sus diagramas, en §5.9. OpenRouter, la primera forma de conexión, está retirado: su código sigue en el repositorio, apagado por configuración (§5.8).
+> **Cómo llega la plataforma al modelo de IA (octubre de 2026).** Cada usuario trae su propia IA y la conecta en *Mi tutor* de tres formas: **con su clave de API** (Gemini de Google AI Studio, gratis; ChatGPT o Claude, de pago), **con su cuenta de Google** (Gemini por OAuth) o **desde su propio asistente** (el Tutor como servidor MCP). El resumen está en §1, la conexión en §5.1, los adaptadores en §5.8 y todas las llamadas al modelo, con sus diagramas, en §5.9.
 
 | § | Documento | Contenido |
 | --- | --- | --- |

@@ -12,7 +12,7 @@ public class FlujoExamenTests
     public async Task El_examen_completo_por_chat_califica_y_fija_el_nivel()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
         // Pregunta a pregunta: tras cada respuesta el servidor entrega la siguiente.
@@ -44,7 +44,7 @@ public class FlujoExamenTests
     public async Task En_modo_AlFinal_el_agente_no_recibe_si_acerto()
     {
         using var banco = new BancoDePruebas().Sembrar(feedback: ModoFeedback.AlFinal);
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
         await Empezar(banco, conversacion.Id);
@@ -61,7 +61,7 @@ public class FlujoExamenTests
     public async Task En_modo_Inmediato_el_agente_recibe_la_correccion_al_registrar()
     {
         using var banco = new BancoDePruebas().Sembrar(feedback: ModoFeedback.Inmediato);
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
         await Empezar(banco, conversacion.Id);
@@ -83,7 +83,7 @@ public class FlujoExamenTests
     public async Task La_siguiente_pregunta_no_expone_cual_es_la_correcta()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
         await Empezar(banco, conversacion.Id);
@@ -99,7 +99,7 @@ public class FlujoExamenTests
     public async Task Una_respuesta_registrada_es_inmutable()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
         await Empezar(banco, conversacion.Id);
@@ -127,7 +127,7 @@ public class FlujoExamenTests
     public async Task El_tutor_registra_las_dudas_que_el_material_no_cubre()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
 
         banco.Proveedor.LlamaHerramienta(Herramientas.RegistrarDudaSinCobertura, new
         {
@@ -149,7 +149,7 @@ public class FlujoExamenTests
     public async Task El_diagnostico_del_tutor_llena_temas_debiles_sin_mover_el_nivel()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
         await Empezar(banco, conversacion.Id);
@@ -178,7 +178,7 @@ public class FlujoExamenTests
     public async Task Un_examen_nuevo_empieza_su_diagnostico_de_cero_y_el_docente_puede_ajustarlo()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
 
         // Primer intento, con su diagnóstico.
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
@@ -212,7 +212,7 @@ public class FlujoExamenTests
     public async Task Reintentar_un_mensaje_que_el_tutor_no_contesto_no_lo_duplica()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
 
         banco.Proveedor.Responde(new ErrorProveedor("503", true, LimiteDeUso: true, Saturado: true));
         await banco.EnviarAsync(conversacion.Id, "¿Qué es ReLU?");
@@ -235,7 +235,7 @@ public class FlujoExamenTests
     public async Task Una_duda_repetida_sale_una_sola_vez_en_el_reporte()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
 
         foreach (var texto in new[] { "¿Qué es el WACC?", "¿qué es el WACC?", "¿Qué es la TIR?" })
         {
@@ -254,7 +254,7 @@ public class FlujoExamenTests
     public async Task El_reporte_cuenta_una_nota_por_alumno_la_de_su_mejor_intento()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
 
         // Primer intento: 2 de 2. Segundo: 0 de 2.
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
@@ -296,7 +296,7 @@ public class FlujoExamenTests
     public async Task Tras_registrar_el_servidor_entrega_la_siguiente_sin_repetir_la_anterior()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
         await Empezar(banco, conversacion.Id);
         Assert.Single(banco.Db.Preguntas); // la segunda aún no existe
@@ -316,7 +316,7 @@ public class FlujoExamenTests
     public async Task Si_la_siguiente_no_se_puede_generar_el_avance_se_conserva_y_se_puede_reintentar()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
         await Empezar(banco, conversacion.Id);
 
@@ -348,7 +348,7 @@ public class FlujoExamenTests
         banco.Db.Examenes.Single().MinutosLimite = 20;
         banco.Db.SaveChanges();
 
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
         var intentoId = banco.Db.Intentos.Single().Id;
         await Empezar(banco, conversacion.Id);
@@ -388,7 +388,7 @@ public class FlujoExamenTests
     public async Task La_nota_se_calcula_sobre_las_preguntas_planeadas()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
         // Responde bien la primera y termina antes: la que faltaba cuenta como no acertada.
@@ -403,7 +403,7 @@ public class FlujoExamenTests
     public async Task No_se_genera_mas_de_una_adelantada_ni_mas_de_las_planeadas()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
         var intentoId = banco.Db.Intentos.Single().Id;
 
@@ -441,7 +441,7 @@ public class ExamenConfiableTests
     private static async Task<(BancoDePruebas Banco, Guid Conversacion)> EnExamen(ModoFeedback feedback = ModoFeedback.AlFinal)
     {
         var banco = new BancoDePruebas().Sembrar(feedback: feedback);
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
         return (banco, conversacion.Id);
     }
@@ -655,7 +655,7 @@ public class ExamenConfiableTests
         await FlujoExamenTests.Empezar(banco, conversacion);
 
         // Solo la IA del intento está sin cupo.
-        banco.Generador.FallaCon = modelo => modelo == "qwen/qwen3.8-27b:free"
+        banco.Generador.FallaCon = modelo => modelo == "modelo-de-prueba"
             ? new ErrorProveedor("429", true, LimiteDeUso: true)
             : null;
 
@@ -663,7 +663,7 @@ public class ExamenConfiableTests
 
         Assert.Contains("Pregunta 2 de 2", texto);
         Assert.Equal("gpt-5-mini", banco.Generador.UltimoModelo);
-        Assert.Equal(EstadoCredencial.Valida, banco.Db.Credenciales.Single(c => c.AgenteId == "openrouter").Estado);
+        Assert.Equal(EstadoCredencial.Valida, banco.Db.Credenciales.Single(c => c.AgenteId == "prueba").Estado);
     }
 
     [Theory]

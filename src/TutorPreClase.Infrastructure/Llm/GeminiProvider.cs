@@ -13,7 +13,7 @@ namespace TutorPreClase.Infrastructure.Llm;
 /// Gemini con la cuenta de Google del usuario (RF-37). Habla la API REST de Gemini
 /// (`streamGenerateContent`, SSE) con un token de acceso OAuth que renueva
 /// <see cref="TokensGoogle"/> a partir del refresh token guardado en la bóveda. El resto
-/// del sistema no nota la diferencia con OpenRouter: mismos eventos, herramientas y avisos.
+/// del sistema no nota la diferencia con los agentes de clave: mismos eventos, herramientas y avisos.
 /// </summary>
 public sealed class GeminiProvider(
     HttpClient http,

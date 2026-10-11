@@ -16,11 +16,11 @@ public sealed class OpcionesAgente
     public string? ApiKey { get; set; }
 
     /// <summary>
-    /// Modelos de respaldo, en orden, por si el principal está saturado o caído: el
-    /// gateway los prueba en la misma llamada (OpenRouter `models`). Solo modelos que
-    /// hayan pasado la suite de paridad (SDD §5.8).
+    /// Se puede usar: está habilitado y completo. Una entrada a medias (por ejemplo, la que
+    /// deja una variable de entorno suelta de un agente que ya no existe) no cuenta.
     /// </summary>
-    public List<string> ModelosAlternativos { get; set; } = [];
+    public bool Vigente =>
+        Habilitado && !string.IsNullOrWhiteSpace(BaseUrl) && !string.IsNullOrWhiteSpace(Modelo);
 
     /// <summary>
     /// Cuánto razona el modelo antes de contestar: "desactivado", "bajo" o vacío (lo que
@@ -48,10 +48,10 @@ public sealed class OpcionesAgente
     /// </summary>
     public string? EsfuerzoDesactivado { get; set; }
 
-    /// <summary>"Clave" (el alumno la pega) u "OAuth" (inicia sesion en el proveedor, RF-29).</summary>
+    /// <summary>"Clave" (el alumno la pega) u "OAuthGoogle" (inicia sesion en Google, RF-29).</summary>
     public string Conexion { get; set; } = ConexionAgente.Clave;
 
-    /// <summary>Solo OAuth: pagina de autorizacion del proveedor.</summary>
+    /// <summary>Solo OAuthGoogle: pagina de autorizacion del proveedor.</summary>
     public string? UrlAutorizacion { get; set; }
 
     /// <summary>Solo OAuthGoogle: donde se canjea el código y se renueva el acceso.</summary>
@@ -73,7 +73,7 @@ public sealed class OpcionesAgente
     public string? ClientSecret { get; set; }
 
     /// <summary>
-    /// Solo OAuth: ruta de la web a la que vuelve el proveedor. Es fija por entorno y
+    /// Solo OAuthGoogle: ruta de la web a la que vuelve el proveedor. Es fija por entorno y
     /// nunca se toma de la peticion, para que nadie la desvie (SDD §9.1).
     /// </summary>
     public string? UrlRetorno { get; set; }
@@ -89,12 +89,11 @@ public static class ConexionAgente
 {
     public const string Clave = "Clave";
 
-    /// <summary>OAuth con PKCE de OpenRouter: devuelve una clave a nombre del usuario.</summary>
+    /// <summary>Lo que ve la web: "inicia sesión en el proveedor", sin pegar claves.</summary>
     public const string OAuth = "OAuth";
 
     /// <summary>OAuth de Google: la cuenta de Google del usuario llama a Gemini (RF-37).</summary>
     public const string OAuthGoogle = "OAuthGoogle";
 
-    /// <summary>Para la web ambas son "iniciar sesión en el proveedor", sin pegar claves.</summary>
-    public static bool EsOAuth(string? conexion) => conexion is OAuth or OAuthGoogle;
+    public static bool EsOAuth(string? conexion) => conexion is OAuthGoogle;
 }

@@ -6,7 +6,7 @@ public enum RolUsuario { Alumno, Docente, Admin }
 public enum EstadoArchivo { Pendiente, Procesando, Listo, Error }
 
 /// <summary>
-/// SinCuenta: el profesor aún no conectó OpenRouter; el tutor lee el original hasta
+/// SinCuenta: el profesor aún no conectó ninguna IA; el tutor lee el original hasta
 /// que lo haga (SDD §6.2).
 /// </summary>
 public enum EstadoCondensado { Pendiente, Procesando, Listo, SinCuenta, Error }

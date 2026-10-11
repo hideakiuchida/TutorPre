@@ -296,7 +296,7 @@ La configuración describe el proveedor y el modelo; no contiene claves. La de c
 
 El administrador puede cambiar el modelo de un agente sin desplegar (`PUT /admin/agentes/{id}`), pero solo por uno que haya pasado la suite de paridad: no todos los modelos manejan bien las herramientas, y sin herramientas no hay examen.
 
-> **Pasarela retirada: OpenRouter (octubre de 2026).** Fue la primera forma de conexión (OAuth propio y modelos `:free`). Se retiró porque en producción su modelo gratuito compartido estaba saturado con frecuencia. `OpenRouterProvider` y `ConexionOpenRouter` siguen en el código, apagados con `Agentes:openrouter:Habilitado = false`: al arrancar, la API deja ese agente deshabilitado en la base, y así no se lista, no se puede conectar ni se usa, aunque queden cuentas conectadas de antes (§9.6). Ningún flujo de este documento pasa por ella.
+**Agentes que dejan de ofrecerse.** Un agente con `Habilitado: false`, o que ya no figura completo en la configuración, queda deshabilitado en la base al arrancar la API: no se lista, no se puede conectar y no se usa para el chat, el examen ni la condensación. Su fila se conserva porque de ella cuelgan conversaciones e intentos antiguos, y las cuentas que los usuarios tenían conectadas a él siguen guardadas pero dejan de contar como IA conectada. Un examen que estuviera en curso con ese agente no puede seguir: el profesor reinicia los intentos de ese alumno.
 
 Orquestación en `AgenteTutorService`, por cada mensaje del alumno:
 

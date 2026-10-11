@@ -2,7 +2,7 @@ namespace TutorPreClase.Domain.Entidades;
 
 public class AgenteIA
 {
-    /// <summary>"openrouter"; la interfaz deja abierta la puerta a otro gateway.</summary>
+    /// <summary>"gemini", "gemini-clave", "openai" o "anthropic": el mismo id de la configuración.</summary>
     public string Id { get; set; } = "";
     public string NombreVisible { get; set; } = "";
     public string Proveedor { get; set; } = "";

@@ -16,7 +16,7 @@ public sealed class ProveedorLlmFactory(
 {
     private readonly OpcionesAgentes _agentes = opciones.Value;
 
-    public bool Existe(string agenteId) => _agentes.TryGetValue(agenteId, out var agente) && agente.Habilitado;
+    public bool Existe(string agenteId) => _agentes.TryGetValue(agenteId, out var agente) && agente.Vigente;
 
     public ILlmProvider Obtener(string agenteId, string apiKey)
     {
@@ -29,7 +29,6 @@ public sealed class ProveedorLlmFactory(
             Nombre = plantilla.Nombre,
             BaseUrl = plantilla.BaseUrl,
             Modelo = plantilla.Modelo,
-            ModelosAlternativos = plantilla.ModelosAlternativos,
             Razonamiento = plantilla.Razonamiento,
             RutaChat = plantilla.RutaChat,
             EsfuerzoDesactivado = plantilla.EsfuerzoDesactivado,
@@ -46,7 +45,6 @@ public sealed class ProveedorLlmFactory(
         {
             ConexionAgente.OAuthGoogle => new GeminiProvider(
                 cliente, configAgente, tokensGoogle, logs.CreateLogger<GeminiProvider>(), agenteId),
-            _ when agenteId == "openrouter" => new OpenRouterProvider(cliente, configAgente, logs.CreateLogger<OpenRouterProvider>()),
             // Clave pegada por el alumno (RF-38): OpenAI, Anthropic o Gemini, en formato OpenAI.
             ConexionAgente.Clave => new OpenAiProvider(cliente, configAgente, logs.CreateLogger<OpenAiProvider>(), agenteId),
             _ => throw new InvalidOperationException($"Agente '{agenteId}' no soportado.")

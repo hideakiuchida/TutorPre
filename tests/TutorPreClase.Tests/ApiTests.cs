@@ -27,7 +27,7 @@ public class ApiTests
         var (_, _, _, claseId) = api.Sembrar();
 
         var respuesta = await api.CreateClient()
-            .PostAsJsonAsync($"/api/v1/clases/{claseId}/conversacion", new { agenteId = "openrouter" });
+            .PostAsJsonAsync($"/api/v1/clases/{claseId}/conversacion", new { agenteId = "prueba" });
 
         Assert.Equal(HttpStatusCode.Unauthorized, respuesta.StatusCode);
     }
@@ -50,7 +50,7 @@ public class ApiTests
         var (_, alumnoId, _, claseId) = api.Sembrar();
 
         var abierta = await api.Como(alumnoId, "Alumno")
-            .PostAsJsonAsync($"/api/v1/clases/{claseId}/conversacion", new { agenteId = "openrouter" });
+            .PostAsJsonAsync($"/api/v1/clases/{claseId}/conversacion", new { agenteId = "prueba" });
 
         var cuerpo = await abierta.Content.ReadFromJsonAsync<JsonElement>();
         var conversacionId = cuerpo.GetProperty("conversacionId").GetString();
@@ -90,7 +90,7 @@ public class ApiTests
         Assert.False(manual.IsSuccessStatusCode);
 
         // 2. El alumno abre su chat.
-        var abierta = await alumno.PostAsJsonAsync($"/api/v1/clases/{claseId}/conversacion", new { agenteId = "openrouter" });
+        var abierta = await alumno.PostAsJsonAsync($"/api/v1/clases/{claseId}/conversacion", new { agenteId = "prueba" });
         var conversacionId = (await abierta.Content.ReadFromJsonAsync<JsonElement>())
             .GetProperty("conversacionId").GetString();
 
@@ -173,7 +173,7 @@ public class ApiTests
         Assert.False(clase.TryGetProperty("habilitada", out _));
 
         Assert.Equal(HttpStatusCode.OK,
-            (await alumno.PostAsJsonAsync($"/api/v1/clases/{claseId}/conversacion", new { agenteId = "openrouter" })).StatusCode);
+            (await alumno.PostAsJsonAsync($"/api/v1/clases/{claseId}/conversacion", new { agenteId = "prueba" })).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await alumno.GetAsync($"/api/v1/clases/{claseId}/material")).StatusCode);
 
         // Los intentos no son cosa del alumno.
@@ -187,15 +187,20 @@ public class ApiTests
     public async Task Un_agente_retirado_en_la_configuracion_no_se_ofrece_ni_se_puede_usar()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
 
-        // Al arrancar, la API deshabilita los agentes con "Habilitado": false (hoy OpenRouter),
-        // también si ya existían en la base; los demás se siembran habilitados.
-        await TutorPreClase.Infrastructure.Persistencia.DatosIniciales.SembrarAsync(banco.Db, ["openrouter"]);
+        // Al arrancar, la API deshabilita los agentes que la configuración ya no trae vigentes,
+        // también si existían en la base con cuentas conectadas; los vigentes siguen habilitados.
+        await TutorPreClase.Infrastructure.Persistencia.DatosIniciales.SembrarAsync(banco.Db, ["gemini"]);
 
         var agentes = banco.Db.Agentes.ToDictionary(a => a.Id, a => a.Habilitado);
-        Assert.False(agentes["openrouter"]);
+        Assert.False(agentes["prueba"]);
         Assert.True(agentes["gemini"]);
+
+        // Su cuenta sigue guardada, pero ya no cuenta como IA conectada.
+        Assert.Single(banco.Db.Credenciales);
+        Assert.Empty(await banco.Boveda.ListarAsync(banco.AlumnoId));
+        Assert.Empty(await banco.Boveda.AgentesConectadosAsync(banco.AlumnoId));
 
         var error = await Assert.ThrowsAsync<TutorPreClase.Application.Evaluacion.ExamenException>(() => banco.Tutor.IniciarExamenAsync(conversacion.Id));
         Assert.Equal("agente_no_disponible", error.Codigo);
@@ -204,15 +209,15 @@ public class ApiTests
     [Fact]
     public async Task Un_agente_retirado_no_se_puede_conectar_por_la_api()
     {
-        using var api = new ApiDePruebas(new Dictionary<string, string> { ["Agentes:openrouter:Habilitado"] = "false" });
+        using var api = new ApiDePruebas(new Dictionary<string, string> { ["Agentes:gemini:Habilitado"] = "false" });
         var (_, alumnoId, _, _) = api.Sembrar();
         var alumno = api.Como(alumnoId, "Alumno");
 
-        var inicio = await alumno.PostAsync("/api/v1/alumno/credenciales/openrouter/oauth/inicio", null);
+        var inicio = await alumno.PostAsync("/api/v1/alumno/credenciales/gemini/oauth/inicio", null);
         Assert.Equal(HttpStatusCode.BadRequest, inicio.StatusCode);
         Assert.Equal("agente_no_disponible", (await inicio.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("error").GetString());
 
-        var canje = await alumno.PostAsJsonAsync("/api/v1/alumno/credenciales/openrouter/oauth/canje", new { code = "inventado" });
+        var canje = await alumno.PostAsJsonAsync("/api/v1/alumno/credenciales/gemini/oauth/canje", new { code = "inventado" });
         Assert.Equal(HttpStatusCode.BadRequest, canje.StatusCode);
     }
 

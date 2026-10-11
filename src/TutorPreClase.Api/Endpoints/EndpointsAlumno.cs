@@ -51,8 +51,8 @@ public static class EndpointsAlumno
                 a.consola,
                 // El alumno ve qué modelo responde con su cuenta.
                 a.modelo,
-                // "OAuth": la web ofrece iniciar sesion en lugar del campo para pegar la clave,
-                // sea con OpenRouter o con Google (RF-29, RF-37).
+                // "OAuth": la web ofrece iniciar sesion en Google en lugar del campo para pegar
+                // la clave (RF-29, RF-37).
                 conexion = opciones.Value.TryGetValue(a.id, out var o) && ConexionAgente.EsOAuth(o.Conexion)
                     ? ConexionAgente.OAuth
                     : ConexionAgente.Clave,

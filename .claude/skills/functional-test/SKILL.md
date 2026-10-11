@@ -149,7 +149,7 @@ con `POST /api/v1/acceso/desarrollo {"usuarioId":…}` y guárdala en la pestañ
 | RF-39 | Pestaña *Desde tu asistente*: *Generar token* muestra `tpc_mcp_…` una sola vez con *Copiar*, la URL `…/mcp` y el comando de Claude Code; al recargar solo se ve «Termina en XXXX». *Revocar* lo invalida |
 | RF-39 | Con el token (en local, el de prueba): `initialize` y `tools/call listar_clases` a `/mcp` responden 200 con las clases del alumno; `leer_material` funciona también en una clase de fecha futura; sin token, con la sesión de la web o con el token revocado → 401. En producción, la persona conecta Claude Code con el comando y le pide «¿qué clases tengo?» y «tómame el examen de M1»: cita el material, una pregunta a la vez, y la nota coincide con `GET /intentos/{id}/resultado` |
 | RF-29 | `/conectar/gemini?code=inventado&state=inventado` sin haber iniciado → se abre *Mi tutor* con el aviso *"venció o ya se usó"* (también con otra cuenta ya conectada), la URL queda en `/` y nada guardado |
-| RF-37 | **OpenRouter está retirado**: `GET /agentes` no lo trae, *Mi tutor* → *Con tu cuenta* solo muestra Gemini y «Conversas con» no lo lista aunque el usuario tuviera esa cuenta conectada; `POST /alumno/credenciales/openrouter/oauth/inicio` responde error. Un chat que quedó con OpenRouter se abre con la IA elegida ahora |
+| RF-37 | **Un agente retirado no se ofrece**: con `Agentes:gemini:Habilitado = false` (o sin su entrada en la configuración), `GET /agentes` no lo trae, *Mi tutor* no lo muestra, «Conversas con» no lo lista aunque el usuario tuviera esa cuenta conectada y `POST /alumno/credenciales/gemini/oauth/inicio` responde 400 `agente_no_disponible`. Un chat que quedó con un agente retirado se abre con la IA elegida ahora |
 | RF-25 | Un código inventado canjeado por la API (`POST /alumno/credenciales/gemini/oauth/canje`) responde error (lo rechaza Google real) y no se guarda |
 | RF-26 / RNF-10 | `GET /api/v1/alumno/credenciales` devuelve solo `agenteId`, `ultimos4`, `origen` (`OAuth`), `estado` y fechas. **Si aparece la clave completa, párate y repórtalo: es un fallo grave** |
 | RF-26 | Desde otro `X-Usuario-Id` el mismo endpoint devuelve `[]` |
@@ -246,7 +246,7 @@ Dilo explícitamente al reportar; no los marques como aprobados:
 | RF-35 | El modelo de cada IA se cambia solo por `PUT /admin/agentes/{id}`; no hay pantalla |
 | RF-08 | Reiniciar los intentos de un alumno existe solo por API; el panel del profesor no tiene botón |
 | RF-05 | La justificación cita el material, pero las **referencias** no se guardan aún en `pregunta_referencia` |
-| RNF-11 | `data_collection: deny` se envía en cada llamada, pero que el modelo `:free` elegido tenga proveedores que lo cumplan solo se ve con la cuenta real conectada |
+| RNF-11 | Qué hace cada proveedor con los datos del plan gratuito (retención y entrenamiento) solo se comprueba en sus términos y con la cuenta real conectada |
 | RF-23 | La IA todavía no ajusta la dificultad al nivel del alumno |
 | RNF-08 | No hay tope de mensajes por alumno y clase |
 | RNF-03 / RNF-04 / RNF-05 | Carga, volumen y disponibilidad: no se verifican a mano, hacen falta k6 y medición en despliegue |

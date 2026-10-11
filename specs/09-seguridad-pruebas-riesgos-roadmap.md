@@ -42,7 +42,7 @@
 | Servidor MCP | Token mostrado una vez y guardado hasheado, sin token / con la sesión de la web / inventado / revocado → 401, generar otro revoca el anterior, solo las clases propias, examen completo por MCP con la nota del servidor y sin la correcta en la pregunta | Pruebas de API con el cliente MCP oficial |
 | Acceso | Validación del `id_token` (emisor, audiencia, vencido, `nonce`, correo sin verificar), `state` repetido, primer acceso sin crear a nadie hasta elegir rol, alumno solo en los cursos de su profesor, profesor inválido, registro de un solo uso, nadie se elige administrador, registro cerrado (`no_registrado`), administrador por configuración, cada profesor solo sus cursos (403 al ajeno), cambio de profesor, sesión con rol correcto | xUnit + pruebas de API con el proveedor simulado |
 | OAuth de Google para Gemini | URL con PKCE, acceso *offline* y retorno fijo; el canje envía el verificador y guarda el refresh token una sola vez; permiso sin marcar no guarda nada; acceso reutilizado y renovado; acceso revocado pide reconectar; API desactivada no invalida la credencial; 503 es saturación; un agente retirado no se puede conectar | xUnit con Google simulado |
-| Adaptadores de IA | Cuerpo de la llamada por proveedor (herramientas, historial, razonamiento, tope de salida), `thoughtSignature` de Gemini devuelta tal cual, traducción de 401, 429, 503 y falta de saldo. Las pruebas de la pasarela retirada (OpenRouter) se conservan mientras su código siga en el repositorio | xUnit con HTTP simulado |
+| Adaptadores de IA | Cuerpo de la llamada por proveedor (herramientas, historial, razonamiento, tope de salida), `thoughtSignature` de Gemini devuelta tal cual, traducción de 401, 429, 503 y falta de saldo. | xUnit con HTTP simulado |
 | E2E | Entrar con cada rol, conectar la cuenta (RF-32), abrir el chat, consultar el tema, rendir examen por chat y revisar fallos | Playwright |
 | Carga | 30 alumnos conversando en el mismo minuto | k6 |
 
@@ -94,7 +94,7 @@
 
 ## 9.6 Pendientes
 
-Estado a 2026-10-11, con el examen pregunta a pregunta, Gemini con Google, las claves propias, el servidor MCP, el material condensado y OpenRouter retirado. Por prioridad:
+Estado a 2026-10-11, con el examen pregunta a pregunta, Gemini con Google, las claves propias, el servidor MCP y el material condensado. Por prioridad:
 
 | # | Pendiente | Requisito | Detalle |
 | --- | --- | --- | --- |
@@ -111,7 +111,6 @@ Estado a 2026-10-11, con el examen pregunta a pregunta, Gemini con Google, las c
 | 14 | Carga, volumen y disponibilidad | RNF-03 a RNF-05 | Medir con k6 en un despliegue |
 | 15 | Medir la condensación con el modelo real | RF-36 | Primera prueba local: la infografía "Costo vs Gasto" pasó de 409 a 267 tokens (−35 %). Falta completar un curso con Gemini y revisar la fidelidad de los apuntes con el profesor |
 | 16 | Profesor sin IA conectada en producción | RF-36 | El profesor tiene que conectar una IA: Gemini con su cuenta de Google desde su panel (solo si es usuario de prueba) o una clave de API entrando como alumno, en *Mi tutor*. Hasta entonces el tutor lee el original. Falta que el panel del docente ofrezca también pegar la clave |
-| 17 | Quitar del código la pasarela retirada | RF-37 | `OpenRouterProvider`, `ConexionOpenRouter`, su entrada en `appsettings.json` y sus pruebas siguen en el repositorio, apagados por configuración. Las cuentas conectadas de antes siguen guardadas pero no se usan; el chat pasa a la IA que el alumno elija. Un examen que estuviera en curso con OpenRouter no puede seguir: el profesor reinicia los intentos de ese alumno |
 | 17 | Cuentas de IA propias, fase 2 | RF-37, RF-39 | OAuth 2.1 con registro dinámico de clientes en `/mcp` para conectar el Tutor desde los conectores web de Claude.ai y ChatGPT (hoy solo con token en clientes que aceptan cabeceras); *sampling* de MCP para que el asistente del alumno genere las preguntas; proyecto de Google propio (`x-goog-user-project`) para cargar el uso de Gemini a la cuenta del alumno |
 | 18 | Verificar la aplicación en Google | RF-37 | El permiso de Gemini por cuenta es sensible y la app no está verificada: Google bloquea a quien no sea usuario de prueba, y a estos el permiso les caduca a los 7 días. Mientras tanto la vía general es la clave de API (RF-38). La verificación pide dominio verificado, política de privacidad y un video de uso |
 | 20 | Probar las claves propias con cuentas reales | RF-38 | Verificado en local que OpenAI rechaza una clave inventada; falta una conversación y un examen con una clave real de cada proveedor (la pega la persona) |

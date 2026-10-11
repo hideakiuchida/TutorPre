@@ -60,7 +60,7 @@ public class CondensacionTests
         banco.Db.SaveChanges();
 
         if (profesorConectado)
-            banco.Boveda.ConectarAsync(docente.Id, "openrouter", "sk-or-v1-del-profesor-9999").GetAwaiter().GetResult();
+            banco.Boveda.ConectarAsync(docente.Id, "prueba", "sk-prueba-del-profesor-9999").GetAwaiter().GetResult();
 
         var condensador = new CondensadorMaterial(
             banco.Db, banco.Boveda, banco.Proveedor, banco.Contexto, NullLogger<CondensadorMaterial>.Instance);
@@ -171,7 +171,7 @@ public class CondensacionTests
         m.Banco.Db.SaveChanges();
         await m.Banco.Boveda.ConectarAsync(m.DocenteId, "gemini", "1//renovacion-de-prueba-0000");
 
-        // Gemini (la primera por orden) está sin cupo; OpenRouter responde.
+        // Gemini (la primera por orden) está sin cupo; la otra cuenta del profesor responde.
         m.Banco.Proveedor.Responde(new ErrorProveedor("429", true, LimiteDeUso: true));
         m.Banco.Proveedor.RespondeTexto(Json((1, "- Costo: inversión con beneficio futuro."), (2, "- Gasto: consumo del periodo."), (3, "- Desembolso: salida de efectivo.")));
 
@@ -180,7 +180,7 @@ public class CondensacionTests
         Assert.Equal(ResultadoCondensacion.Hecho, resultado);
         Assert.Equal(EstadoCondensado.Listo, m.Archivo.Condensado);
         Assert.Null(m.Archivo.ErrorCondensado);
-        Assert.Equal(["gemini-3.8-flash", "qwen/qwen3.8-27b:free"], m.Banco.Proveedor.Solicitudes.Select(s => s.Modelo));
+        Assert.Equal(["gemini-3.8-flash", "modelo-de-prueba"], m.Banco.Proveedor.Solicitudes.Select(s => s.Modelo));
     }
 
     [Fact]
@@ -253,7 +253,7 @@ public class CondensacionTests
         m.Banco.Proveedor.RespondeTexto(Json((1, "- Costo: inversión con beneficio futuro.")));
         await m.Condensador.CondensarAsync(m.Archivo.Id);
 
-        var conversacion = await m.Banco.Tutor.AbrirConversacionAsync(m.Banco.ClaseId, m.Banco.AlumnoId, "openrouter");
+        var conversacion = await m.Banco.Tutor.AbrirConversacionAsync(m.Banco.ClaseId, m.Banco.AlumnoId, "prueba");
         await m.Banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
         Assert.Contains("se registra en el balance como activo", m.Banco.Generador.UltimoMaterial!.Texto);

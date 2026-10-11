@@ -77,10 +77,9 @@ public static class RegistroServicios
                 .PersistKeysToFileSystem(new DirectoryInfo(carpetaClaves));
         servicios.AddSingleton<IValidadorCredencial, ValidadorCredencial>();
         servicios.AddScoped<IBovedaCredenciales, BovedaCredenciales>();
-        // Cada agente se conecta a su manera: OpenRouter (clave) o Google (Gemini, RF-37).
+        // Gemini se conecta con la cuenta de Google del usuario (RF-37); el resto, con clave.
         servicios.AddSingleton<TokensGoogle>();
         servicios.AddHttpClient(TokensGoogle.Cliente, c => c.Timeout = TimeSpan.FromSeconds(20));
-        servicios.AddScoped<ConexionOpenRouter>();
         servicios.AddScoped<ConexionGoogleGemini>();
         servicios.AddScoped<IConexionOAuth, ConexionesOAuth>();
         servicios.AddSingleton<IProveedorLlmFactory, ProveedorLlmFactory>();

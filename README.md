@@ -46,7 +46,7 @@ Para alumnos y profesores hay una guía de uso con capturas: [`docs/Guia-de-usua
 | --- | --- |
 | `src/TutorPreClase.Domain` | Entidades y reglas puras: calificación, nivel, intentos y tiempo del examen, salvaguardas |
 | `src/TutorPreClase.Application` | Contexto de clase, prompt, herramientas, orquestación del tutor, nivel, reportes |
-| `src/TutorPreClase.Infrastructure` | EF Core, proveedores LLM (OpenRouter, Gemini, OpenAI, Anthropic), extracción de texto, cola |
+| `src/TutorPreClase.Infrastructure` | EF Core, proveedores LLM (Gemini, OpenAI, Anthropic), extracción de texto, cola |
 | `src/TutorPreClase.Api` | REST + SSE, inicio de sesión (OIDC) y servidor MCP |
 | `src/TutorPreClase.Worker` | Extracción de texto fuera del proceso de la API |
 | `web` | Angular: entrada, chat del alumno, panel del profesor y administración |
@@ -108,9 +108,8 @@ Conviene conectar más de una: si la IA del examen se queda sin cupo a mitad de 
 la siguiente pregunta se genera con otra de las conectadas.
 
 `appsettings.json` solo describe qué proveedores se pueden conectar, con qué modelo y
-contra qué `BaseUrl`. Uno con `"Habilitado": false` no se ofrece ni se usa: así está
-**OpenRouter**, retirado porque su modelo gratuito compartido se saturaba; su pasarela sigue
-en el código y se reactiva con ese ajuste.
+contra qué `BaseUrl`. Uno con `"Habilitado": false`, o que ya no figura ahí, no se ofrece ni
+se usa, aunque queden cuentas conectadas de antes.
 
 Qué opción conviene —tiempos de respuesta, coherencia en el examen y en las dudas, límites
 gratuitos y costo por uso, medidos en producción— está en

@@ -15,7 +15,7 @@ public class ArchivoContenido
 
     /// <summary>
     /// La IA reescribe cada página como apuntes compactos para que el tutor lea menos
-    /// (SDD §6.2). Se hace una vez, con la cuenta de OpenRouter del profesor.
+    /// (SDD §6.2). Se hace una vez, con la IA que el profesor tenga conectada.
     /// </summary>
     public EstadoCondensado Condensado { get; set; } = EstadoCondensado.Pendiente;
     public string? ErrorCondensado { get; set; }

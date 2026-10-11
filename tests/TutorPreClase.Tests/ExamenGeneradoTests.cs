@@ -130,7 +130,7 @@ public class ExamenPorAlumnoTests
     public async Task Al_empezar_solo_se_genera_la_primera_y_se_prepara_la_siguiente()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
 
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
@@ -145,7 +145,7 @@ public class ExamenPorAlumnoTests
     public async Task Reiniciar_los_intentos_de_un_alumno_le_devuelve_todos_y_el_chat_vuelve_a_consulta()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
         var intento = banco.Db.Intentos.Single();
@@ -174,7 +174,7 @@ public class ExamenPorAlumnoTests
     public async Task Si_la_generacion_falla_no_se_gasta_el_intento()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
         banco.Generador.Falla = new ErrorProveedor("El proveedor respondio 502.", true);
 
         var error = await Assert.ThrowsAsync<ExamenException>(() => banco.Tutor.IniciarExamenAsync(conversacion.Id));
@@ -188,7 +188,7 @@ public class ExamenPorAlumnoTests
     public async Task Sin_cupo_se_avisa_el_limite_y_la_credencial_sigue_valida()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
         banco.Generador.Falla = new ErrorProveedor("429", true, LimiteDeUso: true);
 
         var error = await Assert.ThrowsAsync<ExamenException>(() => banco.Tutor.IniciarExamenAsync(conversacion.Id));
@@ -205,8 +205,8 @@ public class ExamenPorAlumnoTests
         banco.Db.SaveChanges();
         await banco.Boveda.ConectarAsync(banco.AlumnoId, "gemini", "1//renovacion-de-prueba-0000");
 
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
-        banco.Generador.FallaCon = modelo => modelo == "qwen/qwen3.8-27b:free"
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
+        banco.Generador.FallaCon = modelo => modelo == "modelo-de-prueba"
             ? new ErrorProveedor("429", true, LimiteDeUso: true, Saturado: true)
             : null;
 
@@ -221,7 +221,7 @@ public class ExamenPorAlumnoTests
     public async Task Si_el_proveedor_rechaza_la_clave_se_marca_invalida()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
         banco.Generador.Falla = new ErrorProveedor("401", false, CredencialRechazada: true);
 
         var error = await Assert.ThrowsAsync<ExamenException>(() => banco.Tutor.IniciarExamenAsync(conversacion.Id));
@@ -238,7 +238,7 @@ public class ExamenPorAlumnoTests
         banco.Db.SaveChanges();
         banco.Contexto.Invalidar(banco.ClaseId);
 
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
         var error = await Assert.ThrowsAsync<ExamenException>(() => banco.Tutor.IniciarExamenAsync(conversacion.Id));
 
         Assert.Equal("sin_material", error.Codigo);
@@ -249,7 +249,7 @@ public class ExamenPorAlumnoTests
     public async Task Una_pregunta_de_otro_intento_no_se_puede_responder()
     {
         using var banco = new BancoDePruebas().Sembrar();
-        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "openrouter");
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
         // Una pregunta generada para el intento de otro alumno.

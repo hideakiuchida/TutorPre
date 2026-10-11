@@ -41,9 +41,6 @@ public sealed class ApiDePruebas : WebApplicationFactory<Program>
         // La API se configura para Sqlite; la conexion en memoria la comparte el test.
         builder.UseSetting("Base:Proveedor", "Sqlite");
         builder.UseSetting("ConnectionStrings:Sqlite", _conexion.ConnectionString);
-        // OpenRouter está retirado en la configuración real; las pruebas siguen ejercitando
-        // su pasarela, que se puede volver a habilitar.
-        builder.UseSetting("Agentes:openrouter:Habilitado", "true");
         foreach (var (clave, valor) in _ajustes) builder.UseSetting(clave, valor);
 
         builder.ConfigureServices(servicios =>
@@ -103,24 +100,24 @@ public sealed class ApiDePruebas : WebApplicationFactory<Program>
         db.Matriculas.Add(new Matricula { UsuarioId = docente.Id, CursoId = curso.Id, RolEnCurso = RolUsuario.Docente });
         db.Agentes.Add(new AgenteIA
         {
-            Id = "openrouter",
-            NombreVisible = "OpenRouter (gratis)",
-            Proveedor = "OpenRouter",
-            Modelo = "qwen/qwen3.8-27b:free",
-            BaseUrl = "https://openrouter.ai",
+            Id = "prueba",
+            NombreVisible = "IA de prueba",
+            Proveedor = "Prueba",
+            Modelo = "modelo-de-prueba",
+            BaseUrl = "https://ia.prueba",
             Habilitado = true
         });
 
         db.SaveChanges();
 
         // El alumno conecta su credencial BYOK, como en el flujo real.
-        ConectarCredencial(alumno.Id, "openrouter");
+        ConectarCredencial(alumno.Id, "prueba");
 
         return (docente.Id, alumno.Id, curso.Id, clase.Id);
     }
 
     /// <summary>Conecta una credencial usando la boveda real de la aplicacion.</summary>
-    public void ConectarCredencial(Guid usuarioId, string agenteId, string clave = "sk-or-v1-de-prueba-0000-1234")
+    public void ConectarCredencial(Guid usuarioId, string agenteId, string clave = "sk-prueba-de-prueba-0000-1234")
     {
         using var ambito = Services.CreateScope();
         var boveda = ambito.ServiceProvider.GetRequiredService<IBovedaCredenciales>();

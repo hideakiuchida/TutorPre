@@ -8,7 +8,7 @@ namespace TutorPreClase.Application.Llm;
 /// </summary>
 public interface ILlmProvider
 {
-    /// <summary>"openrouter"; la interfaz deja abierta la puerta a otro gateway.</summary>
+    /// <summary>El id del agente: "gemini", "gemini-clave", "openai" o "anthropic".</summary>
     string Id { get; }
 
     IAsyncEnumerable<LlmEvento> StreamAsync(LlmSolicitud solicitud, CancellationToken ct);

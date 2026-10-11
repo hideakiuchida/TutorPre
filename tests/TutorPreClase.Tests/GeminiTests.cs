@@ -68,7 +68,7 @@ public class GeminiTests
             ClientId = "cliente.apps.googleusercontent.com",
             ClientSecret = "secreto-de-prueba"
         },
-        ["openrouter"] = new OpcionesAgente { Conexion = ConexionAgente.OAuth }
+        ["openai"] = new OpcionesAgente { BaseUrl = "https://api.openai.com", Modelo = "gpt-5-mini", Conexion = ConexionAgente.Clave }
     };
 
     private static TokensGoogle Tokens(GoogleSimulado google) =>
@@ -170,7 +170,7 @@ public class GeminiTests
         await TutorPreClase.Infrastructure.Persistencia.DatosIniciales.SembrarAsync(banco.Db);
 
         Assert.Equal("gemini-3.8-flash", banco.Db.Agentes.Single(a => a.Id == "gemini").Modelo);
-        Assert.Equal("qwen/qwen3.8-27b:free", banco.Db.Agentes.Single(a => a.Id == "openrouter").Modelo);
+        Assert.Equal("modelo-de-prueba", banco.Db.Agentes.Single(a => a.Id == "prueba").Modelo);
     }
 
     [Fact]
@@ -340,6 +340,8 @@ public class ConexionGoogleGeminiTests
     {
         ["gemini"] = new OpcionesAgente
         {
+            BaseUrl = "https://generativelanguage.googleapis.com",
+            Modelo = "gemini-3.8-flash",
             Conexion = ConexionAgente.OAuthGoogle,
             UrlAutorizacion = "https://accounts.google.com/o/oauth2/v2/auth",
             UrlToken = "https://oauth2.googleapis.com/token",
@@ -348,7 +350,7 @@ public class ConexionGoogleGeminiTests
             ClientId = "cliente.apps.googleusercontent.com",
             ClientSecret = "secreto-de-prueba"
         },
-        ["openrouter"] = new OpcionesAgente { Conexion = ConexionAgente.OAuth }
+        ["openai"] = new OpcionesAgente { BaseUrl = "https://api.openai.com", Modelo = "gpt-5-mini", Conexion = ConexionAgente.Clave }
     };
 
     private static (BancoDePruebas Banco, ConexionGoogleGemini Conexion, GoogleSimulado Google) Montar()
@@ -433,27 +435,21 @@ public class ConexionGoogleGeminiTests
     }
 
     [Fact]
-    public async Task El_despachador_elige_Google_para_Gemini_y_OpenRouter_para_el_resto()
+    public async Task La_puerta_de_OAuth_lleva_a_Google_y_rechaza_lo_que_no_se_conecta_asi()
     {
         var (banco, google, _) = Montar();
         using var _b = banco;
 
-        var openRouter = new ConexionOpenRouter(
-            new MemoryCache(new MemoryCacheOptions()), new OpenRouterSimulado(), banco.Boveda,
-            Options.Create(new OpcionesAgentes
-            {
-                ["openrouter"] = new OpcionesAgente
-                {
-                    Conexion = ConexionAgente.OAuth,
-                    UrlAutorizacion = "https://openrouter.ai/auth",
-                    UrlRetorno = "http://localhost:4200/conectar/openrouter"
-                }
-            }),
-            NullLogger<ConexionOpenRouter>.Instance);
-
-        var conexiones = new ConexionesOAuth(openRouter, google, Options.Create(Agentes));
+        var conexiones = new ConexionesOAuth(google, Options.Create(Agentes));
 
         Assert.StartsWith("https://accounts.google.com/", await conexiones.IniciarAsync(banco.AlumnoId, "gemini"));
-        Assert.StartsWith("https://openrouter.ai/auth", await conexiones.IniciarAsync(banco.AlumnoId, "openrouter"));
+
+        // Un agente de clave no se conecta iniciando sesión.
+        var deClave = await Assert.ThrowsAsync<CredencialException>(() => conexiones.IniciarAsync(banco.AlumnoId, "openai"));
+        Assert.Equal("oauth_no_disponible", deClave.Codigo);
+
+        // Uno que la configuración ya no trae, tampoco.
+        var retirado = await Assert.ThrowsAsync<CredencialException>(() => conexiones.IniciarAsync(banco.AlumnoId, "ya-no-existe"));
+        Assert.Equal("agente_no_disponible", retirado.Codigo);
     }
 }

@@ -18,10 +18,12 @@ public sealed class BovedaCredenciales(
     IRelojSistema reloj,
     ILogger<BovedaCredenciales> log) : IBovedaCredenciales
 {
+    // Solo las de agentes que siguen habilitados: la cuenta de un agente retirado queda
+    // guardada, pero no cuenta como IA conectada ni se ofrece para conversar.
     public async Task<IReadOnlyList<CredencialResumen>> ListarAsync(Guid usuarioId, CancellationToken ct = default) =>
         await db.Credenciales
             .AsNoTracking()
-            .Where(c => c.UsuarioId == usuarioId)
+            .Where(c => c.UsuarioId == usuarioId && db.Agentes.Any(a => a.Id == c.AgenteId && a.Habilitado))
             .OrderBy(c => c.AgenteId)
             .Select(c => new CredencialResumen(c.AgenteId, c.Ultimos4, c.Origen, c.Estado, c.CreadaEn, c.UltimoUsoEn))
             .ToListAsync(ct);
@@ -114,7 +116,8 @@ public sealed class BovedaCredenciales(
     public async Task<IReadOnlyCollection<string>> AgentesConectadosAsync(Guid usuarioId, CancellationToken ct = default) =>
         await db.Credenciales
             .AsNoTracking()
-            .Where(c => c.UsuarioId == usuarioId && c.Estado == EstadoCredencial.Valida)
+            .Where(c => c.UsuarioId == usuarioId && c.Estado == EstadoCredencial.Valida &&
+                        db.Agentes.Any(a => a.Id == c.AgenteId && a.Habilitado))
             .Select(c => c.AgenteId)
             .ToListAsync(ct);
 

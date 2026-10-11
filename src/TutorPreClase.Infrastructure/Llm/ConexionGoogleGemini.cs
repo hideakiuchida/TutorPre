@@ -112,11 +112,10 @@ public sealed class ConexionGoogleGemini(
 }
 
 /// <summary>
-/// Elige la conexión OAuth según el agente: OpenRouter entrega una clave; Google, acceso a
-/// Gemini con la cuenta del usuario. Los endpoints no distinguen (RF-29, RF-37).
+/// Puerta de las conexiones por inicio de sesión (RF-29, RF-37): hoy solo Google, para
+/// Gemini. Un agente que ya no está vigente en la configuración no se puede conectar.
 /// </summary>
 public sealed class ConexionesOAuth(
-    ConexionOpenRouter openRouter,
     ConexionGoogleGemini google,
     IOptions<OpcionesAgentes> agentes) : IConexionOAuth
 {
@@ -128,10 +127,10 @@ public sealed class ConexionesOAuth(
 
     private IConexionOAuth Para(string agenteId)
     {
-        // Un agente retirado en la configuración (hoy OpenRouter) no se puede conectar.
-        if (!agentes.Value.TryGetValue(agenteId, out var opciones) || !opciones.Habilitado)
+        if (!agentes.Value.TryGetValue(agenteId, out var opciones) || !opciones.Vigente)
             throw new CredencialException("agente_no_disponible", "Esa opción de conexión ya no está disponible.");
 
-        return opciones.Conexion == ConexionAgente.OAuthGoogle ? google : openRouter;
+        // Si el agente no es de Google, la propia conexión responde que no se conecta así.
+        return google;
     }
 }

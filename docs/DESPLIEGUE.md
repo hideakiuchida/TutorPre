@@ -16,7 +16,7 @@ Hay un solo entorno, **producción**:
 | Web | https://tutor-preclase.vercel.app |
 
 > **Ningún dominio está en el código.** Las URLs llegan por variables: `API_URL` en
-> Vercel; `Cors__Origenes__0`, `Acceso__UrlRetorno` y `Agentes__openrouter__UrlRetorno` en
+> Vercel; `Cors__Origenes__0`, `Acceso__UrlRetorno` y `Agentes__gemini__UrlRetorno` en
 > Railway. Esta tabla es documentación.
 
 ## Qué hay en el repositorio
@@ -49,7 +49,7 @@ publica sin el CI en verde y no hay dos desplegadores compitiendo.
    | `Acceso__Administradores__0` | correo del administrador | ya está |
    | `Cors__Origenes__0` | `https://tutor-preclase.vercel.app` | ya está |
    | `Acceso__UrlRetorno` | `https://tutor-preclase.vercel.app/entrar` | ya está |
-   | `Agentes__openrouter__UrlRetorno` | `https://tutor-preclase.vercel.app/conectar/openrouter` | ya está |
+   | `Agentes__gemini__UrlRetorno` | `https://tutor-preclase.vercel.app/conectar/gemini` | la persona |
    | `Acceso__ClaveSesion` | 48 bytes aleatorios en Base64 | la persona |
    | `Acceso__Proveedores__google__ClientId` | del JSON de Google en `secrets/` | la persona |
    | `Acceso__Proveedores__google__ClientSecret` | del JSON de Google en `secrets/` | la persona |
@@ -123,7 +123,7 @@ Mientras la app esté en **Testing** (*Google Auth Platform* → *Audience*), so
 el propietario del proyecto y los usuarios de prueba que se añadan ahí (hasta 100). Para
 abrirla a cualquier cuenta hay que completar *Branding* y pulsar *Publish app*.
 
-OpenRouter está retirado (`Agentes:openrouter:Habilitado = false`): sus variables pueden quedar, no se usan.
+Una variable `Agentes__<id>__…` de un agente que ya no existe en `appsettings.json` no hace nada: la API ignora una entrada sin `BaseUrl` ni modelo. Conviene borrarla del servicio.
 
 ## 5. Desplegar
 

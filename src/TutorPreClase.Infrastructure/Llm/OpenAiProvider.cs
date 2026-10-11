@@ -9,8 +9,9 @@ using TutorPreClase.Application.Llm;
 namespace TutorPreClase.Infrastructure.Llm;
 
 /// <summary>
-/// Adaptador del formato de chat de OpenAI (function calling, streaming). Es la base de
-/// OpenRouter, que lo habla tal cual bajo otra ruta (SDD §5.8).
+/// Adaptador del formato de chat de OpenAI (function calling, streaming). Lo comparten los
+/// agentes de clave propia: OpenAI, Anthropic y Gemini de AI Studio, cada uno en su ruta
+/// (SDD §5.8).
 /// </summary>
 public class OpenAiProvider(
     HttpClient http,
@@ -31,15 +32,6 @@ public class OpenAiProvider(
         nivel == NivelRazonamiento.Desactivado && !string.IsNullOrWhiteSpace(Opciones.EsfuerzoDesactivado)
             ? Opciones.EsfuerzoDesactivado
             : null;
-
-    /// <summary>Preferencias de enrutado que algunos compatibles aceptan; null las omite.</summary>
-    protected virtual object? PreferenciasProveedor => null;
-
-    /// <summary>Modelos de respaldo que el compatible prueba si falla el principal; null los omite.</summary>
-    protected virtual IReadOnlyList<string>? Respaldo(string modelo) => null;
-
-    /// <summary>Parámetro de razonamiento en el formato del compatible; null lo omite.</summary>
-    protected virtual object? Razonamiento(string? nivel) => null;
 
     public async IAsyncEnumerable<LlmEvento> StreamAsync(
         LlmSolicitud solicitud, [EnumeratorCancellation] CancellationToken ct)
@@ -99,7 +91,7 @@ public class OpenAiProvider(
                 salida += MapeoLlm.Entero(evento, "usage", "completion_tokens");
                 razonamiento += MapeoLlm.Entero(evento, "usage", "completion_tokens_details", "reasoning_tokens");
 
-                // Con modelos de respaldo puede contestar otro distinto del pedido.
+                // El proveedor dice qué versión concreta del modelo respondió.
                 var modelo = MapeoLlm.Texto(evento, "model");
                 if (modelo.Length > 0) modeloQueRespondio = modelo;
 
@@ -211,15 +203,12 @@ public class OpenAiProvider(
         return new
         {
             model = s.Modelo,
-            models = Respaldo(s.Modelo),
             // null se omite del JSON: sin tope pedido, el modelo usa su máximo.
             max_tokens = s.MaxTokens,
-            reasoning = Razonamiento(s.Razonamiento ?? Opciones.Razonamiento),
             reasoning_effort = Esfuerzo(s.Razonamiento ?? Opciones.Razonamiento),
             temperature = s.Temperatura,
             stream = true,
             stream_options = new { include_usage = true },
-            provider = PreferenciasProveedor,
             messages = mensajes,
             tools = s.Herramientas.Select(h => new
             {
@@ -232,44 +221,5 @@ public class OpenAiProvider(
                 }
             })
         };
-    }
-}
-
-/// <summary>
-/// OpenRouter es compatible con OpenAI bajo `/api/v1`. Sirve los modelos gratuitos
-/// (`:free`) que el alumno usa sin pagar, tras iniciar sesion por OAuth (RF-29).
-/// </summary>
-public sealed class OpenRouterProvider(HttpClient http, OpcionesAgente opciones, ILogger<OpenRouterProvider> logger)
-    : OpenAiProvider(http, opciones, logger, "openrouter")
-{
-    protected override string RutaChat => "/api/v1/chat/completions";
-
-    /// <summary>
-    /// Solo proveedores que no guardan ni entrenan con los prompts (RNF-11): lo garantiza
-    /// la plataforma en cada llamada, sin que el alumno toque su configuracion de privacidad.
-    /// Entre los que quedan, primero el de más tokens por segundo: el pool gratuito tiene
-    /// colas muy distintas según el proveedor.
-    /// </summary>
-    protected override object? PreferenciasProveedor => new { data_collection = "deny", sort = "throughput" };
-
-    /// <summary>
-    /// Parámetro unificado de OpenRouter; los modelos que no razonan lo ignoran. Desactivado,
-    /// el primer token llega antes y el razonamiento no se come el tope de salida.
-    /// </summary>
-    protected override object? Razonamiento(string? nivel) => nivel switch
-    {
-        NivelRazonamiento.Desactivado => new { enabled = false },
-        NivelRazonamiento.Bajo => new { effort = "low" },
-        _ => null
-    };
-
-    /// <summary>
-    /// Si el modelo gratuito está saturado (429 del pool compartido) o caído, OpenRouter
-    /// pasa en la misma llamada al siguiente de la lista, con las mismas preferencias.
-    /// </summary>
-    protected override IReadOnlyList<string>? Respaldo(string modelo)
-    {
-        var alternativos = Opciones.ModelosAlternativos.Where(m => m != modelo).ToList();
-        return alternativos.Count == 0 ? null : [modelo, .. alternativos];
     }
 }

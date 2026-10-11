@@ -31,7 +31,7 @@ public sealed class ValidadorSiempreOk : IValidadorCredencial
 }
 
 /// <summary>Proveedor de prueba: devuelve un guion de eventos, sin salir a la red.</summary>
-public sealed class ProveedorGuionado(string id = "openrouter") : ILlmProvider, IProveedorLlmFactory
+public sealed class ProveedorGuionado(string id = "prueba") : ILlmProvider, IProveedorLlmFactory
 {
     private readonly Queue<LlmEvento[]> _guion = new();
 
@@ -198,18 +198,18 @@ public sealed class BancoDePruebas : IDisposable
         Db.Matriculas.Add(new Matricula { UsuarioId = alumno.Id, CursoId = curso.Id, RolEnCurso = RolUsuario.Alumno });
         Db.Agentes.Add(new AgenteIA
         {
-            Id = "openrouter",
-            NombreVisible = "OpenRouter (gratis)",
-            Proveedor = "OpenRouter",
-            Modelo = "qwen/qwen3.8-27b:free",
-            BaseUrl = "https://openrouter.ai",
+            Id = "prueba",
+            NombreVisible = "IA de prueba",
+            Proveedor = "Prueba",
+            Modelo = "modelo-de-prueba",
+            BaseUrl = "https://ia.prueba",
             Habilitado = true
         });
 
         Db.SaveChanges();
 
         // El alumno llega con su credencial BYOK ya conectada.
-        Boveda.ConectarAsync(alumno.Id, "openrouter", "sk-or-v1-de-prueba-0000-1234").GetAwaiter().GetResult();
+        Boveda.ConectarAsync(alumno.Id, "prueba", "sk-prueba-de-prueba-0000-1234").GetAwaiter().GetResult();
 
         AlumnoId = alumno.Id;
         ClaseId = clase.Id;
