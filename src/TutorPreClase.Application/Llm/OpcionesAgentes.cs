@@ -48,6 +48,19 @@ public sealed class OpcionesAgente
     /// </summary>
     public string? EsfuerzoDesactivado { get; set; }
 
+    /// <summary>
+    /// Solo Clave: valor de `reasoning_effort` con el razonamiento bajo (OpenAI: "low"). Vacío:
+    /// no se envía y el modelo usa su nivel por defecto, que gasta más tokens de salida.
+    /// </summary>
+    public string? EsfuerzoBajo { get; set; }
+
+    /// <summary>
+    /// Solo Clave: el modelo es de razonamiento al estilo de OpenAI (gpt-5, o-series). Su API
+    /// rechaza con 400 `max_tokens` (el tope va en `max_completion_tokens`, que incluye lo que
+    /// razona) y cualquier `temperature` distinta de la suya.
+    /// </summary>
+    public bool ModeloDeRazonamiento { get; set; }
+
     /// <summary>"Clave" (el alumno la pega) u "OAuthGoogle" (inicia sesion en Google, RF-29).</summary>
     public string Conexion { get; set; } = ConexionAgente.Clave;
 

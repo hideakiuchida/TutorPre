@@ -28,10 +28,12 @@ public class OpenAiProvider(
         string.IsNullOrWhiteSpace(Opciones.RutaChat) ? "/v1/chat/completions" : Opciones.RutaChat;
 
     /// <summary>`reasoning_effort` del formato OpenAI, solo si el agente lo configura.</summary>
-    protected virtual string? Esfuerzo(string? nivel) =>
-        nivel == NivelRazonamiento.Desactivado && !string.IsNullOrWhiteSpace(Opciones.EsfuerzoDesactivado)
-            ? Opciones.EsfuerzoDesactivado
-            : null;
+    protected virtual string? Esfuerzo(string? nivel) => nivel switch
+    {
+        NivelRazonamiento.Desactivado when !string.IsNullOrWhiteSpace(Opciones.EsfuerzoDesactivado) => Opciones.EsfuerzoDesactivado,
+        NivelRazonamiento.Bajo when !string.IsNullOrWhiteSpace(Opciones.EsfuerzoBajo) => Opciones.EsfuerzoBajo,
+        _ => null
+    };
 
     public async IAsyncEnumerable<LlmEvento> StreamAsync(
         LlmSolicitud solicitud, [EnumeratorCancellation] CancellationToken ct)
@@ -200,17 +202,22 @@ public class OpenAiProvider(
             }
         }
 
+        // Los modelos de razonamiento de OpenAI rechazan con 400 `max_tokens` y `temperature`.
+        var deRazonamiento = Opciones.ModeloDeRazonamiento;
+
         return new
         {
             model = s.Modelo,
             // null se omite del JSON: sin tope pedido, el modelo usa su máximo.
-            max_tokens = s.MaxTokens,
+            max_tokens = deRazonamiento ? null : s.MaxTokens,
+            max_completion_tokens = deRazonamiento ? s.MaxTokens : null,
             reasoning_effort = Esfuerzo(s.Razonamiento ?? Opciones.Razonamiento),
-            temperature = s.Temperatura,
+            temperature = deRazonamiento ? (double?)null : s.Temperatura,
             stream = true,
             stream_options = new { include_usage = true },
             messages = mensajes,
-            tools = s.Herramientas.Select(h => new
+            // Sin herramientas el campo no va: OpenAI rechaza con 400 una lista vacía.
+            tools = s.Herramientas.Count == 0 ? null : s.Herramientas.Select(h => new
             {
                 type = "function",
                 function = new

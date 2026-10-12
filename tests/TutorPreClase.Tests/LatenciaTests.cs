@@ -108,7 +108,8 @@ public class ChatEnVivoTests
 public class RazonamientoOpenAiTests
 {
     private static async Task<JsonElement> CuerpoEnviado(
-        string? razonamientoAgente, string? razonamientoSolicitud = null, string? esfuerzoDesactivado = "minimal")
+        string? razonamientoAgente, string? razonamientoSolicitud = null, string? esfuerzoDesactivado = "minimal",
+        string? esfuerzoBajo = null, bool deRazonamiento = false, int? maxTokens = null)
     {
         var simulado = new HttpSimulado
         {
@@ -118,12 +119,14 @@ public class RazonamientoOpenAiTests
             new OpcionesAgente
             {
                 Modelo = "gpt-5-mini", ApiKey = "sk-proj-x",
-                Razonamiento = razonamientoAgente, EsfuerzoDesactivado = esfuerzoDesactivado
+                Razonamiento = razonamientoAgente, EsfuerzoDesactivado = esfuerzoDesactivado,
+                EsfuerzoBajo = esfuerzoBajo, ModeloDeRazonamiento = deRazonamiento
             },
             NullLogger<OpenAiProvider>.Instance);
 
         var solicitud = new LlmSolicitud("gpt-5-mini", "Eres el tutor.",
-            [new LlmMensaje(RolLlm.Usuario, "hola")], [], Razonamiento: razonamientoSolicitud);
+            [new LlmMensaje(RolLlm.Usuario, "hola")], [], Temperatura: 0.7, MaxTokens: maxTokens,
+            Razonamiento: razonamientoSolicitud);
 
         await foreach (var _ in proveedor.StreamAsync(solicitud, CancellationToken.None)) { }
         return JsonDocument.Parse(simulado.Recibidas.Single().Cuerpo).RootElement;
@@ -145,6 +148,31 @@ public class RazonamientoOpenAiTests
         var cuerpo = await CuerpoEnviado(NivelRazonamiento.Desactivado, NivelRazonamiento.Bajo);
 
         Assert.False(cuerpo.TryGetProperty("reasoning_effort", out _));
+    }
+
+    [Fact]
+    public async Task Un_modelo_de_razonamiento_recibe_solo_los_parametros_que_OpenAI_le_admite()
+    {
+        // Lo que pasó en producción: gpt-5-mini respondía 400 al generar el examen.
+        var cuerpo = await CuerpoEnviado(
+            NivelRazonamiento.Desactivado, NivelRazonamiento.Bajo, esfuerzoBajo: "low", deRazonamiento: true, maxTokens: 2500);
+
+        Assert.Equal(2500, cuerpo.GetProperty("max_completion_tokens").GetInt32());
+        Assert.False(cuerpo.TryGetProperty("max_tokens", out _));
+        Assert.False(cuerpo.TryGetProperty("temperature", out _));
+        Assert.Equal("low", cuerpo.GetProperty("reasoning_effort").GetString());
+        // Una lista de herramientas vacía también es un 400: sin herramientas el campo no va.
+        Assert.False(cuerpo.TryGetProperty("tools", out _));
+    }
+
+    [Fact]
+    public async Task Un_modelo_que_no_es_de_razonamiento_conserva_el_tope_y_la_temperatura()
+    {
+        var cuerpo = await CuerpoEnviado(null, maxTokens: 2500);
+
+        Assert.Equal(2500, cuerpo.GetProperty("max_tokens").GetInt32());
+        Assert.False(cuerpo.TryGetProperty("max_completion_tokens", out _));
+        Assert.Equal(0.7, cuerpo.GetProperty("temperature").GetDouble());
     }
 
     [Fact]

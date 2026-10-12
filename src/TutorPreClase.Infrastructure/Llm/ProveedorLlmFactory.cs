@@ -32,6 +32,8 @@ public sealed class ProveedorLlmFactory(
             Razonamiento = plantilla.Razonamiento,
             RutaChat = plantilla.RutaChat,
             EsfuerzoDesactivado = plantilla.EsfuerzoDesactivado,
+            EsfuerzoBajo = plantilla.EsfuerzoBajo,
+            ModeloDeRazonamiento = plantilla.ModeloDeRazonamiento,
             Descripcion = plantilla.Descripcion,
             Habilitado = plantilla.Habilitado,
             Conexion = plantilla.Conexion,
