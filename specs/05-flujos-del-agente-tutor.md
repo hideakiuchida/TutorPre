@@ -234,7 +234,7 @@ Hay dos adaptadores, y `ProveedorLlmFactory` elige uno según cómo se conecta e
 | `anthropic` | Claude (tu clave de Anthropic) | Clave | `OpenAiProvider` | `https://api.anthropic.com/v1/chat/completions` (compatibilidad OpenAI) | Clave del usuario, `Bearer` |
 | `gemini` | Gemini (tu cuenta de Google) | OAuth de Google | `GeminiProvider` | `/v1beta/models/{modelo}:streamGenerateContent?alt=sse` (formato propio) | Refresh token → acceso de una hora, `Bearer` |
 
-- **`OpenAiProvider`** habla el formato de chat de OpenAI (*function calling*, streaming con `stream_options.include_usage`). Los tres agentes de tipo *Clave* lo comparten; cada uno aporta su `RutaChat` y, si el proveedor lo admite, el `reasoning_effort` con que se apaga el razonamiento en el chat (OpenAI: `minimal`; en Anthropic y AI Studio no se envía). El agente de OpenAI se marca además como `ModeloDeRazonamiento`: `gpt-5-mini` responde 400 si recibe `max_tokens` o una `temperature` propia, así que el tope viaja en `max_completion_tokens` y la temperatura no se envía; con razonamiento *bajo* se le pide `reasoning_effort: low` (`EsfuerzoBajo`). Sin herramientas (generar el examen, condensar) el campo `tools` no se envía: OpenAI rechaza una lista vacía.
+- **`OpenAiProvider`** habla el formato de chat de OpenAI (*function calling*, streaming con `stream_options.include_usage`). Los tres agentes de tipo *Clave* lo comparten; cada uno aporta su `RutaChat` y, si el proveedor lo admite, el `reasoning_effort` con que se apaga el razonamiento en el chat (OpenAI: `none`, que `gpt-6-luna` exige cuando la llamada lleva herramientas; en Anthropic y AI Studio no se envía). Los agentes de OpenAI y Anthropic se marcan además como `ModeloDeRazonamiento`: `gpt-6-luna` y `claude-haiku-5-5` responden 400 a una `temperature` propia, y OpenAI también a `max_tokens`, así que el tope viaja en `max_completion_tokens` y la temperatura no se envía; con razonamiento *bajo* se le pide `reasoning_effort: low` (`EsfuerzoBajo`). Sin herramientas (generar el examen, condensar) el campo `tools` no se envía: OpenAI rechaza una lista vacía.
 - **`GeminiProvider`** habla la API propia de Gemini con un token de acceso OAuth. La credencial guardada es el **refresh token**; `TokensGoogle` lo cambia por un acceso de una hora (en memoria, renovado antes de vencer). Traduce las herramientas a `functionDeclarations` (limpiando el JSON Schema que Gemini no acepta), el historial a turnos `user`/`model` y el razonamiento a `thinkingConfig`: en Gemini 3, `thinkingLevel: low`, que es su mínimo; en modelos anteriores, `thinkingBudget` (0 desactivado, 512 bajo). Devuelve cada `functionCall` con su `thoughtSignature` (§6.4).
 
 Los dos traducen los errores del proveedor al mismo `ErrorProveedor`, que es lo único que ve el resto del sistema:
@@ -255,7 +255,7 @@ La validación previa (RF-25) usa una llamada que autentica sin gastar cupo, cad
   "gemini": {
     "Nombre": "Gemini (tu cuenta de Google)",
     "BaseUrl": "https://generativelanguage.googleapis.com",
-    "Modelo": "gemini-3.8-flash",
+    "Modelo": "gemini-3.1-flash-lite",
     "Razonamiento": "desactivado",
     "Habilitado": true,
     "Conexion": "OAuthGoogle",
@@ -268,7 +268,7 @@ La validación previa (RF-25) usa una llamada que autentica sin gastar cupo, cad
     "Nombre": "Gemini (tu clave de AI Studio)",
     "BaseUrl": "https://generativelanguage.googleapis.com",
     "RutaChat": "/v1beta/openai/chat/completions",
-    "Modelo": "gemini-3.8-flash",
+    "Modelo": "gemini-3.1-flash-lite",
     "Habilitado": true,
     "Conexion": "Clave"
   },
@@ -276,10 +276,10 @@ La validación previa (RF-25) usa una llamada que autentica sin gastar cupo, cad
     "Nombre": "ChatGPT (tu clave de OpenAI)",
     "BaseUrl": "https://api.openai.com",
     "RutaChat": "/v1/chat/completions",
-    "Modelo": "gpt-5-mini",
+    "Modelo": "gpt-6-luna",
     "PrefijoClave": "sk-",
     "Razonamiento": "desactivado",
-    "EsfuerzoDesactivado": "minimal",
+    "EsfuerzoDesactivado": "none",
     "EsfuerzoBajo": "low",
     "ModeloDeRazonamiento": true,
     "Habilitado": true,
@@ -289,7 +289,7 @@ La validación previa (RF-25) usa una llamada que autentica sin gastar cupo, cad
     "Nombre": "Claude (tu clave de Anthropic)",
     "BaseUrl": "https://api.anthropic.com",
     "RutaChat": "/v1/chat/completions",
-    "Modelo": "claude-haiku-4-5",
+    "Modelo": "claude-haiku-5-5",
     "PrefijoClave": "sk-ant-",
     "Habilitado": true,
     "Conexion": "Clave"
@@ -360,8 +360,8 @@ Antes de habilitar cualquier modelo se pasa la suite de paridad (§9.2), y se re
 
 | Parámetro | Chat (Consulta, Revisión, Evaluación) | Generación del examen | Condensación del material |
 | --- | --- | --- | --- |
-| Modelo | El del agente de la conversación (`gemini-3.8-flash`, `gpt-5-mini` o `claude-haiku-4-5`) | El del agente fijado en el intento | El de la IA conectada del profesor |
-| Razonamiento | Desactivado: el primer token llega antes y el razonamiento no consume el tope. Gemini: `thinkingConfig` al mínimo; OpenAI: `reasoning_effort: minimal`; Anthropic y AI Studio: no se envía | Bajo (OpenAI: `reasoning_effort: low`); si no sale una pregunta válida, se repite una vez desactivado | Desactivado |
+| Modelo | El del agente de la conversación (`gemini-3.1-flash-lite`, `gpt-6-luna` o `claude-haiku-5-5`) | El del agente fijado en el intento | El de la IA conectada del profesor |
+| Razonamiento | Desactivado: el primer token llega antes y el razonamiento no consume el tope. Gemini: `thinkingConfig` al mínimo; OpenAI: `reasoning_effort: none`; Anthropic y AI Studio: no se envía | Bajo (OpenAI: `reasoning_effort: low`); si no sale una pregunta válida, se repite una vez desactivado | Desactivado |
 | Tope de salida (`max_tokens`, `max_completion_tokens` en OpenAI, `maxOutputTokens` en Gemini) | Sin tope (no se envía): el modelo responde completo; si llega a su propio máximo se avisa *respuesta incompleta* | 600 × N + 400, más 1500 de holgura para el razonamiento (N = preguntas pedidas, hoy 1) | Tokens del lote + 400 |
 | `temperature` | 0.2 | 0.7 (cada intento, un examen distinto) | 0.1 (fiel al texto) |
 | Herramientas | Solo las del modo (§5.7) | Ninguna | Ninguna |
@@ -403,12 +403,12 @@ flowchart LR
     end
     subgraph Google
         GOA["OAuth de Google<br/>refresh token → acceso"]
-        GEM["API de Gemini<br/>gemini-3.8-flash"]
+        GEM["API de Gemini<br/>gemini-3.1-flash-lite"]
         AIS["Gemini, ruta compatible<br/>con OpenAI (clave de AI Studio)"]
     end
     subgraph Pago["Cuenta de desarrollador del usuario"]
-        OAI["API de OpenAI<br/>gpt-5-mini"]
-        ANT["API de Anthropic<br/>claude-haiku-4-5"]
+        OAI["API de OpenAI<br/>gpt-6-luna"]
+        ANT["API de Anthropic<br/>claude-haiku-5-5"]
     end
 
     CARP --> SYNC --> ALM

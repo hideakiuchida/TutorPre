@@ -11,7 +11,7 @@ export interface Agente {
   /** 'OAuth': se conecta iniciando sesión en el proveedor, sin pegar clave (RF-29). */
   conexion: 'Clave' | 'OAuth';
   conectado: boolean;
-  /** Modelo que responde con esta cuenta (p. ej. gemini-3.8-flash). */
+  /** Modelo que responde con esta cuenta (p. ej. gemini-3.1-flash-lite). */
   modelo?: string;
 }
 

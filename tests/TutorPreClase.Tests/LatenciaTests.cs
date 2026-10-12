@@ -153,7 +153,7 @@ public class RazonamientoOpenAiTests
     [Fact]
     public async Task Un_modelo_de_razonamiento_recibe_solo_los_parametros_que_OpenAI_le_admite()
     {
-        // Lo que pasó en producción: gpt-5-mini respondía 400 al generar el examen.
+        // Lo que pasó en producción: OpenAI respondía 400 a `temperature` y a `max_tokens`.
         var cuerpo = await CuerpoEnviado(
             NivelRazonamiento.Desactivado, NivelRazonamiento.Bajo, esfuerzoBajo: "low", deRazonamiento: true, maxTokens: 2500);
 

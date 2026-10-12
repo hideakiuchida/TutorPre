@@ -169,7 +169,7 @@ public class GeminiTests
 
         await TutorPreClase.Infrastructure.Persistencia.DatosIniciales.SembrarAsync(banco.Db);
 
-        Assert.Equal("gemini-3.8-flash", banco.Db.Agentes.Single(a => a.Id == "gemini").Modelo);
+        Assert.Equal("gemini-3.1-flash-lite", banco.Db.Agentes.Single(a => a.Id == "gemini").Modelo);
         Assert.Equal("modelo-de-prueba", banco.Db.Agentes.Single(a => a.Id == "prueba").Modelo);
     }
 

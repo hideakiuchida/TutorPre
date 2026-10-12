@@ -26,7 +26,7 @@ public sealed class GeminiProvider(
 
     /// <summary>
     /// Razonamiento según el nivel; null deja decidir al modelo. Gemini 3 usa
-    /// `thinkingLevel` con su mínimo "low": gemini-3.8-flash rechaza "minimal" con
+    /// `thinkingLevel` con su mínimo "low": gemini-3.8-flash rechazaba "minimal" con
     /// un 400. Los modelos anteriores usan `thinkingBudget`.
     /// </summary>
     private static JsonObject? Razonamiento(string modelo, string? nivel)

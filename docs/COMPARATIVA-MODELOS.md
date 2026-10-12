@@ -18,17 +18,19 @@ precio de lista y sin datos de velocidad ni de calidad; no se rellenaron con sup
 - **El examen ya no depende de que el modelo sea bueno.** El servidor presenta cada
   pregunta, registra la respuesta, califica y cierra (SDD §5.2, §6.4). El modelo solo
   redacta las preguntas, interpreta las respuestas ambiguas y escribe la evaluación final.
-- **La opción de pago más barata sería `gpt-5-mini`**, a unos 4 centavos de dólar por un
-  examen de una clase grande. No se pudo medir su velocidad ni su calidad.
+- **Cada proveedor se usa con su modelo más económico** (desde el 12 de octubre de 2026):
+  `gpt-6-luna`, `claude-haiku-5-5` y `gemini-3.1-flash-lite`. Con los dos primeros, un examen
+  de una clase grande cuesta alrededor de 1 centavo de dólar. No se pudo medir aún su
+  velocidad ni su calidad en el tutor.
 
 ## Las opciones, lado a lado
 
 | Opción en Mi tutor | Modelo | Primer token | Generar una pregunta | Coherencia en el examen | Coherencia en las dudas | Fallos observados | Costo |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| **Gemini** con la cuenta de Google | `gemini-3.8-flash` | 2,3–8,4 s (mediana ~5,6 s); la respuesta llega toda junta | 5,1–7,3 s | Preguntas de aplicación, bien redactadas. Negó la pista sin filtrar nada | Concisa y con citas | 503 por alta demanda (4 veces); cupo de 20 solicitudes agotado a mitad de un examen | Gratis, con ese tope |
-| **ChatGPT** con clave de API | `gpt-5-mini` | Sin datos | Sin datos | Sin datos | Sin datos | La cuenta usada en la prueba no tenía créditos | 0,25 USD de entrada y 2,00 USD de salida por millón de tokens |
-| **Claude** con clave de API | `claude-haiku-4-5` | Sin datos | Sin datos | Sin datos | Sin datos | No se conectó ninguna clave | 1 USD de entrada y 5 USD de salida por millón |
-| **Gemini** con clave de AI Studio | `gemini-3.8-flash` | Sin datos | Sin datos | Sin datos | Sin datos | No se conectó ninguna clave | Gratis con unas 20 solicitudes al día; de pago, 0,75 USD y 3,75 USD por millón (se duplica el 1 de enero de 2027) |
+| **Gemini** con la cuenta de Google | `gemini-3.1-flash-lite` (las mediciones son de `gemini-3.8-flash`, el modelo anterior) | 2,3–8,4 s (mediana ~5,6 s); la respuesta llega toda junta | 5,1–7,3 s | Preguntas de aplicación, bien redactadas. Negó la pista sin filtrar nada | Concisa y con citas | 503 por alta demanda (4 veces); cupo de 20 solicitudes agotado a mitad de un examen | Gratis, con ese tope |
+| **ChatGPT** con clave de API | `gpt-6-luna` | Sin datos | Sin datos | Sin datos | Sin datos | Con el modelo anterior (`gpt-5-mini`) todas las llamadas fallaron: primero la cuenta sin créditos (429) y luego parámetros que el modelo rechaza (400), ya corregidos | 0,10 USD de entrada y 0,50 USD de salida por millón de tokens |
+| **Claude** con clave de API | `claude-haiku-5-5` | Sin datos | Sin datos | Sin datos | Sin datos | Con el modelo anterior (`claude-haiku-4-5`) el chat respondió, pero generar el examen falló por una lista de herramientas vacía (400), ya corregido | 0,10 USD de entrada y 0,50 USD de salida por millón; 5 veces más en llamadas de más de 100 000 tokens |
+| **Gemini** con clave de AI Studio | `gemini-3.1-flash-lite` | Sin datos | Sin datos | Sin datos | Sin datos | Con el modelo anterior: 503 por alta demanda y cupo gratuito agotado | Gratis con el cupo diario de Google; de pago, 0,25 USD y 1,50 USD por millón. Google lo retira el 7 de mayo de 2027 (reemplazo: `gemini-3.5-flash-lite`, 0,30 y 2,50 USD) |
 | **Su asistente por MCP** (Claude Code, Claude Desktop, Cursor) | El de su suscripción | Sin datos | La genera la IA conectada en la web | Sin datos | Sin datos | Solo se probó el protocolo: conexión, lista de herramientas y lista de clases | El chat lo paga su suscripción; las preguntas, la IA conectada |
 
 Cómo leer las columnas:
@@ -45,12 +47,12 @@ Cómo leer las columnas:
 Tokens medidos en producción sobre el material real del curso (M1 es la clase más grande;
 M2, una infografía), con un modelo gratuito que ya no se ofrece.
 
-| Uso | Entrada | Salida | `gpt-5-mini` | `claude-haiku-4-5` | `gemini-3.8-flash` de pago |
+| Uso | Entrada | Salida | `gpt-6-luna` | `claude-haiku-5-5` | `gemini-3.1-flash-lite` de pago |
 | --- | --- | --- | --- | --- | --- |
-| Una duda sobre el material | ~4 300 | ~200 | 0,0015 USD | 0,005 USD | 0,004 USD |
-| Una duda fuera del material (dos llamadas) | ~22 500 | ~110 | 0,006 USD | 0,023 USD | 0,017 USD |
-| Examen completo de M1 (6 preguntas y evaluación final) | ~87 500 | ~8 700 | 0,04 USD | 0,13 USD | 0,10 USD |
-| Examen completo de M2 (material pequeño) | ~11 000 | ~4 000 | 0,011 USD | 0,031 USD | 0,023 USD |
+| Una duda sobre el material | ~4 300 | ~200 | 0,0005 USD | 0,0005 USD | 0,0014 USD |
+| Una duda fuera del material (dos llamadas) | ~22 500 | ~110 | 0,002 USD | 0,002 USD | 0,006 USD |
+| Examen completo de M1 (6 preguntas y evaluación final) | ~87 500 | ~8 700 | 0,013 USD | 0,013 USD | 0,035 USD |
+| Examen completo de M2 (material pequeño) | ~11 000 | ~4 000 | 0,003 USD | 0,003 USD | 0,009 USD |
 
 Los costos son **estimaciones**: los tokens que gastó aquel modelo multiplicados por
 el precio de lista de cada modelo. Cada modelo consume distinto, sobre todo en salida
@@ -83,8 +85,8 @@ eso conviene conectar más de una.
    razonamiento.
 4. Multiplica los tokens por el precio vigente del modelo y actualiza las tablas.
 
-Los precios de lista se consultaron el 3 de octubre de 2026 en páginas de terceros
-([gpt-5-mini](https://pricepertoken.com/pricing-page/model/openai-gpt-5-mini),
-[Claude Haiku 4.5](https://benchlm.ai/anthropic/api-pricing),
-[Gemini 3.8 Flash](https://www.eesel.ai/blog/gemini-3-8-flash-pricing)), no en las páginas
-oficiales de cada proveedor: confírmalos allí antes de presupuestar.
+Los precios de lista se consultaron el 12 de octubre de 2026 en las páginas oficiales de cada
+proveedor ([GPT-6 Luna](https://developers.openai.com/api/docs/models/gpt-6-luna),
+[Claude Haiku 5.5](https://platform.claude.com/docs/en/about-claude/pricing),
+[Gemini](https://ai.google.dev/gemini-api/docs/pricing)). Google tiene un modelo aún más barato,
+`gemini-2.5-flash-lite` (0,10 y 0,40 USD), pero solo lo ofrece a cuentas que ya lo usaban.

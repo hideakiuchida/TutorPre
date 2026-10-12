@@ -86,7 +86,7 @@
 - ¿Modo de feedback por defecto: Al final (mide mejor el conocimiento previo) o Inmediato (más tutor)?
 - ¿Los alumnos pueden revisar con el tutor antes de que cierre el examen para el resto del grupo?
 - ¿La universidad aprueba enviar el material y las conversaciones (sin nombre ni correo) a Google, OpenAI y Anthropic con las cuentas personales de los alumnos?
-- ¿Qué modelo se fija en cada agente? Debe soportar herramientas y pasar la paridad; hoy `gemini-3.8-flash`, `gpt-5-mini` y `claude-haiku-4-5`.
+- ¿Qué modelo se fija en cada agente? Debe soportar herramientas y pasar la paridad; hoy `gemini-3.1-flash-lite`, `gpt-6-luna` y `claude-haiku-5-5`.
 - ¿Se muestra al alumno cuánto cupo gratuito le queda hoy? Gemini no lo expone en una llamada; solo se sabe al recibir el 429.
 - ¿Qué proveedor de nube usará la universidad? ¿TI registra la aplicación en su Google Workspace, restringe el acceso a su dominio y verifica la app para abrir Gemini por cuenta a todos?
 - ¿El docente debe poder ver las preguntas que la IA generó para cada alumno (auditoría), aunque no las apruebe?
@@ -102,7 +102,7 @@ Estado a 2026-10-11, con el examen pregunta a pregunta, Gemini con Google, las c
 | 2 | Medir la latencia con el modelo real | RNF-02 | Hecho en código (§5.8): razonamiento desactivado en el chat, sin tope de salida en el chat, con aviso si el modelo llega a su máximo, streaming con la ampliación apagada y páginas pertinentes en clases grandes. Falta medir el primer token con cada agente vigente (`docs/COMPARATIVA-MODELOS.md` tiene las primeras medidas) |
 | 3 | Citas válidas marcadas como inválidas | RF-11, §6.4 | El modelo abrevia nombres de archivo largos (`MDSTI_MFEP_M1_INFOGRAFÍA_Costo vs Gasto` en vez del nombre completo) y la cita sale tachada. Aceptar coincidencia por prefijo o dar al modelo nombres cortos por archivo |
 | 4 | Markdown del tutor | UI | Se muestran negritas; listas, títulos y tablas siguen como texto plano |
-| 7 | Pasar la paridad con cada modelo vigente | RNF-11, §5.8 | `gemini-3.8-flash`, `gpt-5-mini` y `claude-haiku-4-5` no han pasado la suite completa de paridad ni la adversarial. Con los tiempos que registra cada llamada, elegir el modelo de cada agente también por velocidad |
+| 7 | Pasar la paridad con cada modelo vigente | RNF-11, §5.8 | `gemini-3.1-flash-lite`, `gpt-6-luna` y `claude-haiku-5-5` no han pasado la suite completa de paridad ni la adversarial. Con los tiempos que registra cada llamada, elegir el modelo de cada agente también por velocidad |
 | 8 | Probar el examen generado con el modelo real | RF-04, RF-05 | Calidad de las 6 preguntas, citas de las justificaciones y consumo del cupo gratuito |
 | 9 | Referencias de cada pregunta a `pregunta_referencia` | RF-05 | La justificación cita el material, pero no se guardan las referencias |
 | 10 | Cuentas del despliegue | Despliegue | El código, el CI y el CD están listos y la imagen arranca contra PostgreSQL (`docs/DESPLIEGUE.md`). Las migraciones se regeneraron en una sola `Inicial` para PostgreSQL. Ya existen el proyecto `tutor-preclase` en Railway (PostgreSQL, servicio `api` con volumen y dominio) y en Vercel (sin Git, Root Directory `web`, `API_URL`), solo en producción, y el repositorio pasó a `hideakiuchida/TutorPre`. Faltan los tokens en GitHub, la clave de sesión y el cliente de Google en Railway, y añadir la URL de la web al cliente OAuth de Google |

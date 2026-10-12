@@ -12,13 +12,17 @@ namespace TutorPreClase.Infrastructure.Persistencia;
 public static class DatosIniciales
 {
     /// <summary>
-    /// Modelos que el proveedor retiró, con el que los reemplaza. Solo se cambia un agente
-    /// que todavía tiene el retirado: un modelo que eligió el administrador no se toca.
+    /// Modelos que se dejaron de usar, con el que los reemplaza: los que el proveedor retiró y
+    /// los que se cambiaron por el más económico de cada API (2026-10-12). Solo se cambia un
+    /// agente que todavía tiene el anterior: un modelo que eligió el administrador no se toca.
     /// </summary>
     private static readonly Dictionary<string, string> Retirados = new()
     {
         // Google: "gemini-2.5-flash is no longer available to new users" (2026-09-30).
-        ["gemini-2.5-flash"] = "gemini-3.8-flash"
+        ["gemini-2.5-flash"] = "gemini-3.1-flash-lite",
+        ["gemini-3.8-flash"] = "gemini-3.1-flash-lite",
+        ["gpt-5-mini"] = "gpt-6-luna",
+        ["claude-haiku-4-5"] = "claude-haiku-5-5"
     };
 
     public static async Task SembrarAsync(
@@ -52,7 +56,7 @@ public static class DatosIniciales
             Id = "gemini",
             NombreVisible = "Gemini (tu cuenta de Google)",
             Proveedor = "Google",
-            Modelo = "gemini-3.8-flash",
+            Modelo = "gemini-3.1-flash-lite",
             BaseUrl = "https://generativelanguage.googleapis.com",
             Descripcion = "Entra con tu cuenta de Google. Sin claves ni tarjeta.",
             Habilitado = true
@@ -63,7 +67,7 @@ public static class DatosIniciales
             Id = "openai",
             NombreVisible = "ChatGPT (tu clave de OpenAI)",
             Proveedor = "OpenAI",
-            Modelo = "gpt-5-mini",
+            Modelo = "gpt-6-luna",
             BaseUrl = "https://api.openai.com",
             UrlConsola = "https://platform.openai.com/api-keys",
             Descripcion = "Pega una clave de API de OpenAI. El uso se cobra en tu cuenta de OpenAI (la suscripción de ChatGPT no incluye la API).",
@@ -74,7 +78,7 @@ public static class DatosIniciales
             Id = "anthropic",
             NombreVisible = "Claude (tu clave de Anthropic)",
             Proveedor = "Anthropic",
-            Modelo = "claude-haiku-4-5",
+            Modelo = "claude-haiku-5-5",
             BaseUrl = "https://api.anthropic.com",
             UrlConsola = "https://console.anthropic.com/settings/keys",
             Descripcion = "Pega una clave de API de Anthropic. El uso se cobra en tu cuenta de Anthropic (la suscripción de Claude no incluye la API).",
@@ -85,7 +89,7 @@ public static class DatosIniciales
             Id = "gemini-clave",
             NombreVisible = "Gemini (tu clave de AI Studio)",
             Proveedor = "GoogleAIStudio",
-            Modelo = "gemini-3.8-flash",
+            Modelo = "gemini-3.1-flash-lite",
             BaseUrl = "https://generativelanguage.googleapis.com",
             UrlConsola = "https://aistudio.google.com/apikey",
             Descripcion = "Pega una clave gratuita de Google AI Studio: usa el cupo gratis de tu propia cuenta.",

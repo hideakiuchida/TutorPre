@@ -44,7 +44,8 @@ public sealed class OpcionesAgente
 
     /// <summary>
     /// Solo Clave: valor de `reasoning_effort` con el razonamiento desactivado, si el
-    /// proveedor lo admite (OpenAI: "minimal"). Vacío: no se envía.
+    /// proveedor lo admite (OpenAI: "none", obligatorio en gpt-6-luna cuando la llamada lleva
+    /// herramientas). Vacío: no se envía.
     /// </summary>
     public string? EsfuerzoDesactivado { get; set; }
 
@@ -55,9 +56,9 @@ public sealed class OpcionesAgente
     public string? EsfuerzoBajo { get; set; }
 
     /// <summary>
-    /// Solo Clave: el modelo es de razonamiento al estilo de OpenAI (gpt-5, o-series). Su API
-    /// rechaza con 400 `max_tokens` (el tope va en `max_completion_tokens`, que incluye lo que
-    /// razona) y cualquier `temperature` distinta de la suya.
+    /// Solo Clave: el modelo razona por su cuenta (OpenAI gpt-5 y gpt-6, Claude desde 4.7). Su
+    /// API rechaza con 400 una `temperature` propia, y OpenAI además `max_tokens`: el tope va en
+    /// `max_completion_tokens`, que incluye lo que razona, y la temperatura no se envía.
     /// </summary>
     public bool ModeloDeRazonamiento { get; set; }
 
