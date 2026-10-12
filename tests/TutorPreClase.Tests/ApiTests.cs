@@ -9,6 +9,24 @@ namespace TutorPreClase.Tests;
 
 public class ApiTests
 {
+    [Theory]
+    [InlineData("llm:openai")]
+    [InlineData("llm:anthropic")]
+    [InlineData("llm:gemini")]
+    [InlineData("llm:gemini-clave")]
+    [InlineData("identidad")]
+    public async Task Las_pruebas_no_pueden_llamar_a_un_proveedor_real(string cliente)
+    {
+        // Si una prueba dejara de usar el proveedor simulado, gastaría tokens de una cuenta real.
+        using var api = new ApiDePruebas();
+        var http = api.Services.GetRequiredService<IHttpClientFactory>().CreateClient(cliente);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => http.GetAsync("https://api.openai.com/v1/models"));
+
+        Assert.Contains("no salen a la red", error.Message);
+    }
+
     [Fact]
     public async Task La_api_responde_salud_sin_autenticacion()
     {

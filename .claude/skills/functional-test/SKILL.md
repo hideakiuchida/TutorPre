@@ -51,6 +51,12 @@ await fetch('https://api-production-9a65.up.railway.app/api/v1/agentes', { heade
 Corre las pruebas .NET en Docker con el paso 2b de `start-local` (en Windows, Smart App
 Control bloquea las DLL recién compiladas; no se toca esa configuración).
 
+**No llaman a ningún modelo ni gastan tokens**: usan un proveedor guionado y HTTP simulado, no
+hay ninguna clave real en el repositorio ni en el CI, y la API de pruebas corta cualquier
+salida a la red (`SinRed` en `ApiDePruebas`). Pasan igual con el contenedor sin red
+(`docker run --network none … dotnet test --no-build`). Si una prueba nueva necesita un
+proveedor, se le da uno simulado: nunca una clave real.
+
 Gratis y en segundos: cubre RF-02 a RF-05, RF-08, RF-09, RF-12, RF-15, RF-21, RF-24 a RF-31, RF-33 y
 RNF-10 a nivel de unidad e integración (el OIDC, con el proveedor simulado). Si algo falla ahí, arréglalo antes de abrir el navegador.
 
@@ -64,6 +70,38 @@ API de Claude, ChatGPT o Gemini (RF-38). La conecta **la persona** en el bloque 
 escribes contraseñas ni creas cuentas. **Nunca pidas la clave por el chat, ni la escribas en
 un archivo, un log o el resumen.** Sin ninguna IA conectada, salta los bloques C, D y E y
 dilo al reportar.
+
+## Control de consumo: qué gasta tokens y qué no
+
+Los tokens son **de la cuenta de la persona** (BYOK). Solo se llama a un modelo real donde hace
+falta ver al modelo real; todo lo demás se prueba sin él.
+
+| Gasta tokens (modelo real) | No gasta |
+| --- | --- |
+| Bloque C (consulta), D (examen) y E (revisión) | Pruebas .NET, bloques A (salvo RF-36), B, F y G |
+| RF-36 condensar el material (solo si se pide) | Rechazos: clave inventada, código OAuth inventado, sin credencial (el proveedor responde 401 sin generar nada) |
+| RF-39 «tómame el examen» desde el asistente | `listar_clases`, `leer_material`, reportes, niveles, permisos |
+
+Reglas, antes de enviar el primer mensaje al tutor:
+
+1. **Solo el modelo en uso.** Se prueba con la IA marcada *En uso* en *Mi tutor* (`GET /agentes`
+   dice su modelo). No se recorren los demás proveedores «por si acaso»: otro proveedor se
+   prueba solo si la persona lo pide o si el cambio toca su adaptador, y entonces con el
+   escenario mínimo (un mensaje de consulta y el inicio del examen).
+2. **Escenarios reales, una sola vez.** Los mensajes de los bloques C, D y E son los que haría
+   un alumno; no se inventan variantes, no se repite un mensaje que ya pasó y no se reintenta
+   en bucle: ante un error se leen los logs antes de volver a enviar.
+3. **Un solo examen, en la clase más chica.** El material viaja en cada llamada: usa una clase
+   de una infografía (M2) y no M1, salvo que el cambio sea de M1. En local, baja las preguntas
+   del examen al mínimo del formulario antes de empezar y déjalo como estaba. El segundo
+   intento (RF-04) y el reinicio de intentos solo si se pidió probar eso.
+4. **Avisa antes de gastar.** Di qué modelo se va a usar y cuántos mensajes (~12 el recorrido
+   completo; 3 o 4 si solo se valida un cambio) y espera el visto bueno si la cuenta es de
+   pago o la persona pidió cuidar el saldo.
+5. **Mide y repórtalo.** Cada llamada deja en el log `LLM <agente> <modelo>: … entrada N,
+   salida N, razonamiento N`. Suma entrada y salida de la corrida y ponlo en el reporte.
+6. **Si el cambio no toca el tutor, el examen ni los adaptadores, no se llama al modelo**: se
+   marcan C, D y E como *no ejecutados para no gastar* y se dice.
 
 ## Bloque A — El docente prepara la clase
 
@@ -90,7 +128,7 @@ solo un archivo de prueba propio y quítalo al terminar.
 
 La condensación (RF-36) gasta llamadas del cupo gratuito **de la cuenta del profesor**:
 unas 4 para M1 y 1 por cada infografía. `POST /clases/$CLA/condensar {"forzar":true}` la
-repite; no lo hagas en bucle.
+repite; no lo hagas en bucle, y no la fuerces si el cambio que se prueba no es de condensación.
 
 ```bash
 curl -s -H "X-Usuario-Id: $DOC" -H "X-Usuario-Rol: Docente" -H "Content-Type: application/json"   -X POST -d '{"forzar":true}' "http://localhost:5080/api/v1/clases/$CLA/condensar"
@@ -176,7 +214,7 @@ curl -s -H "X-Usuario-Id: $(python -c 'import uuid;print(uuid.uuid4())')" \
 | --- | --- |
 | RF-19 | En M1: `¿qué diferencia hay entre costo y gasto?` obtiene respuesta del tema |
 | RF-11 | Esa respuesta cita la infografía *Costo vs Gasto* (resaltada en el texto y en las fuentes debajo del globo del tutor). La fuente es un botón con una flecha ↓: al pulsarlo se descarga ese archivo. Por API, `GET /clases/$CLA/material` lista los archivos y `GET /clases/$CLA/material/<archivoId>` responde 200 con el archivo; otro alumno que no lleva el curso recibe **403** |
-| RF-37 | Repite la pregunta del WACC **con Gemini**: usa una herramienta, así que comprueba que la firma de razonamiento vuelve bien (antes daba *400*). Si Google está saturado (503), el aviso dice *saturado* y no muestra el código |
+| RF-37 | **Solo si Gemini es la IA en uso:** la pregunta del WACC de abajo usa una herramienta, así que comprueba que la firma de razonamiento vuelve bien (antes daba *400*). Si Google está saturado (503), el aviso dice *saturado* y no muestra el código |
 | RF-12 / RF-20 | `¿qué es el WACC?` (no está en el material de M1). Con la ampliación **apagada, que es lo que viene por defecto**: responde *"Esto no está en el material de la clase; pregúntalo en la sesión."* y no sale nada a lápiz |
 | RF-19 | `dame una receta de ceviche` → declina y reconduce al curso |
 | RNF-02 | El primer token aparece en menos de ~3 s, también con la ampliación apagada (el texto se ve mientras se escribe). Si tarda más de 2 s aparece *Pensando…*. En el log de la API, cada llamada deja `LLM <agente> <modelo>: primer token … ms, total … ms, entrada …, razonamiento …`; con el razonamiento desactivado, `razonamiento` debe ser 0 |
@@ -272,5 +310,6 @@ no comprobaste.
 Un modelo real no repite frases exactas: verifica el **comportamiento** (que cite, que marque
 la ampliación, que registre la respuesta, que no filtre la correcta), nunca el texto literal.
 El recorrido completo son ~12 mensajes cortos, pero cada vuelta de herramientas es una
-llamada: gasta buena parte del cupo gratuito diario de la cuenta conectada (50 llamadas sin
-créditos). Avisa si se va a repetir en el mismo día.
+llamada: gasta buena parte del cupo gratuito diario de la cuenta conectada, o saldo si es de
+pago. Sigue el *Control de consumo* de arriba, avisa si se va a repetir en el mismo día y
+cierra el reporte con los tokens gastados.

@@ -13,6 +13,17 @@ using TutorPreClase.Infrastructure.Persistencia;
 namespace TutorPreClase.Tests.Infraestructura;
 
 /// <summary>
+/// Corta cualquier salida a la red desde la API de pruebas: una prueba que llegara a llamar a
+/// un proveedor real (y a gastar tokens de alguien) falla aquí en vez de pasar en silencio.
+/// </summary>
+public sealed class SinRed : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage peticion, CancellationToken ct) =>
+        throw new InvalidOperationException(
+            $"Las pruebas no salen a la red: se intentó llamar a {peticion.RequestUri}. Usa un proveedor simulado.");
+}
+
+/// <summary>
 /// Levanta la API real (rutas, autenticacion, SSE) sobre SQLite en memoria y con el
 /// proveedor LLM guionado, sin tocar la red ni PostgreSQL.
 /// </summary>
@@ -50,6 +61,9 @@ public sealed class ApiDePruebas : WebApplicationFactory<Program>
 
             servicios.RemoveAll<IProveedorLlmFactory>();
             servicios.AddSingleton<IProveedorLlmFactory>(Proveedor);
+
+            // Ningún cliente HTTP de la API (proveedores de IA, Google, identidad) sale a la red.
+            servicios.ConfigureHttpClientDefaults(c => c.ConfigurePrimaryHttpMessageHandler(() => new SinRed()));
 
             // Validar una credencial no debe salir a la red en pruebas.
             servicios.RemoveAll<IValidadorCredencial>();
