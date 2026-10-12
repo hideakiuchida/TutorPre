@@ -225,6 +225,12 @@ public sealed class AgenteTutorService(
         var dudaRegistrada = false;
         var correcciones = 0;
 
+        // Al cerrar el examen siempre hay retroalimentación: si el tutor no llega a escribir su
+        // evaluación (sin cupo, respuesta vacía), la arma el servidor con el resultado del intento.
+        string? resultadoCierre = null;
+        var evaluacionEscrita = false;
+        var diagnosticoRegistrado = false;
+
         // Lo que el servidor resuelve en el examen sin esperar al modelo (RNF-01), aunque esté
         // saturado: presentar la pregunta que toca si el alumno no la tiene delante (al empezar,
         // o si la anterior no se pudo generar) y registrar una respuesta inequívoca, sea la letra
@@ -302,6 +308,18 @@ public sealed class AgenteTutorService(
                 {
                     log.LogWarning("Proveedor {Agente} fallo: {Mensaje}", agente.Id, error.Mensaje);
 
+                    IReadOnlyList<Cita> citasDelCierre = [];
+
+                    if (resultadoCierre is not null && !evaluacionEscrita)
+                    {
+                        var retro = await RetroalimentacionDelServidorAsync(
+                            conversacion, agente, textoFinal, resultadoCierre, diagnosticoRegistrado, ct);
+                        yield return new EventoToken(retro);
+
+                        citasDelCierre = Salvaguardas.ExtraerCitas(textoFinal.ToString(), contextoClase.PaginasDeLaClase);
+                        if (citasDelCierre.Count > 0) yield return new EventoFuentes(citasDelCierre);
+                    }
+
                     if (error.CredencialRechazada)
                     {
                         await credenciales.MarcarInvalidaAsync(conversacion.AlumnoId, agente.Id, ct);
@@ -313,7 +331,7 @@ public sealed class AgenteTutorService(
                         // El examen ya cerró y la nota ya salió: lo único que faltó es la evaluación
                         // del tutor. No se ofrece reenviar la última respuesta, que ya está registrada.
                         yield return new EventoAviso("evaluacion_pendiente",
-                            "Tu nota está guardada. El tutor no pudo escribir ahora su evaluación; " +
+                            "Tu nota está guardada. El tutor no pudo completar ahora su evaluación; " +
                             "cuando quieras, escribe «revisemos mis errores».");
                     }
                     else if (error.LimiteDeUso)
@@ -336,6 +354,7 @@ public sealed class AgenteTutorService(
                             AgenteId = agente.Id,
                             Rol = RolMensaje.Agente,
                             Texto = textoFinal.ToString().TrimEnd(),
+                            Fuentes = citasDelCierre.Count > 0 ? JsonSerializer.Serialize(citasDelCierre, JsonWeb) : null,
                             CreadoEn = reloj.Ahora
                         });
                         await db.SaveChangesAsync(ct);
@@ -378,6 +397,7 @@ public sealed class AgenteTutorService(
                 else
                 {
                     textoFinal.Append(textoVuelta);
+                    evaluacionEscrita |= cerroExamen && textoVuelta.ToString().Trim().Length > 0;
                 }
 
                 if (llamada is null) break;
@@ -438,6 +458,7 @@ public sealed class AgenteTutorService(
             }
 
             dudaRegistrada |= llamada.Nombre == Herramientas.RegistrarDudaSinCobertura && resultado.Ok;
+            diagnosticoRegistrado |= llamada.Nombre == Herramientas.ProponerDiagnostico && resultado.Ok;
 
             historial = esDelServidor
                 ? [.. historial, new LlmMensaje(RolLlm.Usuario,
@@ -451,6 +472,7 @@ public sealed class AgenteTutorService(
             {
                 // El chat pasa a Revisión: otras reglas, el material vuelve y ya se puede citar.
                 cerroExamen = true;
+                resultadoCierre = jsonCierre;
                 ampliacionPermitida = AmpliacionPermitida(conversacion.Modo, clase);
                 yield return new EventoModo(conversacion.Modo, ampliacionPermitida);
 
@@ -512,6 +534,13 @@ public sealed class AgenteTutorService(
             yield return await ProgresoAsync(pendienteDe, ct);
         }
 
+        // El tutor cerró el turno sin escribir su evaluación: la retroalimentación la da el servidor.
+        if (resultadoCierre is not null && !evaluacionEscrita)
+        {
+            yield return new EventoToken(await RetroalimentacionDelServidorAsync(
+                conversacion, agente, textoFinal, resultadoCierre, diagnosticoRegistrado, ct));
+        }
+
         var texto = textoFinal.ToString();
 
         var resto = emisor.Cerrar();
@@ -570,6 +599,32 @@ public sealed class AgenteTutorService(
     /// <summary>Separa lo que escribe el servidor de lo que ya había en la respuesta.</summary>
     private static string Parrafo(StringBuilder previo, string texto) =>
         previo.Length == 0 ? texto : $"\n\n{texto}";
+
+    /// <summary>
+    /// Añade a la respuesta la retroalimentación armada con el resultado del intento y, si el
+    /// tutor no lo hizo, deja los temas fallados como temas a reforzar (RF-21, RF-22).
+    /// </summary>
+    private async Task<string> RetroalimentacionDelServidorAsync(
+        Conversacion conversacion, AgenteIA agente, StringBuilder textoFinal, string resultadoJson,
+        bool diagnosticoRegistrado, CancellationToken ct)
+    {
+        var temas = GuionExamen.TemasAReforzar(resultadoJson);
+
+        if (!diagnosticoRegistrado && temas.Count > 0)
+        {
+            await EjecutarYGuardarAsync(
+                conversacion, agente, Herramientas.ProponerDiagnostico,
+                JsonSerializer.SerializeToElement(new { temas_debiles = temas }), ct);
+        }
+
+        // La nota termina en párrafo aparte: la retroalimentación va a continuación.
+        var bloque = textoFinal.ToString().EndsWith("\n\n", StringComparison.Ordinal)
+            ? GuionExamen.Retroalimentacion(resultadoJson)
+            : Parrafo(textoFinal, GuionExamen.Retroalimentacion(resultadoJson));
+
+        textoFinal.Append(bloque);
+        return bloque;
+    }
 
     private async Task<EventoProgreso> ProgresoAsync(Guid intentoId, CancellationToken ct)
     {

@@ -22,6 +22,9 @@ Para alumnos y profesores hay una guía de uso con capturas: [`docs/Guia-de-usua
 - **Examen generado por la IA para cada alumno**, pregunta a pregunta, a partir del
   material. No tiene fechas: se rinde cuando el alumno quiera, con los intentos y el tiempo
   que fije el profesor. El servidor registra las respuestas y califica (0–20), nunca el modelo.
+- **Retroalimentación al terminar, siempre**: el tutor cierra con una evaluación (lo que
+  dominaste, qué reforzar y una recomendación) y repasa contigo los fallos. Si su IA se quedó
+  sin cupo, la retroalimentación la escribe el servidor con el resultado del intento.
 - **Respuestas ancladas al material**: el contenido de la clase viaja en el contexto con
   marcas `[archivo, p. N]`; las citas se validan contra la base y **cada referencia
   descarga el archivo citado**.

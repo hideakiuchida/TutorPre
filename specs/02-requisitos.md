@@ -15,7 +15,7 @@
 | RF-07 | El agente conduce el examen por chat: presenta cada pregunta, interpreta la respuesta en lenguaje natural y la registra mediante una herramienta del servidor | Alta |
 | RF-08 | El examen **no tiene fechas**: se rinde en cualquier momento, sin apertura ni fecha límite, con un número configurable de intentos por el docente (por defecto 3). El docente puede devolverle a un alumno todos sus intentos | Alta |
 | RF-09 | El servidor calcula el puntaje (0–20, escala peruana) y el porcentaje; el agente solo lo comunica | Alta |
-| RF-10 | El agente explica cada pregunta fallada como tutor: por qué falló, el concepto correcto y una pregunta de comprobación | Alta |
+| RF-10 | Al terminar el examen el alumno recibe siempre retroalimentación, no solo la nota: la evaluación final del agente o, si su IA no responde, la que arma el servidor con el resultado del intento. Después el agente explica cada pregunta fallada como tutor: por qué falló, el concepto correcto y una pregunta de comprobación | Alta |
 | RF-11 | El alumno puede repreguntar al agente sobre cualquier fallo o tema de la clase; el tutor responde primero con el contenido del docente y cita archivo y página. **Cada referencia permite descargar el archivo citado** | Alta |
 | RF-12 | Si el contenido no cubre la duda, el tutor lo dice explícitamente y puede ampliar con su propio conocimiento, marcando esa parte como *ampliación fuera del material*; nunca la presenta como contenido del docente | Alta |
 | RF-13 | El docente ve qué dudas pidieron los alumnos, cuáles no cubría su material y qué ampliaciones dio el tutor | Media |

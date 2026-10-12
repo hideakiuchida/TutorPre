@@ -166,6 +166,70 @@ public static partial class GuionExamen
                $"{raiz.GetProperty("correctas").GetInt32()} de {raiz.GetProperty("total").GetInt32()} correctas.";
     }
 
+    /// <summary>
+    /// La retroalimentación que escribe el servidor cuando el tutor no llega a dar la suya: sale
+    /// del resultado del intento (qué falló, cuál era la correcta y por qué), sin pasar por la IA.
+    /// </summary>
+    public static string Retroalimentacion(string resultadoJson)
+    {
+        using var doc = JsonDocument.Parse(resultadoJson);
+        var raiz = doc.RootElement;
+
+        var fallos = raiz.GetProperty("fallos").EnumerateArray().ToList();
+        var sinResponder = raiz.GetProperty("total").GetInt32() - raiz.GetProperty("correctas").GetInt32() - fallos.Count;
+
+        var sb = new StringBuilder("**Retroalimentación**\n\n");
+
+        if (fallos.Count == 0 && sinResponder <= 0)
+        {
+            sb.Append("Acertaste todas las preguntas: llegas bien preparado a la clase. " +
+                      "Si quieres profundizar en algún punto del tema, pregúntame.");
+            return sb.ToString();
+        }
+
+        var temas = TemasAReforzar(resultadoJson);
+        if (temas.Count > 0)
+            sb.Append($"Te conviene reforzar: {string.Join(", ", temas.Select(t => $"**{t}**"))}.\n\n");
+
+        for (var i = 0; i < fallos.Count; i++)
+        {
+            var fallo = fallos[i];
+            sb.Append($"**{i + 1}. {fallo.GetProperty("enunciado").GetString()}**\n\n");
+            sb.Append($"- Tu respuesta: {fallo.GetProperty("alternativa_elegida").GetString()}\n");
+            sb.Append($"- La correcta: {fallo.GetProperty("alternativa_correcta").GetString()}\n");
+
+            var justificacion = fallo.GetProperty("justificacion").GetString();
+            if (!string.IsNullOrWhiteSpace(justificacion)) sb.Append($"- Por qué: {justificacion}\n");
+
+            sb.Append('\n');
+        }
+
+        if (sinResponder > 0)
+            sb.Append(sinResponder == 1
+                ? "Dejaste 1 pregunta sin responder: cuenta como no acertada.\n\n"
+                : $"Dejaste {sinResponder} preguntas sin responder: cuentan como no acertadas.\n\n");
+
+        sb.Append(fallos.Count > 0
+            ? "Cuando quieras, escribe «revisemos mis errores» y los repasamos uno por uno."
+            : "Repasa el material de la clase y, si te queda una duda, pregúntame.");
+
+        return sb.ToString();
+    }
+
+    /// <summary>Los temas de las preguntas falladas, sin repetir y sin el genérico "General".</summary>
+    public static IReadOnlyList<string> TemasAReforzar(string resultadoJson)
+    {
+        using var doc = JsonDocument.Parse(resultadoJson);
+
+        return doc.RootElement.GetProperty("fallos").EnumerateArray()
+            .Select(f => f.TryGetProperty("tema", out var tema) && tema.ValueKind == JsonValueKind.String
+                ? tema.GetString()!.Trim()
+                : "")
+            .Where(t => t.Length > 0 && !t.Equals("General", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
     public static bool Verdadero(string resultadoJson, string propiedad)
     {
         using var doc = JsonDocument.Parse(resultadoJson);

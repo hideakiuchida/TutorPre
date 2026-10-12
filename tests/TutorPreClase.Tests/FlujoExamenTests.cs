@@ -639,6 +639,47 @@ public class ExamenConfiableTests
         Assert.Empty(eventos.OfType<EventoError>());
         Assert.Contains("Tu nota es **10.0**", banco.Db.Mensajes.Where(m => m.Rol == RolMensaje.Agente).ToList().Last().Texto);
         Assert.Equal(NivelAlumnoValor.Inicial, banco.Db.Niveles.Single().Nivel);
+
+        // Sin el tutor, la retroalimentación la escribe el servidor con el resultado del intento.
+        var texto = Texto(eventos);
+        Assert.Contains("**Retroalimentación**", texto);
+        Assert.Contains("- Tu respuesta: B.", texto);
+        Assert.Contains("- La correcta: A.", texto);
+        Assert.Contains("**Retroalimentación**", banco.Db.Mensajes.Where(m => m.Rol == RolMensaje.Agente).ToList().Last().Texto);
+        Assert.Contains("Funciones de activacion", banco.Db.Niveles.Single().TemasDebiles);
+    }
+
+    [Fact]
+    public async Task Si_el_tutor_no_escribe_su_evaluacion_la_retroalimentacion_la_da_el_servidor()
+    {
+        var (banco, conversacion) = await EnExamen();
+        using var _ = banco;
+        await FlujoExamenTests.Empezar(banco, conversacion);
+        await banco.EnviarAsync(conversacion, "A");
+
+        banco.Proveedor.RespondeTexto("");
+        var eventos = await banco.EnviarAsync(conversacion, "A");
+        var texto = Texto(eventos);
+
+        Assert.Contains("Tu nota es **20.0**", texto);
+        Assert.Contains("**Retroalimentación**", texto);
+        Assert.Contains("Acertaste todas las preguntas", texto);
+        Assert.Empty(eventos.OfType<EventoAviso>());
+    }
+
+    [Fact]
+    public async Task Si_el_tutor_escribe_su_evaluacion_el_servidor_no_la_duplica()
+    {
+        var (banco, conversacion) = await EnExamen();
+        using var _ = banco;
+        await FlujoExamenTests.Empezar(banco, conversacion);
+        await banco.EnviarAsync(conversacion, "A");
+
+        banco.Proveedor.RespondeTexto("Evaluación final: te fue bien en la primera, refuerza la segunda.");
+        var texto = Texto(await banco.EnviarAsync(conversacion, "B"));
+
+        Assert.Contains("Evaluación final", texto);
+        Assert.DoesNotContain("**Retroalimentación**", texto);
     }
 
     [Fact]

@@ -117,7 +117,7 @@ Con el examen listo, la conversación sigue igual:
 2. El alumno responde en lenguaje natural ("creo que es la B", "ReLU"); el agente identifica la alternativa y, si hay ambigüedad, pide confirmación. Con la alternativa clara llama a `registrar_respuesta`; desde ese momento la respuesta es inmutable.
 3. **Una letra sola no espera al modelo.** Si el mensaje es solo una alternativa ("B", "la c", "creo que es la A") y la pregunta está a la vista, la registra el servidor directamente: el progreso es inmediato (RNF-01) y no gasta cupo.
 4. Tras registrar, el servidor escribe "Registrada." y entrega la siguiente pregunta. Con feedback *Inmediato*, antes el agente explica la corrección que devuelve la herramienta.
-5. **El servidor cierra el examen** al registrar la última respuesta: califica, pasa el chat a Revisión y le entrega el resultado al agente para la evaluación final (§5.4). El agente solo puede llamar a `finalizar_examen` con preguntas pendientes si el alumno pidió terminar o se acabó el tiempo.
+5. **El servidor cierra el examen** al registrar la última respuesta: califica, pasa el chat a Revisión y le entrega el resultado al agente para la evaluación final (§5.4). Si el agente no llega a escribirla, la retroalimentación la escribe el servidor: el alumno nunca se queda solo con la nota. El agente solo puede llamar a `finalizar_examen` con preguntas pendientes si el alumno pidió terminar o se acabó el tiempo.
 6. La lista de clases le muestra al alumno cómo va en cada examen: los intentos usados del tope de la clase, también antes de rendir (`0 de 3 intentos`), y su mejor nota (`Nota 16.7 · 2 de 3 intentos`); al agotarlos, la etiqueta dice *Sin intentos disponibles* y desaparece el botón *Comenzar examen*.
 7. Si el alumno pide la respuesta, pistas o una explicación durante el examen, el agente se niega en una línea. Con feedback *AlFinal* el material no viaja en el prompt del examen: no tiene de dónde citar una pista.
 7. No hay formularios ni botones de alternativas: la respuesta siempre entra como texto del chat.
@@ -140,6 +140,14 @@ Al registrar la última respuesta (o si el alumno pide terminar antes, o vence e
 4. una recomendación concreta para llegar mejor a la clase.
 
 Luego llama a `proponer_diagnostico` con esos temas, que alimentan el nivel y el reporte del docente (RF-21, RF-22), y ofrece repasar los fallos uno por uno. La nota no la toca: esa evaluación es cualitativa.
+
+**Retroalimentación garantizada.** Después del examen el alumno siempre recibe retroalimentación, no solo la nota. Si el tutor no escribe su evaluación —su IA se quedó sin cupo o sin saldo, rechazó la credencial, falló o devolvió una respuesta vacía—, el servidor escribe en el mismo mensaje un bloque **Retroalimentación** armado con el resultado del intento, sin pasar por la IA (`GuionExamen.Retroalimentacion`):
+- los temas a reforzar, tomados de las preguntas falladas;
+- por cada fallo, el enunciado, la alternativa que eligió, la correcta y la justificación guardada con la pregunta, con su cita al material (la referencia se puede descargar como cualquier otra);
+- cuántas preguntas quedaron sin responder, si terminó antes;
+- si acertó todas, se lo dice.
+
+En ese caso el servidor también registra los temas fallados como temas a reforzar, igual que lo haría `proponer_diagnostico`, salvo el tema genérico *General*. Si lo que falló fue el proveedor, el alumno ve además el aviso `evaluacion_pendiente`: su nota está guardada y puede pedir el repaso cuando quiera con «revisemos mis errores». Cuando el tutor sí escribe su evaluación, el servidor no añade nada.
 
 1. `finalizar_examen` devuelve al agente la nota y, por cada pregunta fallada, la alternativa elegida, la correcta y su justificación con la cita al material.
 2. El agente recorre los fallos uno por uno: por qué la elección es incorrecta, qué concepto faltó (citando el material de la clase como [archivo, p. N]) y una pregunta corta de comprobación.
@@ -620,6 +628,7 @@ sequenceDiagram
     end
     T->>E: finalizar_examen: nota = correctas / planeadas (servidor, sin IA)
     T-->>W: evaluación final de la IA: nota, lo que dominó, temas a reforzar, recomendación
+    Note over T,W: si la IA no la escribe, el servidor da la retroalimentación con el resultado del intento
 ```
 
 Rendir el examen es el mismo Flujo 3 en modo Evaluación, con dos diferencias:
