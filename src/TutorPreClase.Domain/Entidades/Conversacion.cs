@@ -116,7 +116,7 @@ public class NivelAlumno
     public Guid AlumnoId { get; set; }
     public Guid ClaseId { get; set; }
     public NivelAlumnoValor Nivel { get; set; }
-    /// <summary>Temas débiles en JSON, aportados por el tutor (proponer_diagnostico).</summary>
+    /// <summary>Temas débiles en JSON: los del último intento, más los que aporte el tutor (proponer_diagnostico).</summary>
     public string TemasDebiles { get; set; } = "[]";
     public OrigenNivel Origen { get; set; } = OrigenNivel.Automatico;
     public DateTimeOffset ActualizadoEn { get; set; } = DateTimeOffset.UtcNow;

@@ -8,8 +8,8 @@ namespace TutorPreClase.Application.Reportes;
 
 /// <summary>
 /// La ficha de cada alumno en la clase (RF-22): la nota con la que se fijó su nivel (su mejor
-/// intento) con sus aciertos, cuántas veces rindió, cuándo fue la última y los temas que el
-/// tutor le marcó para reforzar.
+/// intento) con sus aciertos, cuántas veces rindió, cuándo fue la última y los temas que le
+/// toca reforzar.
 /// </summary>
 public sealed record NivelDeAlumno(
     Guid AlumnoId,

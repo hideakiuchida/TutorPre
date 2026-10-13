@@ -141,13 +141,15 @@ Al registrar la última respuesta (o si el alumno pide terminar antes, o vence e
 
 Luego llama a `proponer_diagnostico` con esos temas, que alimentan el nivel y el reporte del docente (RF-21, RF-22), y ofrece repasar los fallos uno por uno. La nota no la toca: esa evaluación es cualitativa.
 
+**Temas a reforzar garantizados.** Que el docente vea qué reforzar no depende de que el tutor llame a `proponer_diagnostico`. Al cerrar el intento, el servidor deja como temas a reforzar del alumno los de las preguntas que no acertó: las falladas y las que tuvo preparadas y no respondió, sin repetir y sin el tema genérico *General*. Reemplazan a los del intento anterior. Lo que el tutor proponga después se suma a esa lista, y el docente puede quitar los que no correspondan.
+
 **Retroalimentación garantizada.** Después del examen el alumno siempre recibe retroalimentación, no solo la nota. Si el tutor no escribe su evaluación —su IA se quedó sin cupo o sin saldo, rechazó la credencial, falló o devolvió una respuesta vacía—, el servidor escribe en el mismo mensaje un bloque **Retroalimentación** armado con el resultado del intento, sin pasar por la IA (`GuionExamen.Retroalimentacion`):
 - los temas a reforzar, tomados de las preguntas falladas;
 - por cada fallo, el enunciado, la alternativa que eligió, la correcta y la justificación guardada con la pregunta, con su cita al material (la referencia se puede descargar como cualquier otra);
 - cuántas preguntas quedaron sin responder, si terminó antes;
 - si acertó todas, se lo dice.
 
-En ese caso el servidor también registra los temas fallados como temas a reforzar, igual que lo haría `proponer_diagnostico`, salvo el tema genérico *General*. Si lo que falló fue el proveedor, el alumno ve además el aviso `evaluacion_pendiente`: su nota está guardada y puede pedir el repaso cuando quiera con «revisemos mis errores». Cuando el tutor sí escribe su evaluación, el servidor no añade nada.
+Si lo que falló fue el proveedor, el alumno ve además el aviso `evaluacion_pendiente`: su nota está guardada y puede pedir el repaso cuando quiera con «revisemos mis errores». Cuando el tutor sí escribe su evaluación, el servidor no añade este bloque.
 
 1. `finalizar_examen` devuelve al agente la nota y, por cada pregunta fallada, la alternativa elegida, la correcta y su justificación con la cita al material.
 2. El agente recorre los fallos uno por uno: por qué la elección es incorrecta, qué concepto faltó (citando el material de la clase como [archivo, p. N]) y una pregunta corta de comprobación.

@@ -189,7 +189,8 @@ public class FlujoExamenTests
         await banco.EnviarAsync(conversacion.Id, "B");
         Assert.Contains("Tema del primer intento", banco.Db.Niveles.Single().TemasDebiles);
 
-        // Segundo intento: sus temas reemplazan a los del primero.
+        // Segundo intento: sus temas reemplazan a los del primero. El de la pregunta fallada lo
+        // deja el servidor; los demás los añade el tutor.
         banco.Reloj.Ahora = banco.Reloj.Ahora.AddMinutes(30);
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
         await Empezar(banco, conversacion.Id);
@@ -198,7 +199,7 @@ public class FlujoExamenTests
         banco.Proveedor.RespondeTexto("Evaluación final.");
         await banco.EnviarAsync(conversacion.Id, "B");
 
-        Assert.Equal(["Tema del segundo", "Otro tema"], TutorPreClase.Application.Nivel.NivelService.Deserializar(banco.Db.Niveles.Single().TemasDebiles));
+        Assert.Equal(["Funciones de activacion", "Tema del segundo", "Otro tema"], TutorPreClase.Application.Nivel.NivelService.Deserializar(banco.Db.Niveles.Single().TemasDebiles));
 
         // El docente deja solo el que vale; el nivel no cambia.
         var nivelAntes = banco.Db.Niveles.Single().Nivel;
@@ -592,6 +593,29 @@ public class ExamenConfiableTests
 
         Assert.Equal(EstadoIntento.EnRevision, banco.Db.Intentos.Single().Estado);
         Assert.Contains(eventos.OfType<EventoModo>(), e => e.Modo == ModoConversacion.Revision);
+
+        // El tutor dio su evaluación sin proponer diagnóstico y la pregunta quedó sin responder:
+        // su tema queda igual como tema a reforzar.
+        Assert.Contains("Funciones de activacion", banco.Db.Niveles.Single().TemasDebiles);
+    }
+
+    [Fact]
+    public async Task Los_temas_fallados_quedan_registrados_aunque_el_tutor_no_proponga_diagnostico()
+    {
+        var (banco, conversacion) = await EnExamen();
+        using var _ = banco;
+        await FlujoExamenTests.Empezar(banco, conversacion);
+        await banco.EnviarAsync(conversacion, "A");
+
+        banco.Proveedor.RespondeTexto("Evaluación final: tu nota es 10.");
+        await banco.EnviarAsync(conversacion, "B");
+
+        var nivel = banco.Db.Niveles.Single();
+
+        Assert.Equal(["Funciones de activacion"], TutorPreClase.Application.Nivel.NivelService.Deserializar(nivel.TemasDebiles));
+        Assert.DoesNotContain(banco.Db.Mensajes, m => m.Herramienta == Herramientas.ProponerDiagnostico);
+        // Lo registró el servidor, no el tutor.
+        Assert.Equal(OrigenNivel.Automatico, nivel.Origen);
     }
 
     [Fact]

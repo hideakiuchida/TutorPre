@@ -46,7 +46,7 @@ export interface PaginaComparada {
   tokensCondensado: number;
 }
 
-/** La ficha de un alumno en la clase: nota, nivel y lo que el tutor le marcó para reforzar. */
+/** La ficha de un alumno en la clase: nota, nivel y los temas que le toca reforzar. */
 export interface AlumnoEnClase {
   alumnoId: string;
   nombre: string;

@@ -229,7 +229,6 @@ public sealed class AgenteTutorService(
         // evaluación (sin cupo, respuesta vacía), la arma el servidor con el resultado del intento.
         string? resultadoCierre = null;
         var evaluacionEscrita = false;
-        var diagnosticoRegistrado = false;
 
         // Lo que el servidor resuelve en el examen sin esperar al modelo (RNF-01), aunque esté
         // saturado: presentar la pregunta que toca si el alumno no la tiene delante (al empezar,
@@ -312,8 +311,7 @@ public sealed class AgenteTutorService(
 
                     if (resultadoCierre is not null && !evaluacionEscrita)
                     {
-                        var retro = await RetroalimentacionDelServidorAsync(
-                            conversacion, agente, textoFinal, resultadoCierre, diagnosticoRegistrado, ct);
+                        var retro = RetroalimentacionDelServidor(textoFinal, resultadoCierre);
                         yield return new EventoToken(retro);
 
                         citasDelCierre = Salvaguardas.ExtraerCitas(textoFinal.ToString(), contextoClase.PaginasDeLaClase);
@@ -458,7 +456,6 @@ public sealed class AgenteTutorService(
             }
 
             dudaRegistrada |= llamada.Nombre == Herramientas.RegistrarDudaSinCobertura && resultado.Ok;
-            diagnosticoRegistrado |= llamada.Nombre == Herramientas.ProponerDiagnostico && resultado.Ok;
 
             historial = esDelServidor
                 ? [.. historial, new LlmMensaje(RolLlm.Usuario,
@@ -537,8 +534,7 @@ public sealed class AgenteTutorService(
         // El tutor cerró el turno sin escribir su evaluación: la retroalimentación la da el servidor.
         if (resultadoCierre is not null && !evaluacionEscrita)
         {
-            yield return new EventoToken(await RetroalimentacionDelServidorAsync(
-                conversacion, agente, textoFinal, resultadoCierre, diagnosticoRegistrado, ct));
+            yield return new EventoToken(RetroalimentacionDelServidor(textoFinal, resultadoCierre));
         }
 
         var texto = textoFinal.ToString();
@@ -601,22 +597,11 @@ public sealed class AgenteTutorService(
         previo.Length == 0 ? texto : $"\n\n{texto}";
 
     /// <summary>
-    /// Añade a la respuesta la retroalimentación armada con el resultado del intento y, si el
-    /// tutor no lo hizo, deja los temas fallados como temas a reforzar (RF-21, RF-22).
+    /// Añade a la respuesta la retroalimentación armada con el resultado del intento. Los temas
+    /// a reforzar ya los dejó registrados el servidor al cerrar el examen (RF-21, RF-22).
     /// </summary>
-    private async Task<string> RetroalimentacionDelServidorAsync(
-        Conversacion conversacion, AgenteIA agente, StringBuilder textoFinal, string resultadoJson,
-        bool diagnosticoRegistrado, CancellationToken ct)
+    private static string RetroalimentacionDelServidor(StringBuilder textoFinal, string resultadoJson)
     {
-        var temas = GuionExamen.TemasAReforzar(resultadoJson);
-
-        if (!diagnosticoRegistrado && temas.Count > 0)
-        {
-            await EjecutarYGuardarAsync(
-                conversacion, agente, Herramientas.ProponerDiagnostico,
-                JsonSerializer.SerializeToElement(new { temas_debiles = temas }), ct);
-        }
-
         // La nota termina en párrafo aparte: la retroalimentación va a continuación.
         var bloque = textoFinal.ToString().EndsWith("\n\n", StringComparison.Ordinal)
             ? GuionExamen.Retroalimentacion(resultadoJson)

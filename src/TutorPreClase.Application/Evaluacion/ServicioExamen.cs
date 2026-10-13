@@ -230,7 +230,8 @@ public sealed class ServicioExamen(IAppDbContext db, IRelojSistema reloj, INivel
             intento.Envio = reloj.Ahora;
 
             await db.SaveChangesAsync(ct);
-            await nivel.RecalcularAsync(intento.AlumnoId, examen.ClaseId, nuevoIntento: true, ct);
+            // Los temas a reforzar no dependen de que el tutor los proponga (RF-22).
+            await nivel.RecalcularAsync(intento.AlumnoId, examen.ClaseId, TemasAReforzar(examen, intento), ct);
         }
 
         return Armar(examen, intento);
@@ -253,6 +254,22 @@ public sealed class ServicioExamen(IAppDbContext db, IRelojSistema reloj, INivel
     /// <summary>Preguntas del intento, generadas o por generar.</summary>
     private static int Total(Examen examen, Intento intento) =>
         Math.Max(intento.PreguntasPlaneadas, PreguntasVigentes(examen, intento).Count);
+
+    /// <summary>
+    /// Los temas de lo que el alumno no acertó: las preguntas falladas y las que tuvo
+    /// preparadas y no respondió, sin repetir y sin el genérico "General".
+    /// </summary>
+    private static List<string> TemasAReforzar(Examen examen, Intento intento)
+    {
+        var acertadas = intento.Respuestas.Where(r => r.EsCorrecta).Select(r => r.PreguntaId).ToHashSet();
+
+        return PreguntasVigentes(examen, intento)
+            .Where(p => !acertadas.Contains(p.Id))
+            .Select(p => p.Tema.Trim())
+            .Where(t => t.Length > 0 && !t.Equals("General", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 
     private static ResultadoDto Armar(Examen examen, Intento intento)
     {

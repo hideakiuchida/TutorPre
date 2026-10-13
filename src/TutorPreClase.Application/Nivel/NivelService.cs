@@ -10,10 +10,10 @@ public interface INivelService
 {
     /// <summary>
     /// Recalcula el nivel a partir del mejor intento enviado (SDD §5.6). Con
-    /// <paramref name="nuevoIntento"/>, además vacía los temas a reforzar: el diagnóstico es el
-    /// del examen que acaba de terminar, no la suma de todos los anteriores.
+    /// <paramref name="temasDelIntento"/>, además deja esos como temas a reforzar: el diagnóstico
+    /// es el del examen que acaba de terminar, no la suma de todos los anteriores.
     /// </summary>
-    Task<NivelAlumno> RecalcularAsync(Guid alumnoId, Guid claseId, bool nuevoIntento = false, CancellationToken ct = default);
+    Task<NivelAlumno> RecalcularAsync(Guid alumnoId, Guid claseId, IReadOnlyList<string>? temasDelIntento = null, CancellationToken ct = default);
 
     /// <summary>Guarda los temas debiles que aporta el tutor; no toca el nivel.</summary>
     Task RegistrarTemasDebilesAsync(Guid alumnoId, Guid claseId, IReadOnlyList<string> temas, CancellationToken ct = default);
@@ -28,12 +28,12 @@ public interface INivelService
 public sealed class NivelService(IAppDbContext db, IRelojSistema reloj) : INivelService
 {
     public async Task<NivelAlumno> RecalcularAsync(
-        Guid alumnoId, Guid claseId, bool nuevoIntento = false, CancellationToken ct = default)
+        Guid alumnoId, Guid claseId, IReadOnlyList<string>? temasDelIntento = null, CancellationToken ct = default)
     {
         var registro = await ObtenerOCrearAsync(alumnoId, claseId, ct);
 
         // Un examen nuevo trae su propio diagnóstico: los temas del anterior ya no cuentan.
-        if (nuevoIntento) registro.TemasDebiles = JsonSerializer.Serialize(Array.Empty<string>());
+        if (temasDelIntento is not null) registro.TemasDebiles = JsonSerializer.Serialize(temasDelIntento);
 
         // El docente manda: una correccion manual no la pisa el calculo automatico.
         if (registro.Origen == OrigenNivel.Docente)

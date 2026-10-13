@@ -287,7 +287,7 @@ public static class EndpointsDocente
             Guid claseId, Guid alumnoId, IServicioExamen examen, CancellationToken ct) =>
             Results.Ok(new { intentosBorrados = await examen.ReiniciarIntentosAsync(claseId, alumnoId, ct) }));
 
-        // Los temas a reforzar los propone el tutor; el docente puede dejar solo los que valen.
+        // Los temas a reforzar salen del examen y del tutor; el docente puede dejar solo los que valen.
         grupo.MapPut("/clases/{claseId:guid}/niveles/{alumnoId:guid}/temas", async (
             Guid claseId, Guid alumnoId, TemasDebilesPeticion peticion, INivelService nivel, IAppDbContext db, CancellationToken ct) =>
         {
