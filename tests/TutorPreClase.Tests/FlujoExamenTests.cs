@@ -65,18 +65,52 @@ public class FlujoExamenTests
         await banco.Tutor.IniciarExamenAsync(conversacion.Id);
 
         await Empezar(banco, conversacion.Id);
+        var llamadasAntes = banco.Proveedor.Solicitudes.Count;
 
-        // Con feedback inmediato el tutor comenta la corrección antes de la siguiente pregunta.
-        banco.Proveedor.RespondeTexto("No es esa: revisa la explicación.");
         var eventos = await banco.EnviarAsync(conversacion.Id, "la B");
 
         var resultado = ResultadoHerramientaJson(banco, Herramientas.RegistrarRespuesta);
         var texto = string.Concat(eventos.OfType<EventoToken>().Select(t => t.Texto));
 
-        Assert.Contains("No es esa", texto);
-        Assert.Contains("Pregunta 2 de 2", texto);
         Assert.False(resultado.GetProperty("es_correcta").GetBoolean());
         Assert.Equal("Esta en el material de la clase.", resultado.GetProperty("justificacion").GetString());
+
+        // La corrección la escribe el servidor, sin esperar a que el modelo la comente: dice que
+        // falló, cuál era la correcta y por qué, y sigue con la siguiente pregunta.
+        Assert.Contains("**Incorrecta.** La respuesta correcta es **A) ", texto);
+        Assert.Contains("Esta en el material de la clase.", texto);
+        Assert.Contains("Pregunta 2 de 2", texto);
+        Assert.Equal(llamadasAntes, banco.Proveedor.Solicitudes.Count);
+
+        // También en la última respuesta, antes de la nota.
+        banco.Proveedor.RespondeTexto("Evaluación final.");
+        var cierre = string.Concat((await banco.EnviarAsync(conversacion.Id, "A")).OfType<EventoToken>().Select(t => t.Texto));
+
+        Assert.Contains("**Correcta.**", cierre);
+        Assert.True(cierre.IndexOf("**Correcta.**", StringComparison.Ordinal) < cierre.IndexOf("Examen terminado", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task En_modo_Inmediato_un_mensaje_registra_una_sola_respuesta_y_el_examen_no_se_cierra_antes()
+    {
+        using var banco = new BancoDePruebas().Sembrar(feedback: ModoFeedback.Inmediato);
+        var conversacion = await banco.Tutor.AbrirConversacionAsync(banco.ClaseId, banco.AlumnoId, "prueba");
+        await banco.Tutor.IniciarExamenAsync(conversacion.Id);
+        await Empezar(banco, conversacion.Id);
+
+        // El tutor interpreta la respuesta y la registra; si después intentara registrar otra
+        // vez, contestaría la pregunta siguiente sin que el alumno la viera y cerraría el examen.
+        banco.Proveedor.LlamaHerramienta(Herramientas.RegistrarRespuesta, new { alternativa = "B" });
+        banco.Proveedor.LlamaHerramienta(Herramientas.RegistrarRespuesta, new { alternativa = "B" });
+        banco.Proveedor.LlamaHerramienta(Herramientas.FinalizarExamen, new { });
+        var eventos = await banco.EnviarAsync(conversacion.Id, "me inclino por la segunda, la del valor terminal");
+
+        var texto = string.Concat(eventos.OfType<EventoToken>().Select(t => t.Texto));
+
+        Assert.Single(banco.Db.Respuestas);
+        Assert.Equal(EstadoIntento.EnCurso, banco.Db.Intentos.Single().Estado);
+        Assert.Contains("**Incorrecta.**", texto);
+        Assert.Contains("Pregunta 2 de 2", texto);
     }
 
     [Fact]

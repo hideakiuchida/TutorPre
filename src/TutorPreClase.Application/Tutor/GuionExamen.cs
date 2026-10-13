@@ -155,6 +155,36 @@ public static partial class GuionExamen
         return sb.ToString();
     }
 
+    /// <summary>
+    /// La corrección de la respuesta recién registrada, cuando el examen la muestra tras cada
+    /// respuesta (feedback inmediato): si acertó, cuál era la correcta y por qué. La escribe el
+    /// servidor con lo que devuelve registrar_respuesta; null si el resultado no trae corrección.
+    /// </summary>
+    public static string? Correccion(string resultadoJson)
+    {
+        using var doc = JsonDocument.Parse(resultadoJson);
+        var raiz = doc.RootElement;
+
+        if (raiz.ValueKind != JsonValueKind.Object || !raiz.TryGetProperty("es_correcta", out var esCorrecta) ||
+            esCorrecta.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+            return null;
+
+        string? Cadena(string propiedad) =>
+            raiz.TryGetProperty(propiedad, out var valor) && valor.ValueKind == JsonValueKind.String &&
+            !string.IsNullOrWhiteSpace(valor.GetString())
+                ? valor.GetString()!.Trim()
+                : null;
+
+        var sb = new StringBuilder(esCorrecta.GetBoolean() ? "**Correcta.**" : "**Incorrecta.**");
+
+        if (!esCorrecta.GetBoolean() && Cadena("alternativa_correcta") is string correcta)
+            sb.Append($" La respuesta correcta es **{correcta}**.");
+
+        if (Cadena("justificacion") is string justificacion) sb.Append($"\n\n{justificacion}");
+
+        return sb.ToString();
+    }
+
     /// <summary>La nota tal como la calculó el servidor al cerrar el intento.</summary>
     public static string Nota(string resultadoJson)
     {

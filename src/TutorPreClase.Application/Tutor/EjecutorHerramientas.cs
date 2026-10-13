@@ -131,6 +131,7 @@ public sealed class EjecutorHerramientas(
             registrada = registro.Registrada,
             es_correcta = registro.EsCorrecta,
             justificacion = registro.Justificacion,
+            alternativa_correcta = registro.AlternativaCorrecta,
             quedan_preguntas = registro.QuedanPreguntas
         });
     }

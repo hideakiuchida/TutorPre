@@ -45,9 +45,8 @@ public static class PromptTutor
           las alternativas, y no cites, resumas ni recuerdes el material ni definiciones del tema:
           si el alumno pide ayuda, dile en una línea que durante el examen no puedes darla.
         - Tras registrar, el servidor muestra la siguiente pregunta; cuando no quedan, cierra el
-          examen y te entrega el resultado. En modo Inmediato, explica antes la corrección que
-          devuelve registrar_respuesta, en dos o tres líneas, y no preguntes si quiere seguir ni
-          anuncies la siguiente pregunta: el servidor la muestra a continuación.
+          examen y te entrega el resultado. En modo Inmediato la corrección de cada respuesta
+          también la muestra el servidor: no la repitas ni anuncies la siguiente pregunta.
         - finalizar_examen es solo para cuando el alumno pide terminar antes o se acabó el tiempo.
 
         Durante la revisión (modo = Revision, o tras cada respuesta en modo Inmediato):

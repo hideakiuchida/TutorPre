@@ -33,7 +33,8 @@ public sealed record RegistroRespuestaDto(
     bool Registrada,
     bool? EsCorrecta,
     string? Justificacion,
-    bool QuedanPreguntas);
+    bool QuedanPreguntas,
+    string? AlternativaCorrecta = null);
 
 /// <summary>Error de negocio; se devuelve al agente como resultado de la herramienta.</summary>
 public sealed class ExamenException(string codigo, string mensaje) : Exception(mensaje)

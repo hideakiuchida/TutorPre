@@ -6,7 +6,7 @@
 
 | ID | Requisito | Prioridad |
 | --- | --- | --- |
-| RF-01 | El docente crea una clase con fecha/hora de inicio. La fecha es **solo informativa**: todas las clases del curso están abiertas para el alumno desde que existen (chat, material y examen), sin fechas que las habiliten ni las cierren | Alta |
+| RF-01 | El docente crea una clase con fecha/hora de inicio. La fecha es **solo informativa**: todas las clases del curso están abiertas para el alumno desde que existen (chat, material y examen), sin fechas que las habiliten ni las cierren. En las listas salen en el orden del curso (el número de su carpeta: M1, M2, … M10), no por fecha | Alta |
 | RF-02 | El docente sube el contenido copiándolo a la carpeta de contenido, una subcarpeta por clase (PDF, PPTX, DOCX, XLSX, MD, TXT); lo que quita de la carpeta se retira de la clase | Alta |
 | RF-03 | El sistema extrae el texto del contenido automáticamente al subirlo, conservando archivo y página | Alta |
 | RF-04 | La IA genera un examen propio para cada alumno en cada intento, a partir del material de la clase y con su propio criterio, **pregunta a pregunta**: al empezar solo la primera, y cada siguiente mientras el alumno responde la anterior, sin repetir lo ya preguntado. El docente no escribe ni aprueba preguntas | Alta |

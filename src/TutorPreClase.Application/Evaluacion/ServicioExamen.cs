@@ -145,9 +145,12 @@ public sealed class ServicioExamen(IAppDbContext db, IRelojSistema reloj, INivel
         var quedan = Total(examen, intento) > intento.Respuestas.Count;
 
         // En modo AlFinal el agente no recibe la corrección: solo "registrada" (RF-15).
-        return examen.ModoFeedback == ModoFeedback.Inmediato
-            ? new RegistroRespuestaDto(true, alternativa.EsCorrecta, pregunta.Justificacion, quedan)
-            : new RegistroRespuestaDto(true, null, null, quedan);
+        if (examen.ModoFeedback != ModoFeedback.Inmediato)
+            return new RegistroRespuestaDto(true, null, null, quedan);
+
+        var correcta = pregunta.Alternativas.First(a => a.EsCorrecta);
+        return new RegistroRespuestaDto(
+            true, alternativa.EsCorrecta, pregunta.Justificacion, quedan, $"{correcta.Letra}) {correcta.Texto}");
     }
 
     public async Task<int> ReiniciarIntentosAsync(Guid claseId, Guid alumnoId, CancellationToken ct = default)

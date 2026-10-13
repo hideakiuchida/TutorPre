@@ -73,7 +73,8 @@ public static class EndpointsAlumno
             var clases = await db.Clases
                 .AsNoTracking()
                 .Where(c => cursos.Contains(c.CursoId))
-                .OrderBy(c => c.Inicio)
+                // En el orden del curso (M1, M2…), no por fecha: una clase añadida después tiene fecha posterior.
+                .OrderBy(c => c.Curso!.Codigo).ThenBy(c => c.Orden).ThenBy(c => c.Titulo)
                 .Select(c => new
                 {
                     claseId = c.Id,

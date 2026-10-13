@@ -295,10 +295,12 @@ public sealed class AgenteTutorService(
         // sola o el texto de una única alternativa. Lo demás lo interpreta el tutor.
         LlamadaHerramienta? delServidor = null;
         var soloPresentar = false;
+        var correccionEscrita = false;
+        PreguntaDto? aLaVista = null;
 
         if (conversacion is { Modo: ModoConversacion.Evaluacion, IntentoId: Guid conPregunta })
         {
-            var aLaVista = await PreguntaALaVistaAsync(conPregunta, historial, ct);
+            aLaVista = await PreguntaALaVistaAsync(conPregunta, historial, ct);
             soloPresentar = aLaVista is null && !GuionExamen.PideTerminar(mensaje);
 
             var letra = aLaVista is null ? null
@@ -469,16 +471,34 @@ public sealed class AgenteTutorService(
             }
 
             // Cerrar con preguntas pendientes solo si lo pide el alumno o se acabó el tiempo:
-            // que el modelo lo decida por su cuenta le costaría la nota.
-            var resultado =
+            // que el modelo lo decida por su cuenta le costaría la nota. Un mensaje que ya se
+            // registró como respuesta no es un pedido de terminar, diga lo que diga.
+            var cierreIndebido =
                 llamada!.Nombre == Herramientas.FinalizarExamen && enExamen && intento is not null &&
-                !GuionExamen.PideTerminar(mensaje) && await QuedanPreguntasConTiempoAsync(intento, ct)
+                (registroOk || !GuionExamen.PideTerminar(mensaje)) && await QuedanPreguntasConTiempoAsync(intento, ct);
+
+            // Solo se responde la pregunta que el alumno tiene delante, y una por mensaje: la
+            // siguiente ya puede estar preparada y registrarla sería contestarla sin que la viera.
+            var registroIndebido =
+                llamada.Nombre == Herramientas.RegistrarRespuesta && enExamen && (registroOk || aLaVista is null);
+
+            var resultado =
+                cierreIndebido
                     ? await GuardarAsync(conversacion, agente, new ResultadoHerramienta(
                         llamada.Nombre,
                         JsonSerializer.Serialize(new
                         {
                             error = "quedan_preguntas",
                             mensaje = "Aún quedan preguntas y el alumno no pidió terminar. Sigue con obtener_siguiente_pregunta."
+                        }),
+                        Ok: false), ct)
+                : registroIndebido
+                    ? await GuardarAsync(conversacion, agente, new ResultadoHerramienta(
+                        llamada.Nombre,
+                        JsonSerializer.Serialize(new
+                        {
+                            error = "sin_pregunta_a_la_vista",
+                            mensaje = "El alumno no tiene delante una pregunta sin responder: no hay nada que registrar."
                         }),
                         Ok: false), ct)
                     : await EjecutarYGuardarAsync(conversacion, agente, llamada.Nombre, llamada.Argumentos, ct);
@@ -494,6 +514,16 @@ public sealed class AgenteTutorService(
                 intentoRegistrar = true;
                 registradaAhora = resultado.Ok && GuionExamen.Verdadero(json, "registrada");
                 registroOk |= registradaAhora;
+
+                // Con feedback inmediato la corrección la escribe el servidor con lo que devolvió
+                // la herramienta: sale en todas las respuestas, comente o no el modelo.
+                if (registradaAhora && GuionExamen.Correccion(json) is string correccion)
+                {
+                    var bloque = Parrafo(textoFinal, correccion);
+                    textoFinal.Append(bloque);
+                    yield return new EventoToken(bloque);
+                    correccionEscrita = true;
+                }
 
                 // Sin nada más que responder, el examen lo cierra el servidor (RF-09).
                 if (registradaAhora && !GuionExamen.Verdadero(json, "quedan_preguntas"))
@@ -557,12 +587,17 @@ public sealed class AgenteTutorService(
                 break;
             }
 
-            // Con el feedback al final no hay nada que comentar: se pasa a la siguiente.
-            if (registradaAhora && feedback == ModoFeedback.AlFinal)
+            // Registrada la respuesta, el turno termina aquí y el servidor pasa a la siguiente:
+            // con feedback al final no hay nada que comentar, y con el inmediato la corrección
+            // ya quedó escrita arriba.
+            if (registradaAhora)
             {
-                var bloque = Parrafo(textoFinal, GuionExamen.Registrada);
-                textoFinal.Append(bloque);
-                yield return new EventoToken(bloque);
+                if (!correccionEscrita)
+                {
+                    var bloque = Parrafo(textoFinal, GuionExamen.Registrada);
+                    textoFinal.Append(bloque);
+                    yield return new EventoToken(bloque);
+                }
                 break;
             }
         }

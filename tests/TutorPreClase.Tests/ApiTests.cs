@@ -172,6 +172,32 @@ public class ApiTests
     }
 
     [Fact]
+    public async Task Las_clases_salen_en_el_orden_del_curso_aunque_se_hayan_creado_despues()
+    {
+        using var api = new ApiDePruebas();
+        var (_, alumnoId, _, claseId) = api.Sembrar();
+
+        // M7 se subió antes que M6: su fecha es anterior, pero va después en la lista.
+        using (var db = api.NuevoContexto())
+        {
+            var sembrada = db.Clases.Single(c => c.Id == claseId);
+            sembrada.Orden = 1;
+            sembrada.Inicio = DateTimeOffset.UtcNow.AddDays(1);
+
+            db.Clases.Add(new TutorPreClase.Domain.Entidades.Clase { CursoId = sembrada.CursoId, Titulo = "M7 - Componentes", Orden = 7, Inicio = DateTimeOffset.UtcNow.AddDays(8) });
+            db.Clases.Add(new TutorPreClase.Domain.Entidades.Clase { CursoId = sembrada.CursoId, Titulo = "M10 - Cierre", Orden = 10, Inicio = DateTimeOffset.UtcNow.AddDays(9) });
+            db.Clases.Add(new TutorPreClase.Domain.Entidades.Clase { CursoId = sembrada.CursoId, Titulo = "M6 - Clasificación", Orden = 6, Inicio = DateTimeOffset.UtcNow.AddDays(30) });
+            db.SaveChanges();
+        }
+
+        var clases = await api.Como(alumnoId, "Alumno").GetFromJsonAsync<JsonElement>("/api/v1/alumno/clases");
+        var titulos = clases.EnumerateArray().Select(c => c.GetProperty("titulo").GetString()).ToList();
+
+        Assert.Equal(4, titulos.Count);
+        Assert.Equal(["M6 - Clasificación", "M7 - Componentes", "M10 - Cierre"], titulos.Skip(1));
+    }
+
+    [Fact]
     public async Task Una_clase_con_fecha_futura_esta_abierta_y_solo_el_profesor_reinicia_intentos()
     {
         using var api = new ApiDePruebas();

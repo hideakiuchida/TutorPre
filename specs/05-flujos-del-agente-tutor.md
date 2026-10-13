@@ -26,7 +26,7 @@ flowchart LR
     F --> R[(Reporte del docente)]
 ```
 
-*Flujo en modo Al final.* En modo *Inmediato* el tutor explica cada error apenas se registra la respuesta; en modo *Al final* (por defecto) espera al cierre del examen para no influir en las respuestas siguientes. El docente elige el modo por examen.
+*Flujo en modo Al final.* En modo *Inmediato* el servidor muestra la corrección apenas se registra cada respuesta (si acertó, cuál era la correcta y la justificación guardada con la pregunta); en modo *Al final* (por defecto) espera al cierre del examen para no influir en las respuestas siguientes. El docente elige el modo por examen.
 
 ## 5.0 Inicio de sesión y rol
 
@@ -116,7 +116,8 @@ Con el examen listo, la conversación sigue igual:
 1. El agente llama a `obtener_siguiente_pregunta` y **el servidor presenta la pregunta**: escribe en el chat el enunciado y las alternativas A–D tal como están guardados (`GuionExamen`). El modelo no las redacta ni las repite, así que no puede reformularlas ni inventar una.
 2. El alumno responde en lenguaje natural ("creo que es la B", "ReLU"); el agente identifica la alternativa y, si hay ambigüedad, pide confirmación. Con la alternativa clara llama a `registrar_respuesta`; desde ese momento la respuesta es inmutable.
 3. **Una letra sola no espera al modelo.** Si el mensaje es solo una alternativa ("B", "la c", "creo que es la A") y la pregunta está a la vista, la registra el servidor directamente: el progreso es inmediato (RNF-01) y no gasta cupo.
-4. Tras registrar, el servidor escribe "Registrada." y entrega la siguiente pregunta. Con feedback *Inmediato*, antes el agente explica la corrección que devuelve la herramienta.
+4. Tras registrar, el servidor escribe "Registrada." y entrega la siguiente pregunta. Con feedback *Inmediato*, en lugar de "Registrada." el servidor escribe la corrección —**Correcta.** o **Incorrecta.** con la alternativa correcta, y la justificación de la pregunta con su cita— en **todas** las respuestas, también en la última antes de la nota: no depende de que el modelo la comente (`GuionExamen.Correccion`).
+5. **Un mensaje registra una sola respuesta, y solo la de la pregunta que el alumno tiene delante.** Registrada la respuesta, el turno termina y el servidor presenta la siguiente; una segunda llamada a `registrar_respuesta` en el mismo mensaje, o una sin pregunta a la vista, se rechaza (`sin_pregunta_a_la_vista`). Así la pregunta que ya estaba preparada en segundo plano no se contesta sin que el alumno la vea, y el examen no se cierra antes de la última. Un mensaje que se registró como respuesta tampoco cuenta como pedido de terminar, aunque contenga palabras como «terminal» o «final».
 5. **El servidor cierra el examen** al registrar la última respuesta: califica, pasa el chat a Revisión y le entrega el resultado al agente para la evaluación final (§5.4). Si el agente no llega a escribirla, la retroalimentación la escribe el servidor: el alumno nunca se queda solo con la nota. El agente solo puede llamar a `finalizar_examen` con preguntas pendientes si el alumno pidió terminar o se acabó el tiempo.
 6. La lista de clases le muestra al alumno cómo va en cada examen: los intentos usados del tope de la clase, también antes de rendir (`0 de 3 intentos`), y su mejor nota (`Nota 16.7 · 2 de 3 intentos`); al agotarlos, la etiqueta dice *Sin intentos disponibles* y desaparece el botón *Comenzar examen*.
 7. Si el alumno pide la respuesta, pistas o una explicación durante el examen, el agente se niega en una línea. Con feedback *AlFinal* el material no viaja en el prompt del examen: no tiene de dónde citar una pista.
@@ -197,7 +198,7 @@ El agente nunca recibe la respuesta correcta antes de que el alumno responda: el
 | Herramienta | Modo | Qué hace | Devuelve |
 | --- | --- | --- | --- |
 | obtener_siguiente_pregunta | Evaluación | Siguiente pregunta pendiente del intento | Enunciado y alternativas A–D, sin la correcta |
-| registrar_respuesta(pregunta_id, alternativa) | Evaluación | Guarda la respuesta del alumno | Inmediato: correcta o no + justificación; Al final: solo "registrada" |
+| registrar_respuesta(pregunta_id, alternativa) | Evaluación | Guarda la respuesta del alumno | Inmediato: correcta o no + alternativa correcta + justificación; Al final: solo "registrada" |
 | obtener_progreso | Evaluación | Estado del intento | Respondidas, total, tiempo restante |
 | finalizar_examen | Evaluación | Cierra y califica el intento | Nota, correctas, total y detalle de fallos |
 | obtener_resultado | Revisión | Relee la nota y el detalle cuando el alumno los pide | Nota, correctas, total y fallos |
