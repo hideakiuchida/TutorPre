@@ -7,9 +7,11 @@ documento compara esas opciones en tiempo de respuesta, coherencia y costo.
 **Qué tan firme es cada dato.** Las mediciones salen de llamadas reales registradas en
 los logs de Railway entre el 30 de septiembre y el 3 de octubre de 2026 (la línea
 `LLM <proveedor> <modelo>: primer token … ms, total … ms, entrada …, salida …`), más lo
-observado en pantalla durante la prueba funcional del 3 de octubre. **Solo hay mediciones
-de una opción**: Gemini con la cuenta de Google. Las demás figuran con su
-precio de lista y sin datos de velocidad ni de calidad; no se rellenaron con suposiciones.
+observado en pantalla durante la prueba funcional del 3 de octubre. **Solo hay mediciones largas
+de una opción**: Gemini con la cuenta de Google. De ChatGPT (`gpt-6-luna`) hay una sola
+corrida, la prueba funcional del 12 de octubre en producción, vista en pantalla y sin leer
+los logs. Las demás figuran con su precio de lista y sin datos de velocidad ni de calidad;
+no se rellenaron con suposiciones.
 
 ## Resumen
 
@@ -28,7 +30,7 @@ precio de lista y sin datos de velocidad ni de calidad; no se rellenaron con sup
 | Opción en Mi tutor | Modelo | Primer token | Generar una pregunta | Coherencia en el examen | Coherencia en las dudas | Fallos observados | Costo |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | **Gemini** con la cuenta de Google | `gemini-3.1-flash-lite` (las mediciones son de `gemini-3.8-flash`, el modelo anterior) | 2,3–8,4 s (mediana ~5,6 s); la respuesta llega toda junta | 5,1–7,3 s | Preguntas de aplicación, bien redactadas. Negó la pista sin filtrar nada | Concisa y con citas | 503 por alta demanda (4 veces); cupo de 20 solicitudes agotado a mitad de un examen | Gratis, con ese tope |
-| **ChatGPT** con clave de API | `gpt-6-luna` | Sin datos | Sin datos | Sin datos | Sin datos | Con el modelo anterior (`gpt-5-mini`) todas las llamadas fallaron: primero la cuenta sin créditos (429) y luego parámetros que el modelo rechaza (400), ya corregidos | 0,10 USD de entrada y 0,50 USD de salida por millón de tokens |
+| **ChatGPT** con clave de API | `gpt-6-luna` | 2,5–3,9 s en pantalla (una sola corrida, 12 de octubre) | Sin datos de log; en pantalla, la primera pregunta llegó en menos de 10 s y las siguientes ya estaban preparadas | Preguntas de aplicación coherentes sobre la infografía de M5; negó la pista sin citar el material | Concisa y con cita válida; declinó lo ajeno al curso | Ninguno en esa corrida. Con el modelo anterior (`gpt-5-mini`) todas las llamadas fallaron: primero la cuenta sin créditos (429) y luego parámetros que el modelo rechaza (400), ya corregidos | 0,10 USD de entrada y 0,50 USD de salida por millón de tokens |
 | **Claude** con clave de API | `claude-haiku-5-5` | Sin datos | Sin datos | Sin datos | Sin datos | Con el modelo anterior (`claude-haiku-4-5`) el chat respondió, pero generar el examen falló por una lista de herramientas vacía (400), ya corregido | 0,10 USD de entrada y 0,50 USD de salida por millón; 5 veces más en llamadas de más de 100 000 tokens |
 | **Gemini** con clave de AI Studio | `gemini-3.1-flash-lite` | Sin datos | Sin datos | Sin datos | Sin datos | Con el modelo anterior: 503 por alta demanda y cupo gratuito agotado | Gratis con el cupo diario de Google; de pago, 0,25 USD y 1,50 USD por millón. Google lo retira el 7 de mayo de 2027 (reemplazo: `gemini-3.5-flash-lite`, 0,30 y 2,50 USD) |
 | **Su asistente por MCP** (Claude Code, Claude Desktop, Cursor) | El de su suscripción | Sin datos | La genera la IA conectada en la web | Sin datos | Sin datos | Solo se probó el protocolo: conexión, lista de herramientas y lista de clases | El chat lo paga su suscripción; las preguntas, la IA conectada |

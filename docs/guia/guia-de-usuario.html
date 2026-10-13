@@ -133,7 +133,7 @@
         <li>Leer los resultados</li>
       </ol>
       <h3>Al final</h3>
-      <ol><li>Tu privacidad y tus claves</li></ol>
+      <ol><li>Qué IA elegir y cuánto cuesta</li><li>Tu privacidad y tus claves</li></ol>
     </div>
   </div>
 </section>
@@ -353,7 +353,7 @@
     <tr><td>Preguntas por examen</td><td>3 a 20</td><td>Cuántas preguntas recibe cada alumno.</td></tr>
     <tr><td>Intentos por alumno</td><td>1 a 10</td><td>Cuántas veces puede rendirlo. Vale su mejor nota.</td></tr>
     <tr><td>Minutos por intento</td><td>5 a 240, o <i>Sin límite de tiempo</i></td><td>El reloj que ve el alumno.</td></tr>
-    <tr><td>La corrección se muestra</td><td><i>Al terminar el examen</i> o <i>Tras cada respuesta</i></td><td>Al terminar mide mejor lo que ya sabían; tras cada respuesta enseña mientras rinden.</td></tr>
+    <tr><td>La corrección se muestra</td><td><i>Al terminar el examen</i> o <i>Tras cada respuesta</i></td><td>Al terminar mide mejor lo que ya sabían; tras cada respuesta enseña mientras rinden: después de cada una el alumno ve si acertó, cuál era la correcta y por qué.</td></tr>
     <tr><td>Permitir que el tutor amplíe fuera del material</td><td>Apagado (por defecto) o encendido</td><td>Apagado, el tutor se limita a tu material. Encendido, puede explicar más, siempre marcado como <i>Fuera del material</i>.</td></tr>
   </table>
   <p>El examen no tiene fechas: cada alumno lo rinde cuando quiera.</p>
@@ -370,6 +370,61 @@
     <li><b>Temas en que más falló el grupo</b>, para decidir por dónde empezar la sesión.</li>
     <li><b>Dudas que tu material no cubrió:</b> lo que tus alumnos preguntaron y no estaba en lo que subiste.</li>
   </ul>
+</section>
+
+<section>
+  <h2>Qué IA elegir y cuánto cuesta</h2>
+  <p>La plataforma no cobra ni usa una clave compartida: cada persona estudia con <b>su propia IA</b>, así que el consumo es suyo. Hoy se puede elegir entre tres modelos, cada proveedor con el más económico de los suyos.</p>
+  <table>
+    <tr><th style="width:24%">Opción en <i>Mi tutor</i></th><th style="width:21%">Modelo</th><th style="width:27%">Precio</th><th>Límite que vas a notar</th></tr>
+    <tr><td><b>Gemini</b><br>(clave de AI Studio o cuenta de Google)</td><td><code>gemini-3.1-flash-lite</code></td><td><b>Gratis</b> con el cupo diario de Google.<br>De pago: 0,25 USD de entrada y 1,50 USD de salida por millón de tokens.</td><td>Unas 20 solicitudes gratis al día por cuenta, y a ratos el modelo está saturado. Un examen de 6 preguntas usa 7 u 8 solicitudes.</td></tr>
+    <tr><td><b>ChatGPT</b><br>(clave de OpenAI)</td><td><code>gpt-6-luna</code></td><td>0,10 USD de entrada y 0,50 USD de salida por millón de tokens.</td><td>El saldo de tu cuenta de OpenAI. La suscripción Plus o Pro no incluye la clave de API.</td></tr>
+    <tr><td><b>Claude</b><br>(clave de Anthropic)</td><td><code>claude-haiku-5-5</code></td><td>0,10 USD de entrada y 0,50 USD de salida por millón de tokens.</td><td>El saldo de tu cuenta de Anthropic. La suscripción de Claude no incluye la clave de API.</td></tr>
+    <tr><td><b>Tu asistente</b><br>(Claude Code, Claude Desktop…)</td><td>El de tu suscripción</td><td>La conversación la cubre tu suscripción.</td><td>Las preguntas del examen las sigue generando la IA que tengas conectada en la web.</td></tr>
+  </table>
+
+  <h3>Cuánto consume cada cosa que haces</h3>
+  <p>Un <i>token</i> es más o menos tres cuartos de palabra. La IA cobra por lo que lee (entrada: el material de la clase y tu mensaje) y por lo que escribe (salida). Por eso pesa más una clase con mucho material que una infografía.</p>
+  <table>
+    <tr><th style="width:34%">Uso</th><th style="width:20%">Gemini gratis</th><th style="width:15%">ChatGPT</th><th style="width:15%">Claude</th><th>Gemini de pago</th></tr>
+    <tr><td><b>Una duda</b> sobre el material</td><td>1 solicitud</td><td>0,0005 USD</td><td>0,0005 USD</td><td>0,0014 USD</td></tr>
+    <tr><td><b>Una duda</b> que el material no cubre</td><td>2 solicitudes</td><td>0,002 USD</td><td>0,002 USD</td><td>0,006 USD</td></tr>
+    <tr><td><b>Examen</b> de 6 preguntas, clase de una infografía</td><td>7 u 8 solicitudes</td><td>0,003 USD</td><td>0,003 USD</td><td>0,009 USD</td></tr>
+    <tr><td><b>Examen</b> de 6 preguntas, clase con mucho material (M1, 59 páginas)</td><td>7 u 8 solicitudes</td><td>0,013 USD</td><td>0,013 USD</td><td>0,035 USD</td></tr>
+  </table>
+  <p>Dicho de otra forma: con <b>1 dólar</b> en ChatGPT o Claude alcanza para unos 75 exámenes de la clase más grande o unas 2 000 dudas. Con Gemini gratis, el cupo de un día da para dos exámenes y unas pocas dudas.</p>
+
+  <div class="dos">
+    <div>
+      <h3>En el examen</h3>
+      <ul>
+        <li><b>Lo que consume es generar las preguntas:</b> una llamada por pregunta, y en cada una viaja el material de la clase. Un examen de 10 preguntas gasta casi el doble que uno de 6.</li>
+        <li><b>Responder no consume:</b> si escribes la letra o el texto de una alternativa, la registra la plataforma sin llamar a la IA. Solo una respuesta ambigua necesita que la IA la interprete.</li>
+        <li><b>La corrección tampoco consume:</b> la nota y, si tu profesor lo activó, la corrección tras cada respuesta las escribe la plataforma.</li>
+        <li>Al final hay una llamada más, para tu evaluación.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Al resolver dudas</h3>
+      <ul>
+        <li><b>Cada mensaje es una llamada.</b> En una clase grande solo viajan las páginas relacionadas con tu pregunta, no todo el material.</li>
+        <li>Una duda que el material no cubre cuesta dos llamadas: la IA primero comprueba que no está y la deja anotada para tu profesor.</li>
+        <li>Repasar los errores del examen consume como una duda por mensaje.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Cuál conviene</h3>
+  <table>
+    <tr><th style="width:38%">Si tu caso es…</th><th>Te conviene</th></tr>
+    <tr><td>Empezar sin pagar, con un examen o dos al día</td><td><b>Gemini</b> con tu clave gratuita de AI Studio.</td></tr>
+    <tr><td>Rendir varios exámenes el mismo día, o el cupo se te acaba a mitad de uno</td><td><b>ChatGPT o Claude</b> con unos pocos dólares de saldo: no tienen tope diario y cada examen cuesta alrededor de un centavo.</td></tr>
+    <tr><td>No quedarte detenido en pleno examen</td><td><b>Conecta dos IA.</b> Si la del examen se queda sin cupo, la siguiente pregunta se genera con la otra y el reloj no corre en vano.</td></tr>
+    <tr><td>Ya pagas un asistente (Claude Code, Claude Desktop)</td><td>Estudia <b>desde tu asistente</b>: las dudas no gastan nada extra; solo las preguntas del examen usan la IA conectada en la web.</td></tr>
+  </table>
+
+  <div class="nota"><b>Qué tan firmes son estos números</b>Los precios son los de lista de cada proveedor al 12 de octubre de 2026 y pueden cambiar. Los costos por uso son <b>estimaciones</b>: los tokens medidos con el material real del curso, multiplicados por ese precio; cada modelo consume algo distinto. En velocidad y calidad solo hay mediciones largas de Gemini (la primera palabra llega entre 2 y 8 segundos, y a veces responde «saturado»). De ChatGPT hay una sola corrida completa: respondió en 2 a 4 segundos, con preguntas coherentes y citas al material. De Claude todavía no hay mediciones en el tutor.</div>
+  <div class="tip"><b>Si eres profesor</b>Lo que ajustas en <i>Examen y tutor</i> cambia el consumo de cada alumno: más preguntas por examen y más intentos son más llamadas, y con Gemini gratis un examen de 10 preguntas se lleva más de la mitad del cupo diario. Los <i>apuntes de la IA</i> usan tu propia cuenta una sola vez por archivo (unas 4 llamadas para un documento largo y 1 por infografía) y después abaratan cada duda de tus alumnos.</div>
 </section>
 
 <section>
