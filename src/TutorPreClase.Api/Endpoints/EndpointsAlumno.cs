@@ -355,6 +355,28 @@ public static class EndpointsAlumno
             });
         });
 
+        // Cancelar el examen en curso: no cuenta como intento y su contenido sale del chat.
+        grupo.MapDelete("/conversaciones/{conversacionId:guid}/examen", async (
+            Guid conversacionId, HttpContext http, IAgenteTutorService tutor, IAppDbContext db, CancellationToken ct) =>
+        {
+            if (!await EsDueñoAsync(db, conversacionId, http.User.Id(), ct))
+                return Results.Forbid();
+
+            var conversacion = await tutor.CancelarExamenAsync(conversacionId, ct);
+            return Results.Ok(new { modo = conversacion.Modo.ToString() });
+        });
+
+        // Reiniciar el chat: borra los mensajes; los intentos y las notas se conservan.
+        grupo.MapDelete("/conversaciones/{conversacionId:guid}/mensajes", async (
+            Guid conversacionId, HttpContext http, IAgenteTutorService tutor, IAppDbContext db, CancellationToken ct) =>
+        {
+            if (!await EsDueñoAsync(db, conversacionId, http.User.Id(), ct))
+                return Results.Forbid();
+
+            var conversacion = await tutor.ReiniciarConversacionAsync(conversacionId, ct);
+            return Results.Ok(new { modo = conversacion.Modo.ToString() });
+        });
+
         grupo.MapGet("/intentos/{intentoId:guid}/resultado", async (
             Guid intentoId, HttpContext http, IServicioExamen examen, IAppDbContext db, CancellationToken ct) =>
         {

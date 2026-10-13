@@ -47,6 +47,8 @@ API versionada bajo `/api/v1`, autenticada con la sesión que emite la propia AP
 | GET | /conversaciones/{conversacionId}/mensajes | Alumno | Historial del chat (para recargar la página) |
 | PUT | /conversaciones/{conversacionId}/agente | Alumno | Cambia la IA con la que conversa («Conversas con» en *Mi tutor*) por otra que tenga conectada; bloqueado durante el examen |
 | POST | /conversaciones/{conversacionId}/examen | Alumno | Inicia el intento y pasa el chat a modo Evaluación |
+| DELETE | /conversaciones/{conversacionId}/examen | Alumno | Cancela el examen en curso: borra el intento (no cuenta ni deja nota) y los mensajes del examen. `409 sin_examen_en_curso` si no hay ninguno |
+| DELETE | /conversaciones/{conversacionId}/mensajes | Alumno | Reinicia el chat: borra sus mensajes y conserva intentos y notas. `409 examen_en_curso` durante el examen |
 | GET | /intentos/{intentoId}/resultado | Alumno | Nota y detalle por pregunta (solo tras enviar) |
 | GET | /clases/{claseId}/reporte | Docente | Promedio, distribución de notas y niveles, temas más fallados, temas débiles, dudas fuera del material y uso por modelo |
 | GET | /clases/{claseId}/niveles | Docente | Nivel vigente y temas débiles por alumno |

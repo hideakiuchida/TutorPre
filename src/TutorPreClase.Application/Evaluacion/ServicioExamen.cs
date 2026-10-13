@@ -27,6 +27,12 @@ public interface IServicioExamen
     Task<int> ReiniciarIntentosAsync(Guid claseId, Guid alumnoId, CancellationToken ct = default);
 
     /// <summary>
+    /// Borra un intento en curso con sus preguntas y respuestas, como si no se hubiera
+    /// empezado: no consume intento ni deja nota. Uno ya enviado no se puede cancelar.
+    /// </summary>
+    Task CancelarIntentoAsync(Guid intentoId, CancellationToken ct = default);
+
+    /// <summary>
     /// Detiene el reloj del intento (la siguiente pregunta no se pudo preparar) o lo pone a
     /// correr otra vez (ya hay pregunta). El tiempo en pausa no se le descuenta al alumno.
     /// </summary>
@@ -181,6 +187,25 @@ public sealed class ServicioExamen(IAppDbContext db, IRelojSistema reloj, INivel
         await db.SaveChangesAsync(ct);
 
         return intentos.Count;
+    }
+
+    public async Task CancelarIntentoAsync(Guid intentoId, CancellationToken ct = default)
+    {
+        var intento = await db.Intentos
+            .Include(i => i.Respuestas)
+            .FirstOrDefaultAsync(i => i.Id == intentoId, ct)
+            ?? throw new ExamenException("intento_no_encontrado", "No existe el intento.");
+
+        if (intento.Estado != EstadoIntento.EnCurso)
+            throw new ExamenException("examen_cerrado", "El examen ya terminó: no se puede cancelar.");
+
+        // Primero las respuestas, que apuntan a las preguntas; luego las preguntas del intento.
+        db.Respuestas.RemoveRange(intento.Respuestas);
+        await db.SaveChangesAsync(ct);
+
+        db.Preguntas.RemoveRange(await db.Preguntas.Where(p => p.IntentoId == intentoId).ToListAsync(ct));
+        db.Intentos.Remove(intento);
+        await db.SaveChangesAsync(ct);
     }
 
     public async Task<ProgresoDto> ProgresoAsync(Guid intentoId, CancellationToken ct = default)

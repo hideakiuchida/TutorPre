@@ -61,10 +61,19 @@
             {{ tutorActivo() ? 'Cambiar' : 'Conectar' }}
           </button>
         </p>
+        @if (!enExamen() && mensajes().length && conversacionId()) {
+          <button class="enlace" [disabled]="preparandoExamen() || enviando() || borrando()"
+                  (click)="porConfirmar.set('reiniciar-chat')">Reiniciar chat</button>
+        }
         <button class="enlace" (click)="salir()">Salir</button>
 
-        @if (!enExamen() && examenDisponible() && !sinAgente()) {
-          <button class="principal" [disabled]="preparandoExamen() || enviando()" (click)="comenzarExamen()">
+        <!-- El mismo botón empieza el examen y, mientras se rinde, lo cancela. -->
+        @if (enExamen()) {
+          <button class="principal" [disabled]="enviando() || borrando()" (click)="porConfirmar.set('cancelar-examen')">
+            Cancelar examen
+          </button>
+        } @else if (examenDisponible() && !sinAgente()) {
+          <button class="principal" [disabled]="preparandoExamen() || enviando() || borrando()" (click)="comenzarExamen()">
             {{ preparandoExamen() ? 'Preparando…' : 'Comenzar examen' }}
           </button>
         }
@@ -88,6 +97,25 @@
             }
           </p>
         }
+      </div>
+    }
+
+    <!-- Las dos acciones borran y no se deshacen: se confirman aquí mismo, sin ventana aparte. -->
+    @if (porConfirmar(); as accion) {
+      <div class="confirmacion" role="alertdialog" aria-label="Confirmar">
+        <p>
+          @if (accion === 'cancelar-examen') {
+            ¿Cancelar el examen? No contará como intento ni tendrá nota, y todo lo del examen se borrará del chat.
+          } @else {
+            ¿Reiniciar el chat? Se borrarán todos los mensajes de esta clase. Tus notas e intentos se conservan.
+          }
+        </p>
+        <button type="button" class="principal" [disabled]="borrando() || enviando()" (click)="confirmar()">
+          {{ borrando() ? 'Borrando…' : accion === 'cancelar-examen' ? 'Sí, cancelar el examen' : 'Sí, reiniciar' }}
+        </button>
+        <button type="button" class="enlace" [disabled]="borrando()" (click)="porConfirmar.set('')">
+          {{ accion === 'cancelar-examen' ? 'Seguir con el examen' : 'No' }}
+        </button>
       </div>
     }
 

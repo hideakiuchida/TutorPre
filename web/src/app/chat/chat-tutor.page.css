@@ -23,6 +23,22 @@
   color: var(--tapa);
 }
 
+/* Confirmar antes de borrar: una franja bajo la cabecera, con el rojo de lapicero. */
+.confirmacion {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 1.5rem;
+  border-left: 3px solid var(--lapicero);
+  background: color-mix(in srgb, var(--lapicero) 7%, var(--papel));
+}
+
+.confirmacion p {
+  flex: 1 1 18rem;
+  margin: 0;
+}
+
 /* Columna flexible: "Mi tutor" es una fila que aparece y desaparece encima del chat. */
 .chat {
   display: flex;

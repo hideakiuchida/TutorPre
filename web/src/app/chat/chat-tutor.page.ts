@@ -103,6 +103,10 @@ export class ChatTutorPage {
   readonly mensajes = signal<Mensaje[]>([]);
   readonly enviando = signal(false);
   readonly preparandoExamen = signal(false);
+
+  /** Lo que el alumno pidió y aún no confirmó: ambas acciones borran y no se deshacen. */
+  readonly porConfirmar = signal<'cancelar-examen' | 'reiniciar-chat' | ''>('');
+  readonly borrando = signal(false);
   readonly novedad = signal('');
   readonly error = signal<string>('');
   readonly borrador = signal('');
@@ -418,6 +422,7 @@ export class ChatTutorPage {
     this.error.set('');
     this.novedad.set('');
     this.porReintentar.set('');
+    this.porConfirmar.set('');
     this.fijarProgreso(null);
     guardarClaseAbierta(clase.claseId);
 
@@ -499,6 +504,35 @@ export class ChatTutorPage {
       }
     } finally {
       this.preparandoExamen.set(false);
+    }
+  }
+
+  /**
+   * Cancela el examen en curso o reinicia el chat, según lo que confirmó. Después el chat se
+   * vuelve a leer del servidor: es quien decide qué quedó.
+   */
+  async confirmar(): Promise<void> {
+    const accion = this.porConfirmar();
+    const clase = this.claseActiva();
+    if (!accion || !clase || this.borrando() || this.enviando()) return;
+
+    this.borrando.set(true);
+    this.error.set('');
+
+    try {
+      if (accion === 'cancelar-examen') await this.api.cancelarExamen(this.conversacionId());
+      else await this.api.reiniciarChat(this.conversacionId());
+
+      await this.abrir(clase);
+      void this.refrescarClases();
+    } catch (e: any) {
+      this.error.set(
+        e?.error?.mensaje ??
+          (accion === 'cancelar-examen' ? 'No se pudo cancelar el examen.' : 'No se pudo reiniciar el chat.'),
+      );
+    } finally {
+      this.porConfirmar.set('');
+      this.borrando.set(false);
     }
   }
 

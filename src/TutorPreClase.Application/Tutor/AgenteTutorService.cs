@@ -20,6 +20,18 @@ public interface IAgenteTutorService
     Task<Conversacion> AbrirConversacionAsync(Guid claseId, Guid alumnoId, string agenteId, CancellationToken ct = default);
     Task<Conversacion> IniciarExamenAsync(Guid conversacionId, CancellationToken ct = default);
     Task<Conversacion> CambiarAgenteAsync(Guid conversacionId, string agenteId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Cancela el examen en curso: no queda intento ni nota, y del chat se borra todo lo del
+    /// examen. El chat vuelve a como estaba antes de empezarlo.
+    /// </summary>
+    Task<Conversacion> CancelarExamenAsync(Guid conversacionId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Borra los mensajes del chat. Los intentos y sus notas no se tocan; durante el examen no
+    /// se puede.
+    /// </summary>
+    Task<Conversacion> ReiniciarConversacionAsync(Guid conversacionId, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -109,6 +121,53 @@ public sealed class AgenteTutorService(
         await db.SaveChangesAsync(ct);
 
         preparador.Preparar(intento.Id);
+
+        return conversacion;
+    }
+
+    public async Task<Conversacion> CancelarExamenAsync(Guid conversacionId, CancellationToken ct = default)
+    {
+        var conversacion = await CargarAsync(conversacionId, ct);
+
+        if (conversacion is not { Modo: ModoConversacion.Evaluacion, IntentoId: Guid intentoId })
+            throw new ExamenException("sin_examen_en_curso", "No tienes un examen en curso.");
+
+        var inicio = await db.Intentos.Where(i => i.Id == intentoId).Select(i => i.Inicio).FirstAsync(ct);
+
+        // Si ya había rendido antes, el chat vuelve a la revisión de ese intento.
+        var anterior = await db.Intentos
+            .Where(i => i.AlumnoId == conversacion.AlumnoId && i.Examen!.ClaseId == conversacion.ClaseId &&
+                        i.Estado != EstadoIntento.EnCurso)
+            .OrderByDescending(i => i.Envio)
+            .Select(i => (Guid?)i.Id)
+            .FirstOrDefaultAsync(ct);
+
+        conversacion.IntentoId = anterior;
+        conversacion.Modo = anterior is null ? ModoConversacion.Consulta : ModoConversacion.Revision;
+
+        // Todo lo del examen sale del chat: desde «estoy listo» hasta la última pregunta.
+        db.Mensajes.RemoveRange(await db.Mensajes
+            .Where(m => m.ConversacionId == conversacion.Id && m.CreadoEn >= inicio)
+            .ToListAsync(ct));
+        await db.SaveChangesAsync(ct);
+
+        await examen.CancelarIntentoAsync(intentoId, ct);
+
+        log.LogInformation("Examen cancelado en conversacion {Conversacion}", conversacion.Id);
+        return conversacion;
+    }
+
+    public async Task<Conversacion> ReiniciarConversacionAsync(Guid conversacionId, CancellationToken ct = default)
+    {
+        var conversacion = await CargarAsync(conversacionId, ct);
+
+        if (conversacion.Modo == ModoConversacion.Evaluacion)
+            throw new ExamenException("examen_en_curso", "Termina o cancela el examen antes de reiniciar el chat.");
+
+        db.Mensajes.RemoveRange(await db.Mensajes
+            .Where(m => m.ConversacionId == conversacion.Id)
+            .ToListAsync(ct));
+        await db.SaveChangesAsync(ct);
 
         return conversacion;
     }

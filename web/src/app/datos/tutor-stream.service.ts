@@ -122,6 +122,20 @@ export class TutorStreamService {
     );
   }
 
+  /** Cancela el examen en curso: no cuenta como intento y su contenido sale del chat. */
+  cancelarExamen(conversacionId: string) {
+    return firstValueFrom(
+      this.http.delete<{ modo: ModoChat }>(`${API}/conversaciones/${conversacionId}/examen`),
+    );
+  }
+
+  /** Borra los mensajes del chat; los intentos y las notas se conservan. */
+  reiniciarChat(conversacionId: string) {
+    return firstValueFrom(
+      this.http.delete<{ modo: ModoChat }>(`${API}/conversaciones/${conversacionId}/mensajes`),
+    );
+  }
+
   cambiarAgente(conversacionId: string, agenteId: string) {
     return firstValueFrom(
       this.http.put<{ agenteId: string }>(`${API}/conversaciones/${conversacionId}/agente`, {

@@ -121,6 +121,9 @@ Con el examen listo, la conversación sigue igual:
 6. La lista de clases le muestra al alumno cómo va en cada examen: los intentos usados del tope de la clase, también antes de rendir (`0 de 3 intentos`), y su mejor nota (`Nota 16.7 · 2 de 3 intentos`); al agotarlos, la etiqueta dice *Sin intentos disponibles* y desaparece el botón *Comenzar examen*.
 7. Si el alumno pide la respuesta, pistas o una explicación durante el examen, el agente se niega en una línea. Con feedback *AlFinal* el material no viaja en el prompt del examen: no tiene de dónde citar una pista.
 7. No hay formularios ni botones de alternativas: la respuesta siempre entra como texto del chat.
+8. Mientras rinde, el botón *Comenzar examen* dice *Cancelar examen* (RF-40). Al confirmarlo, el servidor borra el intento con sus preguntas y respuestas —no consume intento ni deja nota, nivel o temas a reforzar— y quita del chat todos los mensajes desde que empezó el examen. El chat vuelve a como estaba: a *Consulta*, o a la *Revisión* de su intento anterior si ya había rendido. Un examen ya cerrado no se puede cancelar.
+
+**Reiniciar el chat.** Fuera del examen, *Reiniciar chat* borra todos los mensajes de la conversación de esa clase, tras confirmarlo (RF-40). Los intentos, las notas y el nivel no se tocan, y el modo del chat se conserva.
 8. **Lo que dice el modelo se comprueba antes de mostrarlo** (§6.4): durante el examen su texto no se emite en vivo. Si afirma que registró sin haber llamado a la herramienta, presenta una pregunta por su cuenta o cita el material antes de registrar, se descarta y se le pide de nuevo; si insiste, responde el servidor ("escribe la letra de la alternativa…") y no se registra nada.
 
 ## 5.3 Calificación
