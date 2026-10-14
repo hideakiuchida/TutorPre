@@ -29,9 +29,16 @@ public static class EndpointsAdmin
                     email = u.Email,
                     nombre = u.Nombre,
                     rol = u.Rol.ToString(),
+                    conClave = u.ClaveHash != null,
                     cursos = u.Matriculas.Select(m => m.CursoId)
                 })
                 .ToListAsync(ct)));
+
+        // Olvidé mi contraseña (RF-42): sin servicio de correo, el administrador genera el
+        // enlace y se lo pasa a la persona. Solo se muestra en esta respuesta.
+        grupo.MapPost("/usuarios/{usuarioId:guid}/restablecer-clave", async (
+            Guid usuarioId, ConexionIdentidad identidad, CancellationToken ct) =>
+            Results.Ok(await identidad.GenerarEnlaceRestablecerAsync(usuarioId, ct)));
 
         grupo.MapGet("/cursos", async (IAppDbContext db, CancellationToken ct) =>
             Results.Ok(await db.Cursos.AsNoTracking()

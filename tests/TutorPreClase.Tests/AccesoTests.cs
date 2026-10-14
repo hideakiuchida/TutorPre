@@ -440,6 +440,85 @@ public class AccesoTests
         Assert.Equal("cuenta_sin_clave", error.Codigo);
     }
 
+    private static string TokenDe(EnlaceRestablecer enlace) => enlace.Url[(enlace.Url.IndexOf("#t=") + 3)..];
+
+    [Fact]
+    public async Task El_enlace_del_administrador_cambia_la_contrasena_una_sola_vez()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var (conexion, _) = Montar(banco);
+        var creada = await conexion.CrearCuentaAsync(Cuenta("olvido@gmail.com", "Docente"), CancellationToken.None);
+
+        var enlace = await conexion.GenerarEnlaceRestablecerAsync(creada.Sesion!.Usuario.Id, CancellationToken.None);
+        Assert.StartsWith("http://localhost:4200/restablecer#t=", enlace.Url);
+        Assert.InRange(enlace.Vence, DateTimeOffset.UtcNow.AddHours(23), DateTimeOffset.UtcNow.AddHours(25));
+
+        // Solo se guarda el hash del enlace.
+        var guardado = banco.Db.Usuarios.Single(u => u.Email == "olvido@gmail.com");
+        Assert.NotEqual(TokenDe(enlace), guardado.RestablecerClaveHash);
+
+        var corta = await Assert.ThrowsAsync<AccesoException>(() => conexion.RestablecerClaveAsync(
+            new RestablecerClavePeticion(TokenDe(enlace), "corta"), CancellationToken.None));
+        Assert.Equal("clave_corta", corta.Codigo);
+
+        var sesion = await conexion.RestablecerClaveAsync(
+            new RestablecerClavePeticion(TokenDe(enlace), "nueva-clave-456"), CancellationToken.None);
+        Assert.Equal(guardado.Id, sesion.Usuario.Id);
+
+        await conexion.EntrarConClaveAsync(new EntradaConClavePeticion("olvido@gmail.com", "nueva-clave-456", null), CancellationToken.None);
+        var vieja = await Assert.ThrowsAsync<AccesoException>(() => conexion.EntrarConClaveAsync(
+            new EntradaConClavePeticion("olvido@gmail.com", "secreta-123", null), CancellationToken.None));
+        Assert.Equal("clave_incorrecta", vieja.Codigo);
+
+        var repetido = await Assert.ThrowsAsync<AccesoException>(() => conexion.RestablecerClaveAsync(
+            new RestablecerClavePeticion(TokenDe(enlace), "otra-clave-789"), CancellationToken.None));
+        Assert.Equal("enlace_vencido", repetido.Codigo);
+    }
+
+    [Fact]
+    public async Task Un_enlace_nuevo_anula_el_anterior_y_uno_vencido_no_sirve()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var alumna = banco.Db.Usuarios.Single();
+        var (conexion, _) = Montar(banco);
+
+        var primero = await conexion.GenerarEnlaceRestablecerAsync(alumna.Id, CancellationToken.None);
+        var segundo = await conexion.GenerarEnlaceRestablecerAsync(alumna.Id, CancellationToken.None);
+
+        var anulado = await Assert.ThrowsAsync<AccesoException>(() => conexion.RestablecerClaveAsync(
+            new RestablecerClavePeticion(TokenDe(primero), "nueva-clave-456"), CancellationToken.None));
+        Assert.Equal("enlace_vencido", anulado.Codigo);
+
+        banco.Db.Usuarios.Single(u => u.Id == alumna.Id).RestablecerClaveVence = DateTimeOffset.UtcNow.AddMinutes(-1);
+        banco.Db.SaveChanges();
+        var vencido = await Assert.ThrowsAsync<AccesoException>(() => conexion.RestablecerClaveAsync(
+            new RestablecerClavePeticion(TokenDe(segundo), "nueva-clave-456"), CancellationToken.None));
+        Assert.Equal("enlace_vencido", vencido.Codigo);
+
+        var inventado = await Assert.ThrowsAsync<AccesoException>(() => conexion.RestablecerClaveAsync(
+            new RestablecerClavePeticion("inventado", "nueva-clave-456"), CancellationToken.None));
+        Assert.Equal("enlace_vencido", inventado.Codigo);
+    }
+
+    [Fact]
+    public async Task Quien_solo_entraba_con_Google_puede_tener_contrasena_con_el_enlace()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var (conexion, proveedor) = Montar(banco);
+        var google = (await EntrarAsync(conexion, proveedor, "solo.google@gmail.com", "Docente")).Sesion!;
+
+        var enlace = await conexion.GenerarEnlaceRestablecerAsync(google.Usuario.Id, CancellationToken.None);
+        await conexion.RestablecerClaveAsync(new RestablecerClavePeticion(TokenDe(enlace), "nueva-clave-456"), CancellationToken.None);
+
+        var sesion = await conexion.EntrarConClaveAsync(
+            new EntradaConClavePeticion("solo.google@gmail.com", "nueva-clave-456", null), CancellationToken.None);
+        Assert.Equal(google.Usuario.Id, sesion.Usuario.Id);
+
+        // Ya con el correo verificado por Google, volver a entrar con Google no la borra.
+        await EntrarAsync(conexion, proveedor, "solo.google@gmail.com", "Docente");
+        Assert.NotNull(banco.Db.Usuarios.Single(u => u.Id == google.Usuario.Id).ClaveHash);
+    }
+
     [Fact]
     public async Task Con_registro_cerrado_no_se_crean_cuentas_con_contrasena()
     {
@@ -547,6 +626,32 @@ public class SesionApiTests
         var mala = await cliente.PostAsJsonAsync("/api/v1/acceso/clave", new { email = "http.profe@gmail.com", clave = "mala-clave" });
         Assert.Equal(HttpStatusCode.Unauthorized, mala.StatusCode);
         Assert.Equal("clave_incorrecta", (await mala.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task Solo_el_administrador_genera_el_enlace_para_restablecer()
+    {
+        using var api = new ApiDePruebas();
+        var (_, alumnoId, _, _) = api.Sembrar();
+
+        var comoAlumno = await api.Como(alumnoId, "Alumno").PostAsync($"/api/v1/admin/usuarios/{alumnoId}/restablecer-clave", null);
+        Assert.Equal(HttpStatusCode.Forbidden, comoAlumno.StatusCode);
+
+        var respuesta = await api.Como(Guid.NewGuid(), "Admin").PostAsync($"/api/v1/admin/usuarios/{alumnoId}/restablecer-clave", null);
+        var enlace = await respuesta.Content.ReadFromJsonAsync<JsonElement>();
+        var url = enlace.GetProperty("url").GetString()!;
+
+        var cliente = api.CreateClient();
+        var cambio = await cliente.PostAsJsonAsync("/api/v1/acceso/clave/restablecer", new
+        {
+            token = url[(url.IndexOf("#t=") + 3)..], clave = "nueva-clave-456"
+        });
+        Assert.Equal(HttpStatusCode.OK, cambio.StatusCode);
+        Assert.Equal(alumnoId.ToString(), (await cambio.Content.ReadFromJsonAsync<JsonElement>())
+            .GetProperty("usuario").GetProperty("id").GetString());
+
+        var usuarios = await api.Como(Guid.NewGuid(), "Admin").GetFromJsonAsync<JsonElement>("/api/v1/admin/usuarios");
+        Assert.Contains(usuarios.EnumerateArray(), u => u.GetProperty("id").GetString() == alumnoId.ToString() && u.GetProperty("conClave").GetBoolean());
     }
 
     [Fact]

@@ -33,6 +33,10 @@ export class AdminPage {
   readonly lista = signal('');
   readonly cursoLista = signal('');
 
+  /** Olvidé mi contraseña (RF-42): el enlace recién generado, para copiarlo y pasarlo. */
+  readonly enlace = signal<{ email: string; url: string; vence: string } | null>(null);
+  readonly copiado = signal(false);
+
   readonly codigoDe = computed(() => new Map(this.cursos().map((c) => [c.id, c.codigo])));
 
   async ngOnInit(): Promise<void> {
@@ -60,6 +64,26 @@ export class AdminPage {
     this.rol.set(u.rol);
     this.cursosElegidos.set([...u.cursos]);
     this.aviso.set('');
+  }
+
+  async generarEnlace(u: UsuarioAdmin): Promise<void> {
+    this.error.set('');
+    this.copiado.set(false);
+    try {
+      const { url, vence } = await this.acceso.enlaceRestablecer(u.id);
+      this.enlace.set({ email: u.email, url, vence: new Date(vence).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' }) });
+    } catch (e: any) {
+      this.error.set(e?.error?.mensaje ?? 'No se pudo generar el enlace.');
+    }
+  }
+
+  async copiarEnlace(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.enlace()!.url);
+      this.copiado.set(true);
+    } catch {
+      this.error.set('No se pudo copiar: selecciona el enlace y cópialo a mano.');
+    }
   }
 
   alternarCurso(cursoId: string, marcado: boolean): void {

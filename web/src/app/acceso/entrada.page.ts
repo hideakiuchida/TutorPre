@@ -33,6 +33,12 @@ export class EntradaPage {
   nombre = '';
   correo = '';
   clave = '';
+  readonly ayudaOlvido = signal(false);
+
+  // Olvidé mi contraseña (RF-42): /restablecer#t=… con el enlace del administrador
+  readonly tokenRestablecer = signal<string | null>(null);
+  claveNueva = '';
+  claveRepetida = '';
 
   // Primer acceso
   readonly registro = signal<RegistroPendiente | null>(null);
@@ -92,6 +98,7 @@ export class EntradaPage {
   }
 
   async ngOnInit(): Promise<void> {
+    if (this.leerEnlaceRestablecer()) return;
     if (await this.completarRetorno()) return;
 
     try {
@@ -141,6 +148,44 @@ export class EntradaPage {
   cambiarModoClave(modo: 'entrar' | 'crear'): void {
     this.modoClave.set(modo);
     this.error.set('');
+    this.ayudaOlvido.set(false);
+  }
+
+  /** El token viaja en el fragmento: se lee y se quita de la barra de direcciones. */
+  private leerEnlaceRestablecer(): boolean {
+    if (!location.pathname.startsWith('/restablecer')) return false;
+
+    const token = new URLSearchParams(location.hash.slice(1)).get('t');
+    history.replaceState(null, '', '/restablecer');
+    this.tokenRestablecer.set(token ?? '');
+    if (!token) this.error.set('El enlace está incompleto. Cópialo entero o pide uno nuevo al administrador.');
+    return true;
+  }
+
+  async guardarClaveNueva(): Promise<void> {
+    this.error.set('');
+    if (this.claveNueva !== this.claveRepetida) {
+      this.error.set('Las dos contraseñas no coinciden.');
+      return;
+    }
+
+    this.ocupado.set(true);
+    try {
+      const sesion = await this.acceso.restablecerClave(this.tokenRestablecer()!, this.claveNueva);
+      history.replaceState(null, '', '/');
+      this.sesion.establecer(sesion);
+    } catch (e: any) {
+      this.error.set(e?.error?.mensaje ?? 'No se pudo guardar la contraseña.');
+      this.ocupado.set(false);
+    }
+  }
+
+  /** Deja el enlace y vuelve a la entrada normal. */
+  irALaEntrada(): void {
+    history.replaceState(null, '', '/');
+    this.tokenRestablecer.set(null);
+    this.error.set('');
+    void this.ngOnInit();
   }
 
   /** El proveedor vuelve con ?code=…&state=…: se canjea y se limpia la URL. */

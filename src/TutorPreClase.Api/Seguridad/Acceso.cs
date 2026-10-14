@@ -138,6 +138,12 @@ public sealed record CuentaNuevaPeticion(string Email, string Nombre, string Cla
 /// <summary>Entrar con correo y contraseña (RF-41).</summary>
 public sealed record EntradaConClavePeticion(string Email, string Clave, string? Perfil);
 
+/// <summary>Elegir una contraseña nueva con el enlace que dio el administrador (RF-42).</summary>
+public sealed record RestablecerClavePeticion(string Token, string Clave);
+
+/// <summary>El enlace se muestra una sola vez al administrador; solo se guarda su SHA-256.</summary>
+public sealed record EnlaceRestablecer(string Url, DateTimeOffset Vence);
+
 /// <summary>El canje da una sesión (usuario conocido) o un registro pendiente (primera vez).</summary>
 public sealed record ResultadoAcceso(Sesion? Sesion, RegistroPendiente? Registro);
 
@@ -442,6 +448,71 @@ public sealed class ConexionIdentidad(
 
         await db.SaveChangesAsync(ct);
         return sesiones.Emitir(usuario, perfil);
+    }
+
+    public static readonly TimeSpan VigenciaRestablecer = TimeSpan.FromHours(24);
+
+    /// <summary>
+    /// Olvidé mi contraseña (RF-42). No hay servicio de correo: el administrador genera un
+    /// enlace de un solo uso (24 h) y se lo pasa a la persona. Generar otro anula el anterior.
+    /// Sirve también para dar contraseña a quien solo entraba con Google.
+    /// </summary>
+    public async Task<EnlaceRestablecer> GenerarEnlaceRestablecerAsync(Guid usuarioId, CancellationToken ct)
+    {
+        if (!opciones.Value.ConClave)
+            throw new AccesoException("clave_no_disponible", "La plataforma no admite cuentas con contraseña.");
+
+        var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == usuarioId, ct)
+                      ?? throw new AccesoException("usuario_no_encontrado", "Esa persona no está registrada.", StatusCodes.Status404NotFound);
+
+        var token = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
+        var vence = DateTimeOffset.UtcNow.Add(VigenciaRestablecer);
+        usuario.RestablecerClaveHash = HashEnlace(token);
+        usuario.RestablecerClaveVence = vence;
+        await db.SaveChangesAsync(ct);
+
+        log.LogInformation("Se generó un enlace para restablecer la contraseña de {Email}", usuario.Email);
+
+        // En el fragmento (#) el token no llega a ningún servidor ni a sus registros.
+        return new EnlaceRestablecer($"{UrlWeb()}/restablecer#t={token}", vence);
+    }
+
+    /// <summary>Con el enlace vigente, fija la contraseña nueva, lo anula y abre la sesión.</summary>
+    public async Task<Sesion> RestablecerClaveAsync(RestablecerClavePeticion peticion, CancellationToken ct)
+    {
+        if (!opciones.Value.ConClave)
+            throw new AccesoException("clave_no_disponible", "La plataforma no admite cuentas con contraseña.");
+
+        var clave = peticion.Clave ?? "";
+        if (clave.Length < LargoMinimoClave)
+            throw new AccesoException("clave_corta", $"La contraseña debe tener al menos {LargoMinimoClave} caracteres.");
+        if (clave.Length > 128)
+            throw new AccesoException("clave_larga", "La contraseña no puede pasar de 128 caracteres.");
+
+        var hash = string.IsNullOrWhiteSpace(peticion.Token) ? null : HashEnlace(peticion.Token.Trim());
+        var usuario = hash is null ? null : await db.Usuarios.FirstOrDefaultAsync(u => u.RestablecerClaveHash == hash, ct);
+
+        if (usuario is null || usuario.RestablecerClaveVence is not { } vence || vence < DateTimeOffset.UtcNow)
+            throw new AccesoException("enlace_vencido",
+                "Este enlace ya se usó o venció. Pide uno nuevo al administrador.", StatusCodes.Status400BadRequest);
+
+        usuario.ClaveHash = Hasher.HashPassword(usuario, clave);
+        usuario.RestablecerClaveHash = null;
+        usuario.RestablecerClaveVence = null;
+        await db.SaveChangesAsync(ct);
+
+        log.LogInformation("{Email} restableció su contraseña", usuario.Email);
+        return sesiones.Emitir(usuario);
+    }
+
+    private static string HashEnlace(string token) =>
+        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+
+    /// <summary>La web es la de la URL de retorno sin su ruta /entrar.</summary>
+    private string UrlWeb()
+    {
+        var retorno = new Uri(opciones.Value.UrlRetorno);
+        return retorno.GetLeftPart(UriPartial.Authority);
     }
 
     /// <summary>PBKDF2 con sal por usuario, el mismo de ASP.NET Core Identity.</summary>

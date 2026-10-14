@@ -134,3 +134,30 @@ th {
     overflow-x: auto;
   }
 }
+
+/* Olvidé mi contraseña (RF-42): el enlace que el administrador pasa a la persona. */
+.enlace-generado {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid var(--upc);
+  background: var(--papel);
+}
+
+.enlace-generado p {
+  margin: 0 0 0.5rem;
+}
+
+.fila-enlace {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.fila-enlace input {
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+
+.acciones {
+  white-space: nowrap;
+}

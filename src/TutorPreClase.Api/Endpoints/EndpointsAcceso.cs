@@ -40,6 +40,11 @@ public static class EndpointsAcceso
             Results.Ok(await identidad.EntrarConClaveAsync(peticion, ct)))
             .AllowAnonymous().RequireRateLimiting(LimiteClave);
 
+        // Olvidé mi contraseña (RF-42): con el enlace que generó el administrador.
+        grupo.MapPost("/clave/restablecer", async (RestablecerClavePeticion peticion, ConexionIdentidad identidad, CancellationToken ct) =>
+            Results.Ok(await identidad.RestablecerClaveAsync(peticion, ct)))
+            .AllowAnonymous().RequireRateLimiting(LimiteClave);
+
         grupo.MapPost("/{proveedor}/inicio", (string proveedor, InicioAccesoPeticion? peticion, ConexionIdentidad identidad) =>
             Results.Ok(new { url = identidad.Iniciar(proveedor, peticion?.Perfil) })).AllowAnonymous();
 

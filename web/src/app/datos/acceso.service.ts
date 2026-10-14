@@ -18,6 +18,8 @@ export interface UsuarioAdmin {
   email: string;
   nombre: string;
   rol: Rol;
+  /** Tiene contraseña propia (RF-41). */
+  conClave: boolean;
   cursos: string[];
 }
 
@@ -73,6 +75,11 @@ export class AccesoService {
     return firstValueFrom(this.http.post<Sesion>(`${API}/acceso/clave`, { email, clave, perfil }));
   }
 
+  /** Olvidé mi contraseña (RF-42): con el enlace que generó el administrador. */
+  restablecerClave(token: string, clave: string): Promise<Sesion> {
+    return firstValueFrom(this.http.post<Sesion>(`${API}/acceso/clave/restablecer`, { token, clave }));
+  }
+
   registrar(token: string, rol: 'Alumno' | 'Docente', profesorId: string | null): Promise<Sesion> {
     return firstValueFrom(this.http.post<Sesion>(`${API}/acceso/registro`, { token, rol, profesorId }));
   }
@@ -101,6 +108,11 @@ export class AccesoService {
 
   entrarDePrueba(usuarioId: string): Promise<Sesion> {
     return firstValueFrom(this.http.post<Sesion>(`${API}/acceso/desarrollo`, { usuarioId }));
+  }
+
+  /** El enlace solo viene en esta respuesta: el administrador se lo pasa a la persona. */
+  enlaceRestablecer(usuarioId: string): Promise<{ url: string; vence: string }> {
+    return firstValueFrom(this.http.post<{ url: string; vence: string }>(`${API}/admin/usuarios/${usuarioId}/restablecer-clave`, {}));
   }
 
   usuarios(): Promise<UsuarioAdmin[]> {

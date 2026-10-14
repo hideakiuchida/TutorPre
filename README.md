@@ -122,7 +122,8 @@ gratuitos y costo por uso, medidos en producción— está en
 
 La entrada pide primero el perfil (*Soy alumno* / *Soy profesor*) y después la cuenta:
 *Continuar con Google*, por OIDC con PKCE, o **correo y contraseña** (*Crear cuenta* /
-*Ya tengo cuenta*, RF-41; la contraseña se guarda solo como hash). La API
+*Ya tengo cuenta*, RF-41; la contraseña se guarda solo como hash. Si alguien la olvida, el
+administrador le genera un enlace de un solo uso para elegir otra, RF-42). La API
 canjea el código o valida la contraseña, crea o reconoce al usuario y emite **su propia sesión**, que la web envía
 como `Authorization: Bearer`. Cómo registrar la aplicación en Google está en el skill `setup-oauth`. La entrada con
 Microsoft se retiró: la API sigue siendo OIDC genérico, pero solo tiene configurado Google.

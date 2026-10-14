@@ -23,6 +23,14 @@ public class Usuario
     /// </summary>
     public bool CorreoVerificado { get; set; }
 
+    /// <summary>
+    /// SHA-256 del enlace para restablecer la contraseña que generó el administrador (RF-42);
+    /// el enlace en sí no se guarda. Uno vivo por usuario, de un solo uso.
+    /// </summary>
+    public string? RestablecerClaveHash { get; set; }
+
+    public DateTimeOffset? RestablecerClaveVence { get; set; }
+
     public List<Matricula> Matriculas { get; set; } = [];
 }
 

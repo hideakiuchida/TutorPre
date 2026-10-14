@@ -179,6 +179,15 @@ h1 {
   font-weight: 600;
 }
 
+.con-clave .olvido {
+  justify-self: start;
+  font-size: var(--t-pequeno);
+}
+
+.volver {
+  margin-top: 1.25rem;
+}
+
 .con-clave .principal {
   margin-top: 0.9rem;
   padding: 0.8rem 1rem;

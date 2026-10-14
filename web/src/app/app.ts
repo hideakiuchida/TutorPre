@@ -8,7 +8,8 @@ import { DocentePage } from './docente/docente.page';
 
 /**
  * Sin sesión, la página de entrada (RF-31); con sesión, la pantalla de su rol. El retorno
- * del proveedor de identidad (/entrar/…) siempre lo atiende la entrada. El alumno sin
+ * del proveedor de identidad (/entrar/…) y el enlace para restablecer la contraseña
+ * (/restablecer) siempre los atiende la entrada. El alumno sin
  * profesor, o que quiere cambiarlo, pasa antes por la elección de profesor.
  */
 @Component({
@@ -29,7 +30,8 @@ export class App {
 
   readonly vista = computed(() => {
     const usuario = this.sesion.usuario();
-    if (!usuario || location.pathname.startsWith('/entrar/')) return 'entrada';
+    const enEntrada = location.pathname.startsWith('/entrar/') || location.pathname.startsWith('/restablecer');
+    if (!usuario || enEntrada) return 'entrada';
     return usuario.rol === 'Alumno' && this.sesion.eligiendoProfesor() ? 'profesor' : usuario.rol;
   });
 }

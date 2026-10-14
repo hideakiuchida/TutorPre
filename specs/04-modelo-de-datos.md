@@ -6,7 +6,7 @@ El modelo gira en torno a la **Clase**: de ella cuelgan el contenido y un único
 
 | Entidad | Campos clave | Relaciones |
 | --- | --- | --- |
-| Usuario | id, email, nombre, rol (Alumno, Docente, Admin), agente_preferido, profesor_id, clave_hash (solo cuentas con contraseña, RF-41), correo_verificado (ya entró con Google o Microsoft) | N:M con Curso vía Matricula, 1:N CredencialAgente |
+| Usuario | id, email, nombre, rol (Alumno, Docente, Admin), agente_preferido, profesor_id, clave_hash (solo cuentas con contraseña, RF-41), correo_verificado (ya entró con Google o Microsoft), restablecer_clave_hash y restablecer_clave_vence (SHA-256 y vencimiento del enlace para restablecer la contraseña, RF-42; el enlace no se guarda) | N:M con Curso vía Matricula, 1:N CredencialAgente |
 | CredencialAgente | id, usuario_id, agente_id, clave_cifrada, ultimos4, origen (OAuth: refresh token de Google; Pegada: clave de API), estado (Valida, Invalida), creada_en, ultimo_uso_en | la credencial BYOK del usuario; única por usuario y agente |
 | TokenMcp | id, usuario_id, hash (SHA-256), ultimos4, creado_en, ultimo_uso_en, revocado_en | el token personal con que su asistente entra a `/mcp` (RF-39); uno vivo por usuario, nunca se guarda en claro |
 | Curso | id, codigo, nombre, periodo | 1:N Clase |

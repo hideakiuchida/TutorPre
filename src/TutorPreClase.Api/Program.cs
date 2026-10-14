@@ -209,6 +209,8 @@ if (app.Environment.IsDevelopment())
         // Y la cuenta con correo y contraseña (RF-41).
         await EsquemaSqlite.AgregarColumnaAsync(db, "usuario", "ClaveHash", "TEXT NULL");
         await EsquemaSqlite.AgregarColumnaAsync(db, "usuario", "CorreoVerificado", "INTEGER NOT NULL DEFAULT 0");
+        await EsquemaSqlite.AgregarColumnaAsync(db, "usuario", "RestablecerClaveHash", "TEXT NULL");
+        await EsquemaSqlite.AgregarColumnaAsync(db, "usuario", "RestablecerClaveVence", "INTEGER NULL");
     }
 
     await DatosIniciales.SembrarAsync(db, AgentesVigentes(app));

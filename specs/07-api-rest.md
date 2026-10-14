@@ -19,6 +19,7 @@ API versionada bajo `/api/v1`, autenticada con la sesión que emite la propia AP
 | POST | /examenes/{examenId}/publicar | Docente | Publica el examen (los de la carpeta ya nacen publicados) |
 | GET | /acceso/proveedores | Público | Proveedores de inicio de sesión configurados (hoy, solo Google) y `conClave`: si se admite correo y contraseña |
 | POST | /acceso/cuenta | Público, con tope por IP | `{ email, nombre, clave, perfil: Alumno\|Docente }`: crea la cuenta con contraseña (RF-41). Profesor → `{ sesion }`; alumno → `{ registro }` para elegir profesor. 409 `cuenta_existente`, 403 `cuenta_institucional` o `no_registrado`, 400 `clave_corta`/`correo_invalido`/`rol_invalido` |
+| POST | /acceso/clave/restablecer | Público, con tope por IP | `{ token, clave }` con el enlace del administrador: fija la contraseña nueva, anula el enlace y devuelve la sesión (RF-42). 400 `enlace_vencido` o `clave_corta` |
 | POST | /acceso/clave | Público, con tope por IP | `{ email, clave, perfil? }` → sesión (RF-41). 401 `clave_incorrecta` o `cuenta_sin_clave`; 429 `demasiados_intentos` |
 | POST | /acceso/{proveedor}/inicio | Público | `{ perfil: Alumno\|Docente }` → URL de autorización con `state`, `nonce` y PKCE; el perfil queda en el servidor ligado al `state` (RF-31) |
 | POST | /acceso/{proveedor}/canje | Público | Canjea `{ code, state }`: devuelve `{ sesion }` si ya está registrado o `{ registro }` (primer acceso, falta elegir rol); 403 `no_registrado` con el registro cerrado |
@@ -27,7 +28,8 @@ API versionada bajo `/api/v1`, autenticada con la sesión que emite la propia AP
 | GET · PUT | /alumno/profesor | Alumno | Su profesor; cambiarlo lo deja solo en los cursos del nuevo |
 | GET | /acceso/yo | Cualquiera | Usuario de la sesión actual: `rol` con el que actúa y `vistas` con las que puede entrar |
 | GET · POST | /acceso/desarrollo/usuarios · /acceso/desarrollo | Público, **solo fuera de producción** | Usuarios de prueba y sesión sin proveedor |
-| GET | /admin/usuarios · /admin/cursos | Admin | Usuarios con rol y cursos; cursos disponibles (RF-33) |
+| GET | /admin/usuarios · /admin/cursos | Admin | Usuarios con rol, cursos y `conClave`; cursos disponibles (RF-33) |
+| POST | /admin/usuarios/{id}/restablecer-clave | Admin | Enlace de un solo uso para elegir contraseña: `{ url, vence }` (24 h). Solo viene en esta respuesta; genera otro y el anterior deja de servir (RF-42) |
 | PUT | /admin/usuarios | Admin | Alta o edición por correo, con rol y cursos |
 | POST | /admin/usuarios/lote | Admin | Alta por lista, todos al mismo curso |
 | GET | /alumno/novedades | Alumno | Flujo SSE: avisa cuando el docente cambia el material de un curso del alumno |

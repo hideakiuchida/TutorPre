@@ -1,7 +1,30 @@
 <header class="franja">Tutor pre-clase</header>
 
 <main class="entrada">
-  @if (registro(); as r) {
+  @if (tokenRestablecer() !== null) {
+    <h1>Elige una contraseña nueva</h1>
+    <p class="bajada">Con este enlace cambias tu contraseña una sola vez. Después entras con la nueva.</p>
+
+    @if (error()) {
+      <p class="error" role="alert">{{ error() }}</p>
+    }
+
+    @if (tokenRestablecer()) {
+      <form class="con-clave" (ngSubmit)="guardarClaveNueva()">
+        <label for="clave-nueva">Contraseña nueva</label>
+        <input id="clave-nueva" name="claveNueva" type="password" autocomplete="new-password" required
+               minlength="8" maxlength="128" [(ngModel)]="claveNueva" />
+        <label for="clave-repetida">Repítela</label>
+        <input id="clave-repetida" name="claveRepetida" type="password" autocomplete="new-password" required
+               maxlength="128" [(ngModel)]="claveRepetida" />
+        <p class="ayuda">Al menos 8 caracteres.</p>
+        <button type="submit" class="principal" [disabled]="ocupado() || claveNueva.length < 8 || !claveRepetida">
+          Guardar y entrar
+        </button>
+      </form>
+    }
+    <p class="volver"><button type="button" class="enlace" (click)="irALaEntrada()">Ir a la página de entrada</button></p>
+  } @else if (registro(); as r) {
     <h1>Hola, {{ r.nombre }}</h1>
 
     @if (error()) {
@@ -93,6 +116,15 @@
                  [autocomplete]="modoClave() === 'crear' ? 'new-password' : 'current-password'" [(ngModel)]="clave" />
           @if (modoClave() === 'crear') {
             <p class="ayuda">Al menos 8 caracteres.</p>
+          } @else {
+            <button type="button" class="enlace olvido" [attr.aria-expanded]="ayudaOlvido()"
+                    (click)="ayudaOlvido.set(!ayudaOlvido())">¿Olvidaste tu contraseña?</button>
+            @if (ayudaOlvido()) {
+              <p class="ayuda" role="status">
+                Pide al administrador de la plataforma un enlace para elegir una nueva. Si tu correo es de
+                Google, también puedes usar <strong>Continuar con Google</strong>: es tu misma cuenta.
+              </p>
+            }
           }
           <button type="submit" class="principal"
                   [disabled]="ocupado() || !correo || !clave || (modoClave() === 'crear' && (!nombre.trim() || clave.length < 8))">

@@ -737,6 +737,13 @@ namespace TutorPreClase.Infrastructure.Persistencia.Migraciones
                     b.Property<Guid?>("ProfesorId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("RestablecerClaveHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("RestablecerClaveVence")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Rol")
                         .IsRequired()
                         .HasMaxLength(20)

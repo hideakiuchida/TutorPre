@@ -46,6 +46,7 @@
 | RF-39 | **El Tutor como servidor MCP**: el alumno genera en la web un token personal y conecta su propio asistente (Claude Code, Claude Desktop u otro cliente MCP) a `/mcp`. Su asistente lista sus clases, lee y busca en el material con citas, y le toma el examen pregunta a pregunta con las mismas reglas del servidor: ventana, intentos, nota calculada por el servidor y la respuesta correcta oculta hasta finalizar. El token se muestra una sola vez, se guarda hasheado, solo vale en `/mcp` y se puede revocar | Media |
 | RF-40 | El alumno puede **cancelar el examen en curso**: el botón *Comenzar examen* pasa a *Cancelar examen* mientras lo rinde y, tras confirmarlo, el intento desaparece como si no lo hubiera empezado (no consume intento, no deja nota ni nivel) y todo lo del examen sale del chat. También puede **reiniciar su chat** de una clase: se borran los mensajes y se conservan sus intentos y notas; durante el examen no se puede |
 | RF-41 | **Cuenta con correo y contraseña**, como en cualquier página: además de Google, el alumno y el profesor pueden *Crear cuenta* (nombre, correo y contraseña de al menos 8 caracteres) y luego entrar con *Ya tengo cuenta*. Sigue las reglas de RF-33: el profesor entra al momento; el alumno elige a su profesor antes de que se cree la cuenta; un profesor puede entrar como alumno; con el registro cerrado no se crean cuentas. La contraseña se guarda solo como hash (PBKDF2 con sal). El correo no se verifica, así que: no se puede crear con contraseña una cuenta que ya existe ni la de un administrador, y si alguien entra después con Google con ese correo, la contraseña se descarta. Los intentos están limitados por IP | Alta |
+| RF-42 | **Olvidé mi contraseña**, sin servicio de correo: en la entrada, *¿Olvidaste tu contraseña?* explica que se pide al administrador (o que, si el correo es de Google, se entra con Google). El administrador pulsa *Enlace de contraseña* junto a la persona en *Usuarios registrados* y le pasa el enlace que aparece una sola vez: con él, la persona elige una contraseña nueva (8+ caracteres, repetida), entra al momento y el enlace deja de servir. Vence a las 24 h; generar otro anula el anterior; solo se guarda su SHA-256. Sirve también para dar contraseña a quien solo entraba con Google | Media |
 | RF-36 | Al subir el material, la IA lo **condensa una sola vez**: reescribe cada página como apuntes compactos (definiciones, cifras, fórmulas y pasos, sin relleno), conservando su cita `[archivo, p. N]`, para que el tutor lea menos y responda más rápido. Se hace con la IA que el profesor tenga conectada (si tiene varias y una se queda sin cupo, sigue con la siguiente); el profesor ve el original y los apuntes lado a lado y puede elegir el original por archivo. El examen se sigue generando con el original | Media |
 
 ## 2.2 Requisitos por rol, dependencias y orden de implementación
@@ -55,7 +56,7 @@
 | Rol | Requisitos |
 | --- | --- |
 | Todos | RF-31 inicio de sesión y rol · RF-41 cuenta con correo y contraseña |
-| Administrador | RF-33 corregir roles y matrículas · RF-35 modelo del tutor |
+| Administrador | RF-33 corregir roles y matrículas · RF-42 enlace para restablecer la contraseña · RF-35 modelo del tutor |
 | Docente (profesor) | RF-33 registrarse como profesor · RF-02 subir material a su carpeta · RF-36 conectar su cuenta de IA y revisar los apuntes · RF-01 clases y su fecha · RF-14 modo de feedback · RF-18 temporizador · RF-20 ampliación · RF-34 su pantalla · RF-13, RF-16, RF-22 reporte |
 | Alumno | RF-33 registrarse y elegir profesor · RF-32, RF-37, RF-38 y RF-24–RF-27, RF-29 conectar Gemini o su clave de API · RF-39 estudiar desde su asistente (MCP) · RF-19 consulta · RF-11 repreguntar · RF-06, RF-07 rendir el examen · RF-41 cancelarlo o reiniciar su chat · RF-10 revisar errores |
 | Sistema | RF-03 extraer texto · RF-04, RF-05 generar el examen · RF-08, RF-09 intentos y nota · RF-12, RF-15 límites del tutor · RF-21 nivel · RF-23 dificultad adaptativa · RF-17, RF-28, RF-30 resiliencia |
@@ -92,7 +93,7 @@ Lo que casi todo necesita es saber **quién es el usuario y qué rol tiene** (RF
 
 | Orden | Bloque | Requisitos | Estado |
 | --- | --- | --- | --- |
-| 1 | Acceso e identidad | RF-31, RF-33, RF-41 | Hecho y probado con Google (proyecto `tutor-pre-clase`) y con correo y contraseña. La entrada con Microsoft se retiró: la cuenta UPC de alumno no puede registrar apps en Entra (403) |
+| 1 | Acceso e identidad | RF-31, RF-33, RF-41, RF-42 | Hecho y probado con Google (proyecto `tutor-pre-clase`) y con correo y contraseña. La entrada con Microsoft se retiró: la cuenta UPC de alumno no puede registrar apps en Entra (403) |
 | 2 | Material del docente | RF-02, RF-03, RF-01 | Hecho (carpeta sincronizada; reprogramar la fecha de una clase aún no tiene endpoint) |
 | 3 | Conexión del alumno | RF-32, RF-24–RF-27, RF-29 | Hecho |
 | 4 | Tutor en consulta | RF-19, RF-11, RF-12, RF-20 | Hecho |

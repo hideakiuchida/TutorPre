@@ -73,6 +73,23 @@
 
   <section class="ancho" aria-labelledby="t-usuarios">
     <h2 id="t-usuarios">Usuarios registrados</h2>
+    <p class="ayuda">
+      ¿Alguien olvidó su contraseña? Pulsa <strong>Enlace de contraseña</strong> y pásale el enlace: con él elige
+      una nueva una sola vez, dentro de las 24 horas. Generar otro anula el anterior.
+    </p>
+
+    @if (enlace(); as e) {
+      <div class="enlace-generado" role="status">
+        <p>Enlace para <strong>{{ e.email }}</strong> · vence el {{ e.vence }} · Solo se muestra ahora.</p>
+        <div class="fila-enlace">
+          <input type="text" readonly [value]="e.url" aria-label="Enlace para restablecer la contraseña"
+                 (focus)="$any($event.target).select()" />
+          <button type="button" class="principal" (click)="copiarEnlace()">{{ copiado() ? 'Copiado' : 'Copiar' }}</button>
+          <button type="button" class="enlace" (click)="enlace.set(null)">Cerrar</button>
+        </div>
+      </div>
+    }
+
     <table>
       <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Cursos</th><th></th></tr></thead>
       <tbody>
@@ -86,7 +103,10 @@
                 <span class="curso">{{ codigoDe().get(id) }}</span>
               }
             </td>
-            <td><button type="button" class="enlace" (click)="editar(u)">Editar</button></td>
+            <td class="acciones">
+              <button type="button" class="enlace" (click)="editar(u)">Editar</button>
+              <button type="button" class="enlace" (click)="generarEnlace(u)">Enlace de contraseña</button>
+            </td>
           </tr>
         }
       </tbody>
