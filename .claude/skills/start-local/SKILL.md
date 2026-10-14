@@ -109,7 +109,7 @@ volumen `tutor-datos`.
 
 Informa al usuario de:
 
-- **Web** → http://localhost:4200: página de entrada, solo OAuth (*Continuar con Google*; necesita su
+- **Web** → http://localhost:4200: página de entrada: *Continuar con Google* o correo y contraseña (*Crear cuenta*; Google necesita su
   `ClientId` en `tutor.env`).
   La primera vez que alguien entra elige si es alumno (y de qué profesor) o profesor. Para
   probar en Chrome sin OAuth: `POST /api/v1/acceso/desarrollo {usuarioId}` da una sesión y

@@ -717,6 +717,13 @@ namespace TutorPreClase.Infrastructure.Persistencia.Migraciones
                     b.Property<string>("AgentePreferido")
                         .HasColumnType("text");
 
+                    b.Property<string>("ClaveHash")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("CorreoVerificado")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(320)

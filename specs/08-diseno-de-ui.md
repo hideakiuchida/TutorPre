@@ -6,7 +6,7 @@ Todos entran por la misma página y cada rol tiene **una sola pantalla**: el alu
 
 | Pantalla | Rol | Contenido principal |
 | --- | --- | --- |
-| Entrada | Todos | Franja roja UPC; primero *Soy alumno* / *Soy profesor*, luego *Continuar con Google*; lleva a cada rol a su pantalla |
+| Entrada | Todos | Franja roja UPC; primero *Soy alumno* / *Soy profesor*, luego *Continuar con Google* y, debajo, *o con tu correo y contraseña*: *Ya tengo cuenta* / *Crear cuenta* (RF-41); lleva a cada rol a su pantalla |
 | Tu profesor | Alumno | Lista de profesores con sus cursos para elegir o cambiar; se abre desde *Cambiar* en la barra lateral del chat o si aún no tiene profesor |
 | Administración | Admin | Alta o edición de una persona (correo, nombre, rol, cursos), alta por lista y tabla de usuarios registrados |
 | Chat del tutor | Alumno | Lista lateral de clases (con estado del examen y cuenta regresiva) y el chat en streaming, **como una conversación: los mensajes del alumno a la izquierda y las respuestas del tutor a la derecha**, cada uno en su globo; debajo del globo del tutor, sus fuentes (resaltadas) y la ampliación (a lápiz). Las negritas de Markdown del tutor se muestran como negritas. En la cabecera: clase, modo (Consulta / Examen / Revisión), **«Mi tutor: Gemini (tu clave de AI Studio)» —la IA en uso— con *Cambiar*** y, durante el examen, progreso y temporizador. En el cuerpo: mensajes, chips de fuente que abren el archivo en la página citada y bloques de ampliación con estilo diferenciado. Aviso cuando el docente actualiza el material (§6.1). Sin ninguna IA conectada, se abre *Mi tutor* |

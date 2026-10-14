@@ -8,6 +8,8 @@ const API = `${environment.apiUrl}/v1`;
 
 export interface Proveedores {
   proveedores: { id: string; nombre: string; configurado: boolean }[];
+  /** Se puede crear una cuenta con correo y contraseña y entrar con ella (RF-41). */
+  conClave: boolean;
   desarrollo: boolean;
 }
 
@@ -60,6 +62,15 @@ export class AccesoService {
 
   canjear(proveedor: string, code: string, state: string): Promise<ResultadoAcceso> {
     return firstValueFrom(this.http.post<ResultadoAcceso>(`${API}/acceso/${proveedor}/canje`, { code, state }));
+  }
+
+  /** El profesor entra al momento; el alumno recibe un registro para elegir a su profesor. */
+  crearCuenta(c: { email: string; nombre: string; clave: string; perfil: 'Alumno' | 'Docente' }): Promise<ResultadoAcceso> {
+    return firstValueFrom(this.http.post<ResultadoAcceso>(`${API}/acceso/cuenta`, c));
+  }
+
+  entrarConClave(email: string, clave: string, perfil: 'Alumno' | 'Docente'): Promise<Sesion> {
+    return firstValueFrom(this.http.post<Sesion>(`${API}/acceso/clave`, { email, clave, perfil }));
   }
 
   registrar(token: string, rol: 'Alumno' | 'Docente', profesorId: string | null): Promise<Sesion> {

@@ -48,6 +48,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> opciones)
             e.Property(u => u.Email).HasMaxLength(320).IsRequired();
             e.Property(u => u.Nombre).HasMaxLength(200).IsRequired();
             e.Property(u => u.Rol).HasConversion<string>().HasMaxLength(20);
+            e.Property(u => u.ClaveHash).HasMaxLength(200);
         });
 
         b.Entity<Curso>(e =>

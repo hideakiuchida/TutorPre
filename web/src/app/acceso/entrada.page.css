@@ -134,3 +134,53 @@ h1 {
   font-size: var(--t-pequeno);
   color: var(--grafito);
 }
+
+/* Correo y contraseña (RF-41), debajo de los proveedores. */
+.separador {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.5rem 0 1rem;
+  font-size: var(--t-pequeno);
+  color: var(--grafito);
+}
+
+.separador::before,
+.separador::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--pauta);
+}
+
+.modos {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.modo-clave {
+  flex: 1;
+}
+
+.modo-clave.activo {
+  border-color: var(--tinta);
+  box-shadow: inset 0 -3px 0 var(--upc);
+  font-weight: 600;
+}
+
+.con-clave {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.con-clave label {
+  margin-top: 0.4rem;
+  font-size: var(--t-pequeno);
+  font-weight: 600;
+}
+
+.con-clave .principal {
+  margin-top: 0.9rem;
+  padding: 0.8rem 1rem;
+  font-size: var(--t-lectura);
+}

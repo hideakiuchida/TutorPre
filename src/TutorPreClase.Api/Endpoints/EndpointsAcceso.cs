@@ -17,6 +17,9 @@ public sealed record RegistroPeticion(string Token, string Rol, Guid? ProfesorId
 /// </summary>
 public static class EndpointsAcceso
 {
+    /// <summary>Política de límite de intentos de las rutas con contraseña.</summary>
+    public const string LimiteClave = "clave";
+
     public static void MapearAcceso(this IEndpointRouteBuilder app, IHostEnvironment entorno)
     {
         var grupo = app.MapGroup("/api/v1/acceso");
@@ -24,8 +27,18 @@ public static class EndpointsAcceso
         grupo.MapGet("/proveedores", (ConexionIdentidad identidad) => Results.Ok(new
         {
             proveedores = identidad.Disponibles().Select(p => new { id = p.Id, nombre = p.Nombre, configurado = p.Configurado }),
+            conClave = identidad.ConClave,
             desarrollo = !entorno.IsProduction()
         })).AllowAnonymous();
+
+        // Cuenta con correo y contraseña (RF-41). Limitadas por IP contra el adivinado de claves.
+        grupo.MapPost("/cuenta", async (CuentaNuevaPeticion peticion, ConexionIdentidad identidad, CancellationToken ct) =>
+            Results.Ok(await identidad.CrearCuentaAsync(peticion, ct)))
+            .AllowAnonymous().RequireRateLimiting(LimiteClave);
+
+        grupo.MapPost("/clave", async (EntradaConClavePeticion peticion, ConexionIdentidad identidad, CancellationToken ct) =>
+            Results.Ok(await identidad.EntrarConClaveAsync(peticion, ct)))
+            .AllowAnonymous().RequireRateLimiting(LimiteClave);
 
         grupo.MapPost("/{proveedor}/inicio", (string proveedor, InicioAccesoPeticion? peticion, ConexionIdentidad identidad) =>
             Results.Ok(new { url = identidad.Iniciar(proveedor, peticion?.Perfil) })).AllowAnonymous();

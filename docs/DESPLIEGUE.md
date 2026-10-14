@@ -51,6 +51,7 @@ publica sin el CI en verde y no hay dos desplegadores compitiendo.
    | `Acceso__UrlRetorno` | `https://tutor-preclase.vercel.app/entrar` | ya está |
    | `Agentes__gemini__UrlRetorno` | `https://tutor-preclase.vercel.app/conectar/gemini` | la persona |
    | `Acceso__ClaveSesion` | 48 bytes aleatorios en Base64 | la persona |
+   | `Acceso__ConClave` | opcional: `false` quita la cuenta con correo y contraseña (RF-40; por defecto `true`) | — |
    | `Acceso__Proveedores__google__ClientId` | del JSON de Google en `secrets/` | la persona |
    | `Acceso__Proveedores__google__ClientSecret` | del JSON de Google en `secrets/` | la persona |
 

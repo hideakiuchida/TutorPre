@@ -17,7 +17,9 @@ API versionada bajo `/api/v1`, autenticada con la sesión que emite la propia AP
 | DELETE | /clases/{claseId}/alumnos/{alumnoId}/intentos | Docente | Reinicia los intentos de un alumno en el examen de la clase: borra los que rindió (preguntas, respuestas y nota), quita su nivel calculado y deja su chat en consulta. No se puede deshacer; todavía no tiene botón en el panel |
 | PUT | /clases/{claseId}/ampliacion | Docente | Activa o desactiva la ampliación del tutor en la clase (RF-20) |
 | POST | /examenes/{examenId}/publicar | Docente | Publica el examen (los de la carpeta ya nacen publicados) |
-| GET | /acceso/proveedores | Público | Proveedores de inicio de sesión configurados (hoy, solo Google) |
+| GET | /acceso/proveedores | Público | Proveedores de inicio de sesión configurados (hoy, solo Google) y `conClave`: si se admite correo y contraseña |
+| POST | /acceso/cuenta | Público, con tope por IP | `{ email, nombre, clave, perfil: Alumno\|Docente }`: crea la cuenta con contraseña (RF-41). Profesor → `{ sesion }`; alumno → `{ registro }` para elegir profesor. 409 `cuenta_existente`, 403 `cuenta_institucional` o `no_registrado`, 400 `clave_corta`/`correo_invalido`/`rol_invalido` |
+| POST | /acceso/clave | Público, con tope por IP | `{ email, clave, perfil? }` → sesión (RF-41). 401 `clave_incorrecta` o `cuenta_sin_clave`; 429 `demasiados_intentos` |
 | POST | /acceso/{proveedor}/inicio | Público | `{ perfil: Alumno\|Docente }` → URL de autorización con `state`, `nonce` y PKCE; el perfil queda en el servidor ligado al `state` (RF-31) |
 | POST | /acceso/{proveedor}/canje | Público | Canjea `{ code, state }`: devuelve `{ sesion }` si ya está registrado o `{ registro }` (primer acceso, falta elegir rol); 403 `no_registrado` con el registro cerrado |
 | POST | /acceso/registro | Público (con token de registro) | `{ token, rol: Alumno\|Docente, profesorId? }`: crea al usuario con el rol elegido y devuelve la sesión (RF-33) |

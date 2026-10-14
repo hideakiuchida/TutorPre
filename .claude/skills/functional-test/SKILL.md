@@ -1,6 +1,6 @@
 ---
 name: functional-test
-description: Prueba funcional del Tutor Pre-Clase trazada al SDD — recorre los requisitos RF-01 a RF-39 (inicio de sesión y pantallas por rol, Mi tutor con cuentas de IA por OAuth, claves de API propias y el servidor MCP, material condensado, examen pregunta a pregunta) y los RNF verificables a mano, en la web y por API, en local o en producción (Vercel + Railway), y reporta cuáles pasan, cuáles fallan y cuáles no están implementados. Úsalo cuando pidan probar la app entera, validarla antes de una demo, probar en producción, o comprobar que un cambio no rompió el flujo completo.
+description: Prueba funcional del Tutor Pre-Clase trazada al SDD — recorre los requisitos RF-01 a RF-41 (inicio de sesión con Google o con correo y contraseña, pantallas por rol, Mi tutor con cuentas de IA por OAuth, claves de API propias y el servidor MCP, material condensado, examen pregunta a pregunta) y los RNF verificables a mano, en la web y por API, en local o en producción (Vercel + Railway), y reporta cuáles pasan, cuáles fallan y cuáles no están implementados. Úsalo cuando pidan probar la app entera, validarla antes de una demo, probar en producción, o comprobar que un cambio no rompió el flujo completo.
 ---
 
 # Prueba funcional según el SDD
@@ -57,7 +57,7 @@ salida a la red (`SinRed` en `ApiDePruebas`). Pasan igual con el contenedor sin 
 (`docker run --network none … dotnet test --no-build`). Si una prueba nueva necesita un
 proveedor, se le da uno simulado: nunca una clave real.
 
-Gratis y en segundos: cubre RF-02 a RF-05, RF-08, RF-09, RF-12, RF-15, RF-21, RF-24 a RF-31, RF-33 y
+Gratis y en segundos: cubre RF-02 a RF-05, RF-08, RF-09, RF-12, RF-15, RF-21, RF-24 a RF-31, RF-33, RF-41 y
 RNF-10 a nivel de unidad e integración (el OIDC, con el proveedor simulado). Si algo falla ahí, arréglalo antes de abrir el navegador.
 
 Toma los identificadores: `curl -s http://localhost:5080/demo` → `$DOC`, `$ALU`, `$CLA`.
@@ -154,7 +154,7 @@ prueba de pantalla por `curl` en silencio; si decide seguir sin navegador, marca
 
 Con la conexión lista: `tabs_create_mcp` y navega a `http://localhost:4200`.
 
-**Entrada y roles.** La web solo ofrece OAuth con Google. Tú no inicias sesión en Google:
+**Entrada y roles.** La web ofrece *Continuar con Google* y, debajo, correo y contraseña (RF-41). Con correo y contraseña sí puedes crear tú **cuentas de prueba** (correo `…@prueba.test` generado al momento, contraseña inventada para la prueba; nunca la de una persona). Tú no inicias sesión en Google:
 lo hace la persona (elige su cuenta y vuelve). Solo si ella te lo autoriza
 en el chat puedes pulsar *Continuar con Google* y elegir **su** cuenta en el selector; si
 Google pide contraseña o verificación, para y avisa. Para las pantallas por rol sin OAuth, en desarrollo pide una sesión
@@ -171,6 +171,10 @@ con `POST /api/v1/acceso/desarrollo {"usuarioId":…}` y guárdala en la pestañ
 | RF-33 | Como alumna: la barra lateral dice *Con <profesor>*; **Cambiar** abre *Tu profesor* con la lista de profesores y sus cursos; *Volver sin cambiar* regresa al chat |
 | RF-33 | Primer acceso como alumno (pruebas .NET y, con una cuenta nueva, en pantalla): tras Google sale directo *Elige a tu profesor*; como profesor entra directo a su panel |
 | RF-33 | Un Alumno o un Docente contra `GET /admin/usuarios` → **403** |
+| RF-41 | Tras *Soy profesor* o *Soy alumno*, bajo *Continuar con Google* sale *o con tu correo y contraseña* con *Ya tengo cuenta* / *Crear cuenta*; `GET /acceso/proveedores` trae `conClave: true` |
+| RF-41 | *Soy profesor* → *Crear cuenta* (nombre, correo de prueba, contraseña de 8+) → *Crear mi cuenta*: entra directo a su panel. *Salir* → *Ya tengo cuenta* con la misma contraseña → panel; con otra contraseña → *Correo o contraseña incorrectos.* y ninguna sesión |
+| RF-41 | *Soy alumno* → *Crear cuenta*: sale *Hola, <nombre>* con *Elige a tu profesor*; al elegirlo y pulsar *Entrar* llega al chat solo con los cursos de ese profesor. Antes de elegir, el usuario no existe |
+| RF-41 | Por API: `POST /acceso/cuenta` con un correo ya registrado → **409** `cuenta_existente`; con `clave` de menos de 8 → **400** `clave_corta`; con `perfil: "Admin"` → **400** `rol_invalido`; `POST /acceso/clave` a una cuenta sin contraseña (p. ej. la alumna demo) → **401** `cuenta_sin_clave`. Nunca se devuelve el hash. Más de 20 intentos en un minuto desde la misma IP → **429** `demasiados_intentos` (no lo fuerces en producción salvo que lo pidan) |
 | RF-34 | Un docente que no es dueño del curso contra `GET /clases/$CLA/contenido` → **403**; el dueño → 200 |
 | RF-34 | Como docente: cada clase muestra su material (estado *Listo*, páginas, tokens), el interruptor de ampliación (apagado) y el reporte. En *Examen y tutor* hay un formulario con preguntas por examen, intentos, minutos por intento (o sin límite), cuándo se muestra la corrección (sin campos de fecha): cambia los intentos, pulsa *Guardar cambios* → sale *Guardado* y `GET /clases/$CLA/contenido` trae el valor nuevo en `examen`; un valor fuera de rango por API (`maxIntentos: 0`) responde **400**. Déjalo como estaba |
 | RF-32 | Al entrar como alumna sin ninguna IA conectada **no** hay redirección automática a Google: se abre *Mi tutor* en la pestaña *Con tu clave de API*, con Gemini (AI Studio) primero y los pasos para crear la clave gratis |

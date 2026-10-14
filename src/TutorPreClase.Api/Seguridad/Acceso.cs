@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
@@ -33,6 +34,12 @@ public sealed class OpcionesAcceso
     /// que nadie lo apruebe. Cerrado, solo entran los registrados (RF-33).
     /// </summary>
     public bool RegistroAbierto { get; set; } = true;
+
+    /// <summary>
+    /// Además de Google o Microsoft, crear una cuenta con correo y contraseña y entrar con
+    /// ella (RF-41). Sigue las mismas reglas de registro abierto o cerrado.
+    /// </summary>
+    public bool ConClave { get; set; } = true;
 
     /// <summary>Clave (base64, 32+ bytes) con la que la API firma sus sesiones.</summary>
     public string ClaveSesion { get; set; } = "";
@@ -124,6 +131,12 @@ public sealed record Sesion(string Token, UsuarioSesion Usuario);
 
 /// <summary>Primer acceso: la identidad ya está validada y falta que la persona elija su rol.</summary>
 public sealed record RegistroPendiente(string Token, string Email, string Nombre, string? Perfil = null);
+
+/// <summary>Crear una cuenta con correo y contraseña (RF-41).</summary>
+public sealed record CuentaNuevaPeticion(string Email, string Nombre, string Clave, string Perfil);
+
+/// <summary>Entrar con correo y contraseña (RF-41).</summary>
+public sealed record EntradaConClavePeticion(string Email, string Clave, string? Perfil);
 
 /// <summary>El canje da una sesión (usuario conocido) o un registro pendiente (primera vez).</summary>
 public sealed record ResultadoAcceso(Sesion? Sesion, RegistroPendiente? Registro);
@@ -259,6 +272,16 @@ public sealed class ConexionIdentidad(
             // El profesor cuya carpeta ya existía quedó registrado con su correo como nombre.
             if (usuario.Nombre == usuario.Email && nombre.Length > 0) usuario.Nombre = nombre;
 
+            // El proveedor prueba que el correo es de quien entra. Una contraseña creada antes
+            // sin esa prueba pudo ponerla otra persona: se descarta (RF-41).
+            if (!usuario.CorreoVerificado)
+            {
+                if (usuario.ClaveHash is not null)
+                    log.LogWarning("{Email} entró con {Proveedor}: se descarta la contraseña sin verificar", email, proveedor);
+                usuario.ClaveHash = null;
+                usuario.CorreoVerificado = true;
+            }
+
             // Quien entra como profesor lo es desde ahora (y puede seguir entrando como alumno).
             if (perfil == nameof(RolUsuario.Docente) && usuario.Rol == RolUsuario.Alumno)
                 usuario.Rol = RolUsuario.Docente;
@@ -269,7 +292,7 @@ public sealed class ConexionIdentidad(
 
         var o = opciones.Value;
         if (o.Administradores.Any(a => string.Equals(a.Trim(), email, StringComparison.OrdinalIgnoreCase)))
-            return new ResultadoAcceso(sesiones.Emitir(await CrearAsync(email, nombre, RolUsuario.Admin, null, ct)), null);
+            return new ResultadoAcceso(sesiones.Emitir(await CrearAsync(email, nombre, RolUsuario.Admin, null, null, ct)), null);
 
         if (!o.RegistroAbierto)
             throw new AccesoException("no_registrado",
@@ -278,7 +301,7 @@ public sealed class ConexionIdentidad(
 
         // Primera vez como profesor: no hay nada más que elegir.
         if (perfil == nameof(RolUsuario.Docente))
-            return new ResultadoAcceso(sesiones.Emitir(await CrearAsync(email, nombre, RolUsuario.Docente, null, ct)), null);
+            return new ResultadoAcceso(sesiones.Emitir(await CrearAsync(email, nombre, RolUsuario.Docente, null, null, ct)), null);
 
         // Primera vez como alumno (o sin perfil): falta elegir profesor (o el rol).
         var token = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(24));
@@ -287,6 +310,8 @@ public sealed class ConexionIdentidad(
 
         return new ResultadoAcceso(null, registro);
     }
+
+    public bool ConClave => opciones.Value.ConClave;
 
     public bool RegistroVigente(string? token) =>
         !string.IsNullOrEmpty(token) && cache.TryGetValue(ClaveRegistro(token), out RegistroPendiente? _);
@@ -311,14 +336,130 @@ public sealed class ConexionIdentidad(
             await ValidarProfesorAsync(profesorId, ct);
 
         cache.Remove(ClaveRegistro(token));
+        var claveHash = cache.Get<string>(ClaveRegistroConClave(token));
+        cache.Remove(ClaveRegistroConClave(token));
 
-        // Si entró dos veces a la vez, la segunda encuentra al usuario ya creado.
-        var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Email == registro.Email, ct)
+        // Si entró dos veces a la vez, la segunda encuentra al usuario ya creado. Con
+        // contraseña no: nadie entra a una cuenta existente solo por haber elegido una.
+        var existente = await db.Usuarios.FirstOrDefaultAsync(u => u.Email == registro.Email, ct);
+        if (existente is not null && claveHash is not null) throw CuentaExistente(registro.Email);
+
+        var usuario = existente
                       ?? await CrearAsync(registro.Email, registro.Nombre, eleccion,
-                          eleccion == RolUsuario.Alumno ? profesorId : null, ct);
+                          eleccion == RolUsuario.Alumno ? profesorId : null, claveHash, ct);
 
         return sesiones.Emitir(usuario);
     }
+
+    public const int LargoMinimoClave = 8;
+
+    /// <summary>
+    /// Crea una cuenta con correo y contraseña (RF-41). El profesor entra al momento; el
+    /// alumno recibe un registro pendiente para elegir a su profesor, como con Google.
+    /// El correo no se verifica: por eso nunca da rol de administrador, y si luego alguien
+    /// entra con Google o Microsoft con ese correo, la contraseña se descarta.
+    /// </summary>
+    public async Task<ResultadoAcceso> CrearCuentaAsync(CuentaNuevaPeticion peticion, CancellationToken ct)
+    {
+        var o = opciones.Value;
+        if (!o.ConClave)
+            throw new AccesoException("clave_no_disponible", "La plataforma no admite cuentas con contraseña.");
+
+        var email = NormalizarCorreo(peticion.Email);
+        var nombre = (peticion.Nombre ?? "").Trim();
+        var clave = peticion.Clave ?? "";
+
+        if (peticion.Perfil is not (nameof(RolUsuario.Alumno) or nameof(RolUsuario.Docente)))
+            throw new AccesoException("rol_invalido", "Elige si entras como alumno o como profesor.");
+        if (nombre.Length is 0 or > 200)
+            throw new AccesoException("nombre_invalido", "Escribe tu nombre.");
+        if (clave.Length < LargoMinimoClave)
+            throw new AccesoException("clave_corta", $"La contraseña debe tener al menos {LargoMinimoClave} caracteres.");
+        if (clave.Length > 128)
+            throw new AccesoException("clave_larga", "La contraseña no puede pasar de 128 caracteres.");
+
+        if (o.Administradores.Any(a => string.Equals(a.Trim(), email, StringComparison.OrdinalIgnoreCase)))
+            throw new AccesoException("cuenta_institucional",
+                "Esta cuenta es de administración: entra con Google o Microsoft.", StatusCodes.Status403Forbidden);
+
+        if (await db.Usuarios.AnyAsync(u => u.Email == email, ct)) throw CuentaExistente(email);
+
+        if (!o.RegistroAbierto)
+            throw new AccesoException("no_registrado",
+                $"La cuenta {email} no está registrada en la plataforma. Pide al administrador que te dé de alta.",
+                StatusCodes.Status403Forbidden);
+
+        var claveHash = Hasher.HashPassword(null!, clave);
+
+        if (peticion.Perfil == nameof(RolUsuario.Docente))
+            return new ResultadoAcceso(
+                sesiones.Emitir(await CrearAsync(email, nombre, RolUsuario.Docente, null, claveHash, ct)), null);
+
+        // El hash queda en el servidor; al navegador solo va el token del registro.
+        var token = Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(24));
+        var registro = new RegistroPendiente(token, email, nombre, nameof(RolUsuario.Alumno));
+        cache.Set(ClaveRegistro(token), registro, Vigencia);
+        cache.Set(ClaveRegistroConClave(token), claveHash, Vigencia);
+
+        return new ResultadoAcceso(null, registro);
+    }
+
+    /// <summary>
+    /// Entra con correo y contraseña (RF-41). El perfil funciona como con Google: un profesor
+    /// puede entrar como alumno y un alumno que entra como profesor pasa a serlo.
+    /// </summary>
+    public async Task<Sesion> EntrarConClaveAsync(EntradaConClavePeticion peticion, CancellationToken ct)
+    {
+        if (!opciones.Value.ConClave)
+            throw new AccesoException("clave_no_disponible", "La plataforma no admite cuentas con contraseña.");
+
+        var perfil = peticion.Perfil;
+        if (perfil is not null and not (nameof(RolUsuario.Alumno) or nameof(RolUsuario.Docente)))
+            throw new AccesoException("rol_invalido", "Elige si entras como alumno o como profesor.");
+
+        var email = (peticion.Email ?? "").Trim().ToLowerInvariant();
+        var usuario = email.Length == 0 ? null : await db.Usuarios.FirstOrDefaultAsync(u => u.Email == email, ct);
+
+        var resultado = usuario?.ClaveHash is { } hash
+            ? Hasher.VerifyHashedPassword(usuario, hash, peticion.Clave ?? "")
+            : PasswordVerificationResult.Failed;
+
+        if (usuario is null || resultado == PasswordVerificationResult.Failed)
+        {
+            // La cuenta existe pero no tiene contraseña: entra por su proveedor.
+            if (usuario is { ClaveHash: null })
+                throw new AccesoException("cuenta_sin_clave",
+                    "Esta cuenta entra con Google o Microsoft. Usa ese botón.", StatusCodes.Status401Unauthorized);
+
+            throw new AccesoException("clave_incorrecta", "Correo o contraseña incorrectos.", StatusCodes.Status401Unauthorized);
+        }
+
+        if (resultado == PasswordVerificationResult.SuccessRehashNeeded)
+            usuario.ClaveHash = Hasher.HashPassword(usuario, peticion.Clave!);
+
+        if (perfil == nameof(RolUsuario.Docente) && usuario.Rol == RolUsuario.Alumno)
+            usuario.Rol = RolUsuario.Docente;
+
+        await db.SaveChangesAsync(ct);
+        return sesiones.Emitir(usuario, perfil);
+    }
+
+    /// <summary>PBKDF2 con sal por usuario, el mismo de ASP.NET Core Identity.</summary>
+    private static readonly PasswordHasher<Usuario> Hasher = new();
+
+    private static string NormalizarCorreo(string? correo)
+    {
+        var email = (correo ?? "").Trim().ToLowerInvariant();
+        var arroba = email.IndexOf('@');
+        if (email.Length > 320 || arroba < 1 || arroba != email.LastIndexOf('@') ||
+            !email[(arroba + 1)..].Contains('.') || email.Any(char.IsWhiteSpace))
+            throw new AccesoException("correo_invalido", "Escribe un correo válido.");
+        return email;
+    }
+
+    private static AccesoException CuentaExistente(string email) =>
+        new("cuenta_existente", $"Ya hay una cuenta con {email}. Entra con tu contraseña o con Google o Microsoft.",
+            StatusCodes.Status409Conflict);
 
     public async Task ValidarProfesorAsync(Guid? profesorId, CancellationToken ct)
     {
@@ -326,14 +467,18 @@ public sealed class ConexionIdentidad(
             throw new AccesoException("profesor_invalido", "Elige a tu profesor de la lista.");
     }
 
-    private async Task<Usuario> CrearAsync(string email, string nombre, RolUsuario rol, Guid? profesorId, CancellationToken ct)
+    /// <summary>Sin <paramref name="claveHash"/>, la identidad vino de Google o Microsoft: correo verificado.</summary>
+    private async Task<Usuario> CrearAsync(
+        string email, string nombre, RolUsuario rol, Guid? profesorId, string? claveHash, CancellationToken ct)
     {
         var usuario = new Usuario
         {
             Email = email,
             Nombre = nombre.Length > 0 ? nombre : email,
             Rol = rol,
-            ProfesorId = profesorId
+            ProfesorId = profesorId,
+            ClaveHash = claveHash,
+            CorreoVerificado = claveHash is null
         };
         db.Usuarios.Add(usuario);
 
@@ -345,6 +490,8 @@ public sealed class ConexionIdentidad(
     }
 
     private static string ClaveRegistro(string token) => $"registro:{token}";
+
+    private static string ClaveRegistroConClave(string token) => $"registro-clave:{token}";
 
     private async Task<string> PedirTokenAsync(
         string proveedor, OpcionesProveedorIdentidad config, string codigo, string verificador, CancellationToken ct)

@@ -68,6 +68,38 @@
           </button>
         }
       </section>
+
+      @if (conClave()) {
+        @if (proveedores().length) {
+          <p class="separador"><span>o con tu correo y contraseña</span></p>
+        }
+
+        <div class="modos" role="group" aria-label="Correo y contraseña">
+          <button type="button" class="modo-clave" [class.activo]="modoClave() === 'entrar'"
+                  [attr.aria-pressed]="modoClave() === 'entrar'" (click)="cambiarModoClave('entrar')">Ya tengo cuenta</button>
+          <button type="button" class="modo-clave" [class.activo]="modoClave() === 'crear'"
+                  [attr.aria-pressed]="modoClave() === 'crear'" (click)="cambiarModoClave('crear')">Crear cuenta</button>
+        </div>
+
+        <form class="con-clave" (ngSubmit)="enviarClave()">
+          @if (modoClave() === 'crear') {
+            <label for="nombre">Tu nombre</label>
+            <input id="nombre" name="nombre" autocomplete="name" required maxlength="200" [(ngModel)]="nombre" />
+          }
+          <label for="correo">Correo</label>
+          <input id="correo" name="correo" type="email" autocomplete="email" required [(ngModel)]="correo" />
+          <label for="clave">Contraseña</label>
+          <input id="clave" name="clave" type="password" required minlength="8" maxlength="128"
+                 [autocomplete]="modoClave() === 'crear' ? 'new-password' : 'current-password'" [(ngModel)]="clave" />
+          @if (modoClave() === 'crear') {
+            <p class="ayuda">Al menos 8 caracteres.</p>
+          }
+          <button type="submit" class="principal"
+                  [disabled]="ocupado() || !correo || !clave || (modoClave() === 'crear' && (!nombre.trim() || clave.length < 8))">
+            {{ modoClave() === 'entrar' ? 'Entrar' : 'Crear mi cuenta' }}
+          </button>
+        </form>
+      }
     }
   }
 </main>

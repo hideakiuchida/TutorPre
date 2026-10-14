@@ -313,6 +313,144 @@ public class AccesoTests
 
         Assert.Equal("Docente", sesion.Usuario.Rol);
     }
+
+    private static CuentaNuevaPeticion Cuenta(string email, string perfil, string clave = "secreta-123") =>
+        new(email, "Persona Nueva", clave, perfil);
+
+    [Fact]
+    public async Task El_profesor_crea_su_cuenta_con_contrasena_y_vuelve_a_entrar_con_ella()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var (conexion, _) = Montar(banco);
+
+        var creada = await conexion.CrearCuentaAsync(Cuenta("Profe.Clave@Gmail.com", "Docente"), CancellationToken.None);
+        Assert.Equal("Docente", creada.Sesion!.Usuario.Rol);
+
+        var guardado = banco.Db.Usuarios.Single(u => u.Email == "profe.clave@gmail.com");
+        Assert.NotNull(guardado.ClaveHash);
+        Assert.DoesNotContain("secreta-123", guardado.ClaveHash);
+        Assert.False(guardado.CorreoVerificado);
+
+        var sesion = await conexion.EntrarConClaveAsync(
+            new EntradaConClavePeticion(" PROFE.clave@gmail.com ", "secreta-123", "Docente"), CancellationToken.None);
+        Assert.Equal((guardado.Id, "Docente"), (sesion.Usuario.Id, sesion.Usuario.Rol));
+
+        // También puede entrar como alumno, como con Google.
+        var comoAlumno = await conexion.EntrarConClaveAsync(
+            new EntradaConClavePeticion("profe.clave@gmail.com", "secreta-123", "Alumno"), CancellationToken.None);
+        Assert.Equal("Alumno", comoAlumno.Usuario.Rol);
+
+        var mala = await Assert.ThrowsAsync<AccesoException>(() => conexion.EntrarConClaveAsync(
+            new EntradaConClavePeticion("profe.clave@gmail.com", "otra-clave", null), CancellationToken.None));
+        Assert.Equal(("clave_incorrecta", 401), (mala.Codigo, mala.Estado));
+    }
+
+    [Fact]
+    public async Task El_alumno_con_contrasena_elige_a_su_profesor_antes_de_que_se_cree_su_cuenta()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var profesor = ProfesorDelCurso(banco);
+        var (conexion, _) = Montar(banco);
+
+        var resultado = await conexion.CrearCuentaAsync(Cuenta("alumno.clave@gmail.com", "Alumno"), CancellationToken.None);
+        Assert.Null(resultado.Sesion);
+        Assert.Equal(("alumno.clave@gmail.com", "Alumno"), (resultado.Registro!.Email, resultado.Registro.Perfil));
+        Assert.DoesNotContain(banco.Db.Usuarios, u => u.Email == "alumno.clave@gmail.com");
+
+        var sesion = await conexion.RegistrarAsync(resultado.Registro.Token, "Alumno", profesor.Id, CancellationToken.None);
+        Assert.Equal("Alumno", sesion.Usuario.Rol);
+        Assert.Equal(profesor.Id, banco.Db.Usuarios.Single(u => u.Id == sesion.Usuario.Id).ProfesorId);
+
+        var otra = await conexion.EntrarConClaveAsync(
+            new EntradaConClavePeticion("alumno.clave@gmail.com", "secreta-123", "Alumno"), CancellationToken.None);
+        Assert.Equal(sesion.Usuario.Id, otra.Usuario.Id);
+    }
+
+    [Theory]
+    [InlineData("sin-arroba", "Alumno", "secreta-123", "correo_invalido")]
+    [InlineData("a@b.com", "Alumno", "corta", "clave_corta")]
+    [InlineData("a@b.com", "Admin", "secreta-123", "rol_invalido")]
+    public async Task Una_cuenta_con_datos_invalidos_no_se_crea(string email, string perfil, string clave, string codigo)
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var (conexion, _) = Montar(banco);
+
+        var error = await Assert.ThrowsAsync<AccesoException>(
+            () => conexion.CrearCuentaAsync(Cuenta(email, perfil, clave), CancellationToken.None));
+
+        Assert.Equal(codigo, error.Codigo);
+    }
+
+    [Fact]
+    public async Task Nadie_toma_con_contrasena_una_cuenta_que_ya_existe_ni_una_de_administrador()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var alumna = banco.Db.Usuarios.Single();
+        var (conexion, _) = Montar(banco, administradores: ["directora@upc.edu.pe"]);
+
+        var existente = await Assert.ThrowsAsync<AccesoException>(
+            () => conexion.CrearCuentaAsync(Cuenta(alumna.Email, "Docente"), CancellationToken.None));
+        Assert.Equal(("cuenta_existente", 409), (existente.Codigo, existente.Estado));
+        Assert.Null(banco.Db.Usuarios.Single(u => u.Id == alumna.Id).ClaveHash);
+
+        var admin = await Assert.ThrowsAsync<AccesoException>(
+            () => conexion.CrearCuentaAsync(Cuenta("directora@upc.edu.pe", "Docente"), CancellationToken.None));
+        Assert.Equal("cuenta_institucional", admin.Codigo);
+
+        // La cuenta sin contraseña indica que entre por su proveedor.
+        var sinClave = await Assert.ThrowsAsync<AccesoException>(() => conexion.EntrarConClaveAsync(
+            new EntradaConClavePeticion(alumna.Email, "lo-que-sea-1", null), CancellationToken.None));
+        Assert.Equal("cuenta_sin_clave", sinClave.Codigo);
+    }
+
+    [Fact]
+    public async Task Un_registro_de_alumno_con_contrasena_no_entra_a_una_cuenta_creada_mientras_tanto()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var profesor = ProfesorDelCurso(banco);
+        var (conexion, proveedor) = Montar(banco);
+
+        var registro = (await conexion.CrearCuentaAsync(Cuenta("carrera@gmail.com", "Alumno"), CancellationToken.None)).Registro!;
+        await EntrarAsync(conexion, proveedor, "carrera@gmail.com", "Docente");
+
+        var error = await Assert.ThrowsAsync<AccesoException>(
+            () => conexion.RegistrarAsync(registro.Token, "Alumno", profesor.Id, CancellationToken.None));
+        Assert.Equal("cuenta_existente", error.Codigo);
+    }
+
+    [Fact]
+    public async Task Entrar_con_Google_descarta_una_contrasena_creada_sin_verificar_el_correo()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var (conexion, proveedor) = Montar(banco);
+
+        // Alguien crea una cuenta con un correo que no es suyo...
+        await conexion.CrearCuentaAsync(Cuenta("victima@gmail.com", "Docente"), CancellationToken.None);
+
+        // ...y la dueña real entra con Google: la contraseña ajena deja de servir.
+        var real = await EntrarAsync(conexion, proveedor, "victima@gmail.com", "Docente");
+        Assert.NotNull(real.Sesion);
+
+        var usuario = banco.Db.Usuarios.Single(u => u.Email == "victima@gmail.com");
+        Assert.Null(usuario.ClaveHash);
+        Assert.True(usuario.CorreoVerificado);
+
+        var error = await Assert.ThrowsAsync<AccesoException>(() => conexion.EntrarConClaveAsync(
+            new EntradaConClavePeticion("victima@gmail.com", "secreta-123", null), CancellationToken.None));
+        Assert.Equal("cuenta_sin_clave", error.Codigo);
+    }
+
+    [Fact]
+    public async Task Con_registro_cerrado_no_se_crean_cuentas_con_contrasena()
+    {
+        using var banco = new BancoDePruebas().Sembrar();
+        var (conexion, _) = Montar(banco, registroAbierto: false);
+
+        var error = await Assert.ThrowsAsync<AccesoException>(
+            () => conexion.CrearCuentaAsync(Cuenta("nadie@gmail.com", "Docente"), CancellationToken.None));
+
+        Assert.Equal(("no_registrado", 403), (error.Codigo, error.Estado));
+    }
 }
 
 public class CredencialesEnCarpetaTests
@@ -377,6 +515,38 @@ public class SesionApiTests
         }));
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await falsa.GetAsync("/api/v1/acceso/yo")).StatusCode);
+    }
+
+    [Fact]
+    public async Task La_cuenta_con_contrasena_se_crea_y_abre_la_api_por_http()
+    {
+        using var api = new ApiDePruebas();
+        api.Sembrar();
+        var cliente = api.CreateClient();
+
+        var proveedores = await cliente.GetFromJsonAsync<JsonElement>("/api/v1/acceso/proveedores");
+        Assert.True(proveedores.GetProperty("conClave").GetBoolean());
+
+        var creada = await cliente.PostAsJsonAsync("/api/v1/acceso/cuenta", new
+        {
+            email = "http.profe@gmail.com", nombre = "Profe Http", clave = "secreta-123", perfil = "Docente"
+        });
+        Assert.Equal(HttpStatusCode.OK, creada.StatusCode);
+
+        var entrada = await cliente.PostAsJsonAsync("/api/v1/acceso/clave", new
+        {
+            email = "http.profe@gmail.com", clave = "secreta-123", perfil = "Docente"
+        });
+        var token = (await entrada.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString()!;
+
+        var conSesion = api.CreateClient();
+        conSesion.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var yo = await conSesion.GetFromJsonAsync<JsonElement>("/api/v1/acceso/yo");
+        Assert.Equal("Docente", yo.GetProperty("rol").GetString());
+
+        var mala = await cliente.PostAsJsonAsync("/api/v1/acceso/clave", new { email = "http.profe@gmail.com", clave = "mala-clave" });
+        Assert.Equal(HttpStatusCode.Unauthorized, mala.StatusCode);
+        Assert.Equal("clave_incorrecta", (await mala.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("error").GetString());
     }
 
     [Fact]

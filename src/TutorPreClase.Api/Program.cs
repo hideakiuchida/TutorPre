@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Threading.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using TutorPreClase.Api.Endpoints;
 using TutorPreClase.Api.Mcp;
@@ -51,6 +52,29 @@ builder.Services.AddOptions<OpcionesAgentes>()
 builder.Services.AddSingleton<ServicioSesion>();
 builder.Services.AddScoped<ConexionIdentidad>();
 builder.Services.AddHttpClient("identidad", c => c.Timeout = TimeSpan.FromSeconds(20));
+
+// Crear cuenta y entrar con contraseña (RF-41): un tope de intentos por IP frena a quien
+// prueba claves. Detrás del proxy de Railway, la IP real es la última de X-Forwarded-For
+// (la agrega el proxy; las anteriores las puede inventar el cliente).
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.OnRejected = (contexto, ct) => new ValueTask(contexto.HttpContext.Response.WriteAsJsonAsync(new
+    {
+        error = "demasiados_intentos",
+        mensaje = "Demasiados intentos seguidos. Espera un minuto y vuelve a intentarlo."
+    }, ct));
+    o.AddPolicy(EndpointsAcceso.LimiteClave, contexto =>
+    {
+        var reenviada = contexto.Request.Headers["X-Forwarded-For"].ToString().Split(',').LastOrDefault()?.Trim();
+        var ip = string.IsNullOrEmpty(reenviada) ? contexto.Connection.RemoteIpAddress?.ToString() ?? "" : reenviada;
+        return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = builder.Configuration.GetValue("Acceso:IntentosClavePorMinuto", 20),
+            Window = TimeSpan.FromMinutes(1)
+        });
+    });
+});
 
 const string EsquemaMixto = "Mixto";
 var esProduccion = builder.Environment.IsProduction();
@@ -105,6 +129,7 @@ app.UseStatusCodePages();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 // Los errores de negocio del examen viajan como 409 con su codigo, no como 500.
 app.Use(async (contexto, siguiente) =>
@@ -180,6 +205,10 @@ if (app.Environment.IsDevelopment())
         // Ni agrega columnas: el reloj del intento ahora se puede pausar.
         await EsquemaSqlite.AgregarColumnaAsync(db, "intento", "PausadoDesde", "INTEGER NULL");
         await EsquemaSqlite.AgregarColumnaAsync(db, "intento", "SegundosEnPausa", "INTEGER NOT NULL DEFAULT 0");
+
+        // Y la cuenta con correo y contraseña (RF-41).
+        await EsquemaSqlite.AgregarColumnaAsync(db, "usuario", "ClaveHash", "TEXT NULL");
+        await EsquemaSqlite.AgregarColumnaAsync(db, "usuario", "CorreoVerificado", "INTEGER NOT NULL DEFAULT 0");
     }
 
     await DatosIniciales.SembrarAsync(db, AgentesVigentes(app));

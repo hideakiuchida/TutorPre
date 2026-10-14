@@ -1,16 +1,18 @@
 import { Component, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { AccesoService, Profesor, RegistroPendiente, ResultadoAcceso } from '../datos/acceso.service';
 import { SesionService } from '../datos/sesion.service';
 import { ElegirProfesor } from './elegir-profesor';
 
 /**
- * Página de entrada de todos los roles (RF-31). La persona entra con su cuenta de Google;
+ * Página de entrada de todos los roles (RF-31). La persona entra con su cuenta de Google o
+ * Microsoft, o con un correo y contraseña creados aquí (RF-41);
  * al volver del proveedor (/entrar/{proveedor}?code=…) se canjea el código. La
  * primera vez elige si es alumno (y de qué profesor) o profesor (RF-33).
  */
 @Component({
   selector: 'app-entrada',
-  imports: [ElegirProfesor],
+  imports: [FormsModule, ElegirProfesor],
   templateUrl: './entrada.page.html',
   styleUrl: './entrada.page.css',
 })
@@ -24,6 +26,13 @@ export class EntradaPage {
 
   /** Lo primero que se elige: con qué perfil se entra. Luego, el proveedor. */
   readonly perfil = signal<'Alumno' | 'Docente' | null>(null);
+
+  // Correo y contraseña (RF-41)
+  readonly conClave = signal(false);
+  readonly modoClave = signal<'entrar' | 'crear'>('entrar');
+  nombre = '';
+  correo = '';
+  clave = '';
 
   // Primer acceso
   readonly registro = signal<RegistroPendiente | null>(null);
@@ -86,7 +95,9 @@ export class EntradaPage {
     if (await this.completarRetorno()) return;
 
     try {
-      this.proveedores.set((await this.acceso.proveedores()).proveedores);
+      const disponibles = await this.acceso.proveedores();
+      this.proveedores.set(disponibles.proveedores);
+      this.conClave.set(disponibles.conClave);
     } catch {
       this.error.set('No se pudo conectar con la plataforma. Inténtalo en un momento.');
     }
@@ -107,6 +118,29 @@ export class EntradaPage {
       this.error.set(e?.error?.mensaje ?? 'No se pudo iniciar sesión.');
       this.ocupado.set(false);
     }
+  }
+
+  /** Entra con su contraseña, o crea la cuenta: el alumno nuevo pasa a elegir profesor. */
+  async enviarClave(): Promise<void> {
+    const perfil = this.perfil() ?? 'Alumno';
+    this.error.set('');
+    this.ocupado.set(true);
+    try {
+      if (this.modoClave() === 'entrar') {
+        this.sesion.establecer(await this.acceso.entrarConClave(this.correo, this.clave, perfil));
+      } else {
+        this.recibir(await this.acceso.crearCuenta({ email: this.correo, nombre: this.nombre, clave: this.clave, perfil }));
+      }
+      this.clave = '';
+    } catch (e: any) {
+      this.error.set(e?.error?.mensaje ?? (this.modoClave() === 'entrar' ? 'No se pudo iniciar sesión.' : 'No se pudo crear la cuenta.'));
+      this.ocupado.set(false);
+    }
+  }
+
+  cambiarModoClave(modo: 'entrar' | 'crear'): void {
+    this.modoClave.set(modo);
+    this.error.set('');
   }
 
   /** El proveedor vuelve con ?code=…&state=…: se canjea y se limpia la URL. */

@@ -11,6 +11,18 @@ public class Usuario
     /// <summary>Solo alumnos: el profesor que eligió; ve únicamente los cursos de ese profesor.</summary>
     public Guid? ProfesorId { get; set; }
 
+    /// <summary>
+    /// Hash de la contraseña de quien creó su cuenta con correo y contraseña (RF-41); nulo si
+    /// solo entra con Google o Microsoft.
+    /// </summary>
+    public string? ClaveHash { get; set; }
+
+    /// <summary>
+    /// True cuando la persona ya entró con Google o Microsoft con este correo: eso prueba que
+    /// es suya. Una contraseña creada antes, sin esa prueba, se descarta en ese momento.
+    /// </summary>
+    public bool CorreoVerificado { get; set; }
+
     public List<Matricula> Matriculas { get; set; } = [];
 }
 

@@ -24,7 +24,7 @@ Medir los conocimientos previos del alumno, cerrar sus vacíos con un tutor que 
 
 ## 1.2 Alcance
 
-- Incluye: inicio de sesión con Google y pantallas por rol (alumno, docente, administrador), un chatbot único para el alumno (examen, revisión de errores y consultas sobre el tema), agente tutor proxy anclado al contenido del docente, conexión de la IA de cada alumno (clave de API propia, cuenta de Google para Gemini o su propio asistente por MCP), contenido por clase copiado a una carpeta, examen generado por la IA para cada alumno, calificación automática, clasificación de nivel del alumno y reportes para el docente.
+- Incluye: inicio de sesión con Google o con correo y contraseña, y pantallas por rol (alumno, docente, administrador), un chatbot único para el alumno (examen, revisión de errores y consultas sobre el tema), agente tutor proxy anclado al contenido del docente, conexión de la IA de cada alumno (clave de API propia, cuenta de Google para Gemini o su propio asistente por MCP), contenido por clase copiado a una carpeta, examen generado por la IA para cada alumno, calificación automática, clasificación de nivel del alumno y reportes para el docente.
 - Excluye (v1): cualquier interfaz de examen fuera del chat (formularios, botones de alternativas), consumo de suscripciones de chat (claude.ai Pro, ChatGPT Plus) — no existe API para ello —, videoconferencia, pagos, integración con LMS externos (Moodle/Blackboard) y preguntas de respuesta abierta calificadas por IA.
 
 ## 1.3 Actores

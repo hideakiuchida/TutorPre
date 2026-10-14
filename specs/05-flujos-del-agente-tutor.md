@@ -30,7 +30,7 @@ flowchart LR
 
 ## 5.0 Inicio de sesión y rol
 
-Todos entran por la misma página (RF-31). **Primero eligen el perfil** (*Soy alumno* / *Soy profesor*) y después entran con *Continuar con Google*:
+Todos entran por la misma página (RF-31). **Primero eligen el perfil** (*Soy alumno* / *Soy profesor*) y después entran con *Continuar con Google* o con su correo y contraseña (RF-41, ver más abajo):
 
 1. La web pide a la API la URL del proveedor con el perfil elegido (`POST /acceso/{proveedor}/inicio { perfil }`); la API genera `state`, `nonce` y el verificador PKCE y los guarda 10 minutos **junto con el perfil**, que así no viaja por la URL ni se puede alterar al volver.
 2. La persona inicia sesión en Google y vuelve a `/entrar/{proveedor}?code=…&state=…`.
@@ -45,7 +45,14 @@ Todos entran por la misma página (RF-31). **Primero eligen el perfil** (*Soy al
 5. La API emite su propia sesión (JWT firmado por ella, 12 h) con el rol que el usuario tiene **en la plataforma**, no en el proveedor. La web la envía como `Authorization: Bearer` y lleva a cada rol a su pantalla: el alumno al chat, el docente a su panel y el administrador a la gestión de usuarios.
 6. **Alumno sin IA conectada (RF-32):** tras entrar, la web le abre *Mi tutor* (§5.1) en la pestaña *Con tu clave de API*. No se le reenvía solo a ningún proveedor: elige él cómo conectarla, y mientras no conecte ninguna el chat no deja escribir.
 
-La página solo ofrece OAuth, con un único botón: *Continuar con Google*, igual para alumno y profesor. La entrada con Microsoft (Outlook) se retiró; el canje es OIDC genérico y la web pinta un botón por cada proveedor de la configuración de la API, así que volver a ofrecerlo es añadirlo ahí. Si el proveedor no tiene `ClientId`, el botón avisa que no está configurado. Fuera de producción, la API mantiene `/acceso/desarrollo` para las pruebas automáticas y por `curl`, pero la web no lo muestra.
+**Con correo y contraseña (RF-41).** Debajo del botón de Google, *o con tu correo y contraseña*, hay dos opciones: *Ya tengo cuenta* (correo y contraseña) y *Crear cuenta* (nombre, correo y contraseña de 8 caracteres o más).
+
+- *Crear cuenta* llama a `POST /acceso/cuenta { email, nombre, clave, perfil }`. Como **profesor**, crea al usuario y devuelve la sesión. Como **alumno**, devuelve el mismo **registro pendiente** que Google: elige a su profesor y `POST /acceso/registro` crea la cuenta; el hash de la contraseña queda en el servidor, ligado al token del registro, y no viaja al navegador.
+- *Ya tengo cuenta* llama a `POST /acceso/clave { email, clave, perfil }`. El perfil funciona igual que con Google: un profesor puede entrar como alumno y un alumno que entra como profesor pasa a serlo. Un error devuelve 401 `clave_incorrecta` (*Correo o contraseña incorrectos*); si la cuenta existe pero no tiene contraseña, `cuenta_sin_clave` (*entra con Google*).
+- La contraseña se guarda como hash PBKDF2 con sal (el de ASP.NET Core Identity), nunca en claro. El correo **no se verifica**, por eso: no se crea con contraseña una cuenta que ya existe (409 `cuenta_existente`) ni la de un correo de `Acceso:Administradores` (403 `cuenta_institucional`); y la primera vez que alguien entra con Google con ese correo, prueba que es suyo y la contraseña creada sin esa prueba se descarta.
+- Las dos rutas tienen un tope de intentos por IP (`Acceso:IntentosClavePorMinuto`, 20 por defecto; 429 `demasiados_intentos`). Con `Acceso:ConClave = false` la página no muestra el formulario. Con el registro cerrado no se crean cuentas (403 `no_registrado`), pero quien ya tiene contraseña entra.
+
+La página ofrece un único botón de proveedor: *Continuar con Google*, igual para alumno y profesor. La entrada con Microsoft (Outlook) se retiró; el canje es OIDC genérico y la web pinta un botón por cada proveedor de la configuración de la API, así que volver a ofrecerlo es añadirlo ahí. Si el proveedor no tiene `ClientId`, el botón avisa que no está configurado. Fuera de producción, la API mantiene `/acceso/desarrollo` para las pruebas automáticas y por `curl`, pero la web no lo muestra.
 
 ## 5.1 Conexión del agente
 
